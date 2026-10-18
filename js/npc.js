@@ -150,7 +150,11 @@ const NPC = {
       [-20, 454, Math.PI], [20, 454, Math.PI],
       [-24, 300, Math.PI], [24, 300, Math.PI],
       [-14, -122, Math.PI], [14, -122, Math.PI],
-      [-18, -452, 0], [18, -452, 0]
+      [-18, -452, 0], [18, -452, 0],
+      [-40, 300, Math.PI], [40, 300, Math.PI],
+      [-30, -80, Math.PI], [30, -80, Math.PI],
+      [-30, -280, Math.PI], [30, -280, Math.PI],
+      [-10, 430, Math.PI], [10, 430, Math.PI]
     ];
     const staticGeos = new Map();
     for (const s of statics) {
@@ -179,7 +183,9 @@ const NPC = {
       { pts: [[-70, 150], [70, 150]], speed: 1.0, phase: 0.25 },
       { pts: [[70, 250], [-70, 250]], speed: 1.0, phase: 0.75 },
       { pts: [[-38, -100], [-38, -190]], speed: 1.0, phase: 0.4 },
-      { pts: [[38, -190], [38, -100]], speed: 1.0, phase: 0.8 }
+      { pts: [[38, -190], [38, -100]], speed: 1.0, phase: 0.8 },
+      { pts: [[-120, 120], [-120, 260]], speed: 0.95, phase: 0.2 },
+      { pts: [[120, 260], [120, 120]], speed: 0.95, phase: 0.7 }
     ];
     for (const r of routes) {
       const guard = this.makeGuard();
@@ -197,7 +203,9 @@ const NPC = {
     /* 宫女两名（后三宫巡游） */
     const maidRoutes = [
       { pts: [[-9, -130], [-9, -250]], speed: 0.9, phase: 0.3 },
-      { pts: [[9, -250], [9, -130]], speed: 0.9, phase: 0.8 }
+      { pts: [[9, -250], [9, -130]], speed: 0.9, phase: 0.8 },
+      { pts: [[-26, -318], [-26, -352], [-6, -352]], speed: 0.8, phase: 0.1 },
+      { pts: [[10, -352], [30, -352], [30, -318]], speed: 0.8, phase: 0.6 }
     ];
     this.maids = [];
     for (const r of maidRoutes) {
@@ -214,7 +222,9 @@ const NPC = {
       { pts: [[-40, -300], [-62, -320], [-50, -344]], speed: 0.5, phase: 0.6 },
       { pts: [[40, 200], [60, 218], [38, 236]], speed: 0.6, phase: 0.35 },
       { pts: [[-64, -350], [-46, -368], [-62, -386]], speed: 0.5, phase: 0.2 },
-      { pts: [[-18, 262], [16, 262], [2, 276]], speed: 0.55, phase: 0.65 }
+      { pts: [[-18, 262], [16, 262], [2, 276]], speed: 0.55, phase: 0.65 },
+      { pts: [[-62, 60], [-40, 82], [-58, 104]], speed: 0.5, phase: 0.3 },
+      { pts: [[24, -182], [44, -192], [22, -204]], speed: 0.45, phase: 0.55 }
     ];
     this.cats = [];
     for (const r of catRoutes) {
