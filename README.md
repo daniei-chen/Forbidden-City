@@ -98,7 +98,7 @@
 | 方式 | 说明 |
 | --- | --- |
 | 在线体验 | <https://daniei-chen.github.io/Forbidden-City/>（GitHub Pages） |
-| 单文件（推荐） | 从 [Releases](https://github.com/daniei-chen/Forbidden-City/releases) 下载 `forbidden-city.html`，或双击 `dist/forbidden-city.html`（约 935 KB，所有代码与资源已内联） |
+| 单文件（推荐） | 从 [Releases](https://github.com/daniei-chen/Forbidden-City/releases) 下载 `forbidden-city.html`，或双击 `dist/forbidden-city.html`（约 10.4 MB，代码 + CC0 素材已内联） |
 | 开发入口 | 双击 `index.html`（从 `js/` 加载模块，便于修改调试） |
 
 若浏览器对本地文件有限制，也可在项目目录起静态服务器：
@@ -113,7 +113,7 @@ python -m http.server 8080    # 打开 http://localhost:8080
 - **补建建筑群**：体仁阁 / 弘义阁（两层、单檐庑殿 + 腰檐 + 平座）、文华殿 / 武英殿（门—正殿—穿廊—后殿院落）、御花园（钦安殿 / 天一门 / 万春亭 / 千秋亭（上圆下方）/ 浮碧亭 / 澄瑞亭 / 堆秀山 + 御景亭）
 - **神武门内**：顺贞门（三座琉璃门）、延和门 / 集福门、承光门、北横街宫墙、东西马道漫坡
 - **可漫游小人**：程序化卡通角色（官帽 / 朱袍 / 金边），第三人称相机，行走 / 奔跑 / 跳跃物理与肢体动画；可第一/第三人称切换（X），与建筑碰撞、可跳上矮台、可进三殿
-- **性能优化**：高画质像素比 2→1.5、阴影按需更新（静止 8 帧 / 行走 3 帧）、SSAO 深度 pass 分辨率 0.6→0.45 且剔除远处小物体、MSAA 4→2、室内点光 3→1
+- **真实 CC0 素材**：Poly Haven `chinese_garden` HDRI 作为环境光（按主题染色），`clay_roof_tiles_02` / `marble_01` / `stone_tiles_02` / `grey_plaster` 提供瓦面、汉白玉、金砖、宫墙的 PBR 法线与粗糙度；瓦面经"去色→琉璃金黄着色"保留真实瓦垄光影（清单见 [ASSETS.md](ASSETS.md)）`n- **性能优化**：高画质像素比 2→1.5、阴影按需更新（静止 8 帧 / 行走 3 帧）、SSAO 深度 pass 分辨率 0.6→0.45 且剔除远处小物体、MSAA 4→2、室内点光 3→1
 - **新增细部**：铜缸（太平缸）12 座、三台/月台螭首排水兽首、屋顶瓦面纹理升级 512（6 垄/幅）
 - **稳定性修复**：SSAO 深度解码修正（解决远景发灰/画面不稳定）、纹理各向异性抑制远景闪烁、自动降级改为一次性、透明贴地贴片偏移修正、相机远平面收紧提升深度精度
 - **环境声**：首次交互后开启风声/鸟鸣/脚步/跳跃声（N 键静音，WebAudio 合成无外部资源）
@@ -189,7 +189,7 @@ forbidden-city/
 │  ├─ details.js         精细构件：铜鼎 / 树木 / 斗拱 / 铜龟铜鹤
 │  ├─ avatar.js          可漫游小人（模型 / 动画 / 第三人称）
 │  ├─ npc.js             宫廷人物（侍卫站岗 / 巡游）
-│  ├─ effects.js         雪粒子 / 星空 / 宫灯 / 雪地脚印（各 1 个 draw call）
+│  ├─ effects.js         雪粒子 / 星空 / 宫灯 / 雪地脚印（各 1 个 draw call）`n│  ├─ assets.js          真实素材加载（HDRI / PBR，失败回退程序化）
 │  ├─ post.js            后期：HDR 目标 → 显示空间调色 / 暗角 / 颗粒（天空单独处理）
 │  └─ main.js            渲染器、主题系统、轨道相机、巡礼、画质、输入、UI
 ├─ tools/
@@ -253,9 +253,9 @@ npm run shots     # 批量渲染机位截图
 - 性能未在真实 GPU 实测（无头环境为软件渲染），已内置 FPS 监控与自动降级
 ## 版本
 
-见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.2.0**。
+见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.3.0**。
 
-## 许可与致谢
+## 外部素材（CC0）`n`n本项目使用 [Poly Haven](https://polyhaven.com) 的 CC0 素材（HDRI 与 PBR 贴图），完整来源、ID 与授权见 **[ASSETS.md](ASSETS.md)**。开发模式从 `assets/` 读取；单文件构建时由 `tools/build.mjs` 自动内联为 base64。`n`n## 许可与致谢
 
 - 本项目代码以 **MIT License** 发布（见 [LICENSE](LICENSE)）。
 - 捆绑的 `three.min.js` 为 [three.js](https://threejs.org) r149，MIT License，© mrdoob and three.js authors，其版权头保留在文件中。

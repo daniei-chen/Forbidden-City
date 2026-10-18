@@ -44,6 +44,33 @@ for (const rel of inlined) {
   );
 }
 
+/* ---------- 2.5 内联真实素材（CC0）为 base64 ---------- */
+const assetFiles = [
+  'hdri/chinese_garden_equirect.png',
+  'textures/roof/diff.jpg', 'textures/roof/nor.jpg', 'textures/roof/rough.jpg',
+  'textures/marble/diff.jpg', 'textures/marble/nor.jpg', 'textures/marble/rough.jpg',
+  'textures/stone/diff.jpg', 'textures/stone/nor.jpg', 'textures/stone/rough.jpg',
+  'textures/plaster/diff.jpg', 'textures/plaster/nor.jpg', 'textures/plaster/rough.jpg'
+];
+const assetData = {};
+let assetBytes = 0;
+for (const rel of assetFiles) {
+  const abs = path.join(root, 'assets', rel);
+  if (!fs.existsSync(abs)) { console.log('[build] 跳过缺失素材: ' + rel); continue; }
+  const buf = fs.readFileSync(abs);
+  assetBytes += buf.length;
+  const ext = path.extname(rel).toLowerCase();
+  const mime = ext === '.png' ? 'image/png' : 'image/jpeg';
+  assetData[rel] = 'data:' + mime + ';base64,' + buf.toString('base64');
+}
+if (Object.keys(assetData).length) {
+  const assetScript = '<script>window.__ASSET_DATA__ = ' + JSON.stringify(assetData) + ';</script>';
+  out = out.replace('<body>', '<body>\n' + assetScript);
+  console.log('[build] 内联素材 ' + Object.keys(assetData).length + ' 个，' +
+    (assetBytes / 1048576).toFixed(2) + ' MB（base64 后约 ' +
+    (out.length / 1048576).toFixed(1) + ' MB HTML）');
+}
+
 /* ---------- 3. 构建信息 ---------- */
 const stamp = new Date().toISOString();
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -77,6 +104,7 @@ const info = {
   version,
   buildTime: stamp,
   files: inlined,
+  assets: Object.keys(assetData),
   sizeBytes: Buffer.byteLength(out, 'utf8'),
   sha256_16: hash
 };

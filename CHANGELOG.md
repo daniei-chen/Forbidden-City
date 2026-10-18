@@ -1,5 +1,17 @@
 # 更新日志
 
+## v5.3.0 — 真实素材接入（CC0）
+
+**新增**
+- 真实 HDRI 环境光：Poly Haven `chinese_garden`（CC0，HDR 转 equirect PNG），按四时段主题染色后生成 PMREM 环境贴图
+- PBR 材质：`clay_roof_tiles_02`（瓦面法线/粗糙度）、`marble_01`（汉白玉）、`stone_tiles_02`（金砖地面）、`grey_plaster`（宫墙灰泥法线/粗糙度）
+- 琉璃瓦着色管线：真实瓦面先去色保留瓦垄光影，再以 color/soft-light 混合成琉璃金黄（黑琉璃瓦同理走深灰蓝）
+- 素材清单与授权：[ASSETS.md](ASSETS.md)（Poly Haven CC0）
+- 单文件构建自动内联素材（base64），dist 约 10.4 MB；开发模式读取 `assets/`，不可用时自动回退纯程序化
+
+**说明**
+- 素材仅用于光照/材质层；几何仍为程序化建模（混合路线第一步）
+- 可通过 `?noassets=1` 关闭真实素材做 A/B 对比
 ## v5.2.0 — 帧率与细部
 
 **性能优化（真实 GPU 收益显著）**

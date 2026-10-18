@@ -121,29 +121,36 @@
   let pmrem = null, envRT = null;
   function updateEnvironment(themeName) {
     const th = CONFIG.themes[themeName] || CONFIG.themes.day;
-    const W = 256, H = 128;
-    const cv = document.createElement('canvas');
-    cv.width = W; cv.height = H;
-    const g = cv.getContext('2d');
-    const topCol = '#' + new THREE.Color(th.skyTop).getHexString();
-    const botCol = '#' + new THREE.Color(th.skyBottom).getHexString();
-    const grd = g.createLinearGradient(0, 0, 0, H);
-    grd.addColorStop(0, topCol);
-    grd.addColorStop(0.55, botCol);
-    grd.addColorStop(0.60, '#b9ab93');
-    grd.addColorStop(1, '#585048');
-    g.fillStyle = grd;
-    g.fillRect(0, 0, W, H);
-    const sun = new THREE.Vector3(th.sunPos[0], th.sunPos[1], th.sunPos[2]).normalize();
-    const su = (Math.atan2(sun.x, sun.z) / (Math.PI * 2) + 0.5) * W;
-    const sv = (0.5 - Math.asin(sun.y) / Math.PI) * H;
-    const sg = g.createRadialGradient(su, sv, 0, su, sv, 22);
-    sg.addColorStop(0, 'rgba(255,244,214,0.95)');
-    sg.addColorStop(0.4, 'rgba(255,232,180,0.35)');
-    sg.addColorStop(1, 'rgba(255,232,180,0)');
-    g.fillStyle = sg;
-    g.fillRect(0, 0, W, H);
-    const tex = new THREE.CanvasTexture(cv);
+    let envCanvas = null;
+    /* 优先使用真实 HDRI（CC0，按主题染色）；不可用时回退程序化天空 */
+    if (typeof ASSETS !== 'undefined' && ASSETS.envReady) {
+      envCanvas = ASSETS.tintedEquirect(themeName);
+    }
+    if (!envCanvas) {
+      const W = 256, H = 128;
+      envCanvas = document.createElement('canvas');
+      envCanvas.width = W; envCanvas.height = H;
+      const g = envCanvas.getContext('2d');
+      const topCol = '#' + new THREE.Color(th.skyTop).getHexString();
+      const botCol = '#' + new THREE.Color(th.skyBottom).getHexString();
+      const grd = g.createLinearGradient(0, 0, 0, H);
+      grd.addColorStop(0, topCol);
+      grd.addColorStop(0.55, botCol);
+      grd.addColorStop(0.60, '#b9ab93');
+      grd.addColorStop(1, '#585048');
+      g.fillStyle = grd;
+      g.fillRect(0, 0, W, H);
+      const sun = new THREE.Vector3(th.sunPos[0], th.sunPos[1], th.sunPos[2]).normalize();
+      const su = (Math.atan2(sun.x, sun.z) / (Math.PI * 2) + 0.5) * W;
+      const sv = (0.5 - Math.asin(sun.y) / Math.PI) * H;
+      const sg = g.createRadialGradient(su, sv, 0, su, sv, 22);
+      sg.addColorStop(0, 'rgba(255,244,214,0.95)');
+      sg.addColorStop(0.4, 'rgba(255,232,180,0.35)');
+      sg.addColorStop(1, 'rgba(255,232,180,0)');
+      g.fillStyle = sg;
+      g.fillRect(0, 0, W, H);
+    }
+    const tex = new THREE.CanvasTexture(envCanvas);
     tex.mapping = THREE.EquirectangularReflectionMapping;
     tex.encoding = THREE.sRGBEncoding;
     if (!pmrem) pmrem = new THREE.PMREMGenerator(renderer);
@@ -1345,6 +1352,25 @@
       AVATAR.build();
       scene.add(AVATAR.group);
       NPC.build(scene);
+
+      /* 真实素材（CC0）：HDRI 环境光 + PBR 材质；失败自动回退程序化 */
+      if (typeof ASSETS !== 'undefined' && resolvedQuality !== 'low' &&
+          new URLSearchParams(location.search).get('noassets') !== '1') {
+        ASSETS.init(function () {
+          try {
+            ASSETS.applyMaterials(scene);
+            updateEnvironment(currentTheme);
+            scene.traverse(function (o) {
+              if (o.material) {
+                const ms = Array.isArray(o.material) ? o.material : [o.material];
+                for (let mi = 0; mi < ms.length; mi++) ms[mi].needsUpdate = true;
+              }
+            });
+          } catch (err) {
+            console.warn('[assets] apply failed, keep procedural:', err);
+          }
+        });
+      }
       /* 环境反射强度统一（避免白天过曝） */
       scene.traverse(function (m) {
         if (!m.material) return;
