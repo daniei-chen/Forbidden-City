@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.24.0.20261018.2218">
-<meta name="build-time" content="2026-10-18T22:18:18.350Z">
+<meta name="generator" content="forbidden-city-build 5.25.0.20261018.2248">
+<meta name="build-time" content="2026-10-18T22:48:44.992Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T22:18:18.350Z
-  version: 5.24.0.20261018.2218
+  build: 2026-10-18T22:48:44.992Z
+  version: 5.25.0.20261018.2248
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.24.0',
+  version: '5.25.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -1479,6 +1479,10 @@ MATS.water.envMapIntensity = 1.35;
   });
   MATS.fallenLeaf = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 1.0, metalness: 0.0 });
   MATS.fallenLeaf2 = new THREE.MeshStandardMaterial({ color: 0xa98a52, roughness: 1.0, metalness: 0.0 });
+  MATS.flowerRed = new THREE.MeshStandardMaterial({ color: 0xb23a3a, roughness: 0.82, metalness: 0.0 });
+  MATS.flowerPink = new THREE.MeshStandardMaterial({ color: 0xd98ca0, roughness: 0.82, metalness: 0.0 });
+  MATS.flowerYellow = new THREE.MeshStandardMaterial({ color: 0xd9b24a, roughness: 0.82, metalness: 0.0 });
+  MATS.flowerWhite = new THREE.MeshStandardMaterial({ color: 0xe8e4d8, roughness: 0.82, metalness: 0.0 });
 
   MATS.aoStrip = new THREE.MeshBasicMaterial({
     map: TEX.aoStrip(), transparent: true, opacity: 0.5,
@@ -6072,6 +6076,44 @@ GARDEN.buildAll = function () {
   GARDEN.stoneTable(26, -372);
   GARDEN.stoneTable(-26, -372);
 
+  /* ---------------- 花坛 + 石灯（御花园氛围） ---------------- */
+  GARDEN.flowerBed = function (x, z, r, matFlower) {
+    BUILD.begin(x, z, 0);
+    const n = 10;
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2;
+      BATCH.add(new THREE.BoxGeometry(r * 0.62, 0.3, 0.22), MATS.marbleRail,
+        GEOM.mat4(Math.cos(a) * r, 0.15, Math.sin(a) * r, 0, -a, 0), { cast: false });
+    }
+    BATCH.add(new THREE.CircleGeometry(r * 0.92, 16), MATS.stain,
+      GEOM.mat4(0, 0.05, 0, -Math.PI / 2, 0, 0), { cast: false });
+    for (let k = 0; k < 26; k++) {
+      const a = TEX.rand() * Math.PI * 2;
+      const rr = Math.sqrt(TEX.rand()) * r * 0.78;
+      const s = 0.1 + TEX.rand() * 0.12;
+      BATCH.add(new THREE.SphereGeometry(s, 6, 5), matFlower,
+        GEOM.mat4(Math.cos(a) * rr, 0.18 + TEX.rand() * 0.1, Math.sin(a) * rr), { cast: false });
+    }
+    BUILD.end();
+  };
+  GARDEN.stoneLantern = function (x, z) {
+    BUILD.begin(x, z, 0);
+    BATCH.add(new THREE.CylinderGeometry(0.34, 0.42, 0.24, 8), MATS.marbleRail, GEOM.mat4(0, 0.12, 0), { cast: false });
+    BATCH.add(new THREE.CylinderGeometry(0.15, 0.19, 1.05, 8), MATS.marbleRail, GEOM.mat4(0, 0.76, 0), { cast: false });
+    BATCH.add(new THREE.BoxGeometry(0.48, 0.48, 0.48), MATS.marbleRail, GEOM.mat4(0, 1.5, 0), { cast: false });
+    BATCH.add(new THREE.ConeGeometry(0.5, 0.34, 8), MATS.marbleRail, GEOM.mat4(0, 1.9, 0), { cast: false });
+    BUILD.end();
+  };
+  GARDEN.flowerBed(18, -350, 3.2, MATS.flowerRed);
+  GARDEN.flowerBed(-18, -352, 3.2, MATS.flowerPink);
+  GARDEN.flowerBed(44, -312, 2.6, MATS.flowerYellow);
+  GARDEN.flowerBed(-44, -314, 2.6, MATS.flowerWhite);
+  GARDEN.flowerBed(0, -396, 3.4, MATS.flowerRed);
+  GARDEN.stoneLantern(30, -302);
+  GARDEN.stoneLantern(-30, -304);
+  GARDEN.stoneLantern(58, -382);
+  GARDEN.stoneLantern(-58, -384);
+
   BUILD.begin(64, -352, 0);
   BUILD.rockery({ w: 16, d: 12, h: 9, rocks: 20 });
   BUILD.end();
@@ -9767,6 +9809,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.24.0.20261018.2218","time":"2026-10-18T22:18:18.350Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.25.0.20261018.2248","time":"2026-10-18T22:48:44.992Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

@@ -86,6 +86,44 @@ GARDEN.buildAll = function () {
   GARDEN.stoneTable(26, -372);
   GARDEN.stoneTable(-26, -372);
 
+  /* ---------------- 花坛 + 石灯（御花园氛围） ---------------- */
+  GARDEN.flowerBed = function (x, z, r, matFlower) {
+    BUILD.begin(x, z, 0);
+    const n = 10;
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2;
+      BATCH.add(new THREE.BoxGeometry(r * 0.62, 0.3, 0.22), MATS.marbleRail,
+        GEOM.mat4(Math.cos(a) * r, 0.15, Math.sin(a) * r, 0, -a, 0), { cast: false });
+    }
+    BATCH.add(new THREE.CircleGeometry(r * 0.92, 16), MATS.stain,
+      GEOM.mat4(0, 0.05, 0, -Math.PI / 2, 0, 0), { cast: false });
+    for (let k = 0; k < 26; k++) {
+      const a = TEX.rand() * Math.PI * 2;
+      const rr = Math.sqrt(TEX.rand()) * r * 0.78;
+      const s = 0.1 + TEX.rand() * 0.12;
+      BATCH.add(new THREE.SphereGeometry(s, 6, 5), matFlower,
+        GEOM.mat4(Math.cos(a) * rr, 0.18 + TEX.rand() * 0.1, Math.sin(a) * rr), { cast: false });
+    }
+    BUILD.end();
+  };
+  GARDEN.stoneLantern = function (x, z) {
+    BUILD.begin(x, z, 0);
+    BATCH.add(new THREE.CylinderGeometry(0.34, 0.42, 0.24, 8), MATS.marbleRail, GEOM.mat4(0, 0.12, 0), { cast: false });
+    BATCH.add(new THREE.CylinderGeometry(0.15, 0.19, 1.05, 8), MATS.marbleRail, GEOM.mat4(0, 0.76, 0), { cast: false });
+    BATCH.add(new THREE.BoxGeometry(0.48, 0.48, 0.48), MATS.marbleRail, GEOM.mat4(0, 1.5, 0), { cast: false });
+    BATCH.add(new THREE.ConeGeometry(0.5, 0.34, 8), MATS.marbleRail, GEOM.mat4(0, 1.9, 0), { cast: false });
+    BUILD.end();
+  };
+  GARDEN.flowerBed(18, -350, 3.2, MATS.flowerRed);
+  GARDEN.flowerBed(-18, -352, 3.2, MATS.flowerPink);
+  GARDEN.flowerBed(44, -312, 2.6, MATS.flowerYellow);
+  GARDEN.flowerBed(-44, -314, 2.6, MATS.flowerWhite);
+  GARDEN.flowerBed(0, -396, 3.4, MATS.flowerRed);
+  GARDEN.stoneLantern(30, -302);
+  GARDEN.stoneLantern(-30, -304);
+  GARDEN.stoneLantern(58, -382);
+  GARDEN.stoneLantern(-58, -384);
+
   BUILD.begin(64, -352, 0);
   BUILD.rockery({ w: 16, d: 12, h: 9, rocks: 20 });
   BUILD.end();

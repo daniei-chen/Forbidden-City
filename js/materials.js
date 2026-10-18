@@ -116,6 +116,10 @@ MATS.water.envMapIntensity = 1.35;
   });
   MATS.fallenLeaf = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 1.0, metalness: 0.0 });
   MATS.fallenLeaf2 = new THREE.MeshStandardMaterial({ color: 0xa98a52, roughness: 1.0, metalness: 0.0 });
+  MATS.flowerRed = new THREE.MeshStandardMaterial({ color: 0xb23a3a, roughness: 0.82, metalness: 0.0 });
+  MATS.flowerPink = new THREE.MeshStandardMaterial({ color: 0xd98ca0, roughness: 0.82, metalness: 0.0 });
+  MATS.flowerYellow = new THREE.MeshStandardMaterial({ color: 0xd9b24a, roughness: 0.82, metalness: 0.0 });
+  MATS.flowerWhite = new THREE.MeshStandardMaterial({ color: 0xe8e4d8, roughness: 0.82, metalness: 0.0 });
 
   MATS.aoStrip = new THREE.MeshBasicMaterial({
     map: TEX.aoStrip(), transparent: true, opacity: 0.5,
