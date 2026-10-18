@@ -71,7 +71,12 @@ async function shootView(view) {
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
   let id = 0;
   const pending = new Map();
-  const send = (method, params = {}) => new Promise((res, rej) => {
+  async function evl(expr) {
+  const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
+  if (r.exceptionDetails) throw new Error(r.exceptionDetails.text || 'eval failed');
+  return r.result && r.result.value;
+}
+const send = (method, params = {}) => new Promise((res, rej) => {
     const i = ++id;
     pending.set(i, { res, rej });
     ws.send(JSON.stringify({ id: i, method, params }));
@@ -89,9 +94,19 @@ async function shootView(view) {
     const url = pathToFileURL(target).href + '?still=1&view=' + view + '&theme=' + theme + (extra ? '&' + extra : '');
     await send('Page.navigate', { url });
     await sleep(24000);
-    const shot = await send('Page.captureScreenshot', { format: 'png' });
-    const out = path.join(shotsDir, 'view-' + theme + '-' + view + '.png');
-    fs.writeFileSync(out, Buffer.from(shot.data, 'base64'));
+    /* 用页面内 canvas 捕获，避免无头合成器的竖向撕裂线 */
+    var dataUrl = null;
+    try {
+      dataUrl = await evl('window.__app.capture ? window.__app.capture() : null');
+    } catch (e) { dataUrl = null; }
+    const isJpeg = dataUrl && dataUrl.indexOf('image/jpeg') >= 0;
+    const out = path.join(shotsDir, 'view-' + theme + '-' + view + (isJpeg ? '.jpg' : '.png'));
+    if (dataUrl && dataUrl.indexOf('base64,') > 0) {
+      fs.writeFileSync(out, Buffer.from(dataUrl.split('base64,')[1], 'base64'));
+    } else {
+      const shot = await send('Page.captureScreenshot', { format: 'png' });
+      fs.writeFileSync(out, Buffer.from(shot.data, 'base64'));
+    }
     console.log('[shot] view=' + view + ' theme=' + theme + ' -> ' + out);
   } finally {
     ws.close();

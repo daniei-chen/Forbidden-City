@@ -103,6 +103,12 @@ MATS.init = function () {
   });
 
   /* ---- 接地 AO / 云影 ---- */
+  MATS.moss = new THREE.MeshStandardMaterial({
+    color: 0x51663f, roughness: 1.0, metalness: 0.0,
+    transparent: true, opacity: 0.5, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -1.5, polygonOffsetUnits: -2
+  });
+
   MATS.aoStrip = new THREE.MeshBasicMaterial({
     map: TEX.aoStrip(), transparent: true, opacity: 0.5,
     depthWrite: false, side: THREE.DoubleSide,

@@ -702,6 +702,39 @@ LAYOUT.weathering = function () {
 };
 
 /* =============================================================
+ *  生活痕迹：墙根苔藓 + 御道磨损色带
+ * ============================================================= */
+LAYOUT.wear = function () {
+  const moss = function (x, y, z, w, h, ry) {
+    const geo = new THREE.PlaneGeometry(w, h);
+    BATCH.add(geo, MATS.moss, GEOM.mat4(x, y, z, 0, ry || 0, 0), { cast: false });
+  };
+  /* 城墙根部苔藓（略高于地面，细长条） */
+  const W = 371.6;
+  for (let z = -450; z <= 450; z += 52) {
+    moss(W, 0.05, z, 44, 1.5, -Math.PI / 2);
+    moss(-W, 0.05, z, 44, 1.5, Math.PI / 2);
+  }
+  for (let x = -330; x <= 330; x += 58) {
+    moss(x, 0.05, -476.6, 46, 1.5, 0);
+    moss(x, 0.05, 475.6, 46, 1.5, Math.PI);
+  }
+  /* 御道中轴磨损（深色带状） */
+  const addWear = function (z, len, w) {
+    const geo = new THREE.PlaneGeometry(w, len);
+    BATCH.add(geo, MATS.stain, GEOM.mat4(0, 0.052, z, 0, 0, 0), { cast: false });
+  };
+  addWear(330, 90, 7.0);
+  addWear(220, 100, 6.2);
+  addWear(120, 80, 6.0);
+  addWear(20, 90, 5.6);
+  addWear(-60, 70, 5.2);
+  addWear(-160, 80, 5.0);
+  addWear(-260, 90, 4.8);
+  addWear(-380, 80, 4.6);
+};
+
+/* =============================================================
  *  接地 AO 条带（城墙内侧 + 宫门台基）
  * ============================================================= */
 LAYOUT.aoBands = function () {
@@ -895,7 +928,17 @@ LAYOUT.propsExtra = function () {
 LAYOUT.extraTrees = function () {
   const rnd = TEX.rand;
   const spots = [];
-  const push = function (x, z) { spots.push({ x: x, z: z }); };
+  /* 避开已有建筑/台基碰撞盒 */
+  const blocked = function (x, z, m) {
+    m = m == null ? 2.6 : m;
+    const cs = (typeof BUILD !== 'undefined' && BUILD.colliders) ? BUILD.colliders : [];
+    for (let i = 0; i < cs.length; i++) {
+      const c = cs[i];
+      if (x > c.minX - m && x < c.maxX + m && z > c.minZ - m && z < c.maxZ + m) return true;
+    }
+    return false;
+  };
+  const push = function (x, z) { if (!blocked(x, z)) spots.push({ x: x, z: z }); };
   /* 外墙内侧 */
   for (const sx of [-1, 1]) {
     for (const z of [-430, -350, -270, 180, 260, 340, 430]) push(sx * 352, z);
@@ -992,6 +1035,7 @@ LAYOUT.build = function (root) {
   LAYOUT.aoBands();
   LAYOUT.treeBelts();
   LAYOUT.extraTrees();
+  LAYOUT.wear();
   LAYOUT.propsExtra();
   LAYOUT.moat();
 

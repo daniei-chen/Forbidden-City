@@ -177,7 +177,9 @@ const NPC = {
       { pts: [[-6.5, 170], [-6.5, 420]], speed: 1.15, phase: 0 },
       { pts: [[6.5, 420], [6.5, 170]], speed: 1.15, phase: 0.5 },
       { pts: [[-70, 150], [70, 150]], speed: 1.0, phase: 0.25 },
-      { pts: [[70, 250], [-70, 250]], speed: 1.0, phase: 0.75 }
+      { pts: [[70, 250], [-70, 250]], speed: 1.0, phase: 0.75 },
+      { pts: [[-38, -100], [-38, -190]], speed: 1.0, phase: 0.4 },
+      { pts: [[38, -190], [38, -100]], speed: 1.0, phase: 0.8 }
     ];
     for (const r of routes) {
       const guard = this.makeGuard();
@@ -210,7 +212,9 @@ const NPC = {
     const catRoutes = [
       { pts: [[30, -318], [62, -330], [58, -358], [26, -344]], speed: 0.55, phase: 0.1 },
       { pts: [[-40, -300], [-62, -320], [-50, -344]], speed: 0.5, phase: 0.6 },
-      { pts: [[40, 200], [60, 218], [38, 236]], speed: 0.6, phase: 0.35 }
+      { pts: [[40, 200], [60, 218], [38, 236]], speed: 0.6, phase: 0.35 },
+      { pts: [[-64, -350], [-46, -368], [-62, -386]], speed: 0.5, phase: 0.2 },
+      { pts: [[-18, 262], [16, 262], [2, 276]], speed: 0.55, phase: 0.65 }
     ];
     this.cats = [];
     for (const r of catRoutes) {
