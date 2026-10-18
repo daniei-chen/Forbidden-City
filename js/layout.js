@@ -707,6 +707,7 @@ LAYOUT.weathering = function () {
 LAYOUT.wear = function () {
   const moss = function (x, y, z, w, h, ry) {
     const geo = new THREE.PlaneGeometry(w, h);
+    geo.rotateX(-Math.PI / 2);
     BATCH.add(geo, MATS.moss, GEOM.mat4(x, y, z, 0, ry || 0, 0), { cast: false });
   };
   /* 城墙根部苔藓（略高于地面，细长条） */
@@ -722,6 +723,7 @@ LAYOUT.wear = function () {
   /* 御道中轴磨损（深色带状） */
   const addWear = function (z, len, w) {
     const geo = new THREE.PlaneGeometry(w, len);
+    geo.rotateX(-Math.PI / 2);
     BATCH.add(geo, MATS.stain, GEOM.mat4(0, 0.052, z, 0, 0, 0), { cast: false });
   };
   addWear(330, 90, 7.0);

@@ -257,7 +257,7 @@ npm run shots     # 批量渲染机位截图
 - 性能未在真实 GPU 实测（无头环境为软件渲染），已内置 FPS 监控与自动降级
 ## 版本
 
-见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.9.0**。
+见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.10.0**。
 
 ## 自动化评测（harness）
 

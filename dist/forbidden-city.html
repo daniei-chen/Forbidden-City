@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.9.0.20261018.1615">
-<meta name="build-time" content="2026-10-18T16:15:32.002Z">
+<meta name="generator" content="forbidden-city-build 5.10.0.20261018.1701">
+<meta name="build-time" content="2026-10-18T17:01:01.486Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T16:15:32.002Z
-  version: 5.9.0.20261018.1615
+  build: 2026-10-18T17:01:01.486Z
+  version: 5.10.0.20261018.1701
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.9.0',
+  version: '5.10.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -5308,6 +5308,7 @@ LAYOUT.weathering = function () {
 LAYOUT.wear = function () {
   const moss = function (x, y, z, w, h, ry) {
     const geo = new THREE.PlaneGeometry(w, h);
+    geo.rotateX(-Math.PI / 2);
     BATCH.add(geo, MATS.moss, GEOM.mat4(x, y, z, 0, ry || 0, 0), { cast: false });
   };
   /* 城墙根部苔藓（略高于地面，细长条） */
@@ -5323,6 +5324,7 @@ LAYOUT.wear = function () {
   /* 御道中轴磨损（深色带状） */
   const addWear = function (z, len, w) {
     const geo = new THREE.PlaneGeometry(w, len);
+    geo.rotateX(-Math.PI / 2);
     BATCH.add(geo, MATS.stain, GEOM.mat4(0, 0.052, z, 0, 0, 0), { cast: false });
   };
   addWear(330, 90, 7.0);
@@ -9246,6 +9248,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.9.0.20261018.1615","time":"2026-10-18T16:15:32.002Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.10.0.20261018.1701","time":"2026-10-18T17:01:01.486Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
