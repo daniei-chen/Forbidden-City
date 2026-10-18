@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.4.0.20261018.1219">
-<meta name="build-time" content="2026-10-18T12:19:10.503Z">
+<meta name="generator" content="forbidden-city-build 5.5.0.20261018.1338">
+<meta name="build-time" content="2026-10-18T13:38:05.665Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T12:19:10.503Z
-  version: 5.4.0.20261018.1219
+  build: 2026-10-18T13:38:05.665Z
+  version: 5.5.0.20261018.1338
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.4.0',
+  version: '5.5.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -439,7 +439,7 @@ const CONFIG = {
       sunColor: 0xfff2da, sunInt: 3.1, sunPos: [250, 330, 185],
       hemiSky: 0xa7c1dc, hemiGround: 0x6d5c47, hemiInt: 0.55,
       fillColor: 0x9db7d6, fillInt: 0.22,
-      fog: 0xc6d4df, exposure: 0.93,
+      fog: 0xc6d4df, exposure: 0.93, bloom: 0.42,
       glow: 0xfff0cc, glowOp: 0.32,
       cloud: 0xffffff, cloudOp: 1.0,
       cloudN: 0.55,
@@ -452,7 +452,7 @@ const CONFIG = {
       sunColor: 0xffd0a6, sunInt: 2.15, sunPos: [-280, 220, 140],
       hemiSky: 0xa4b4d4, hemiGround: 0x4a4238, hemiInt: 0.62,
       fillColor: 0x7d8fc4, fillInt: 0.3,
-      fog: 0xc4b0a6, exposure: 1.0,
+      fog: 0xc4b0a6, exposure: 1.0, bloom: 0.55,
       glow: 0xffc290, glowOp: 0.5,
       cloud: 0xffd9b8, cloudOp: 1.0,
       cloudN: 0.6,
@@ -465,7 +465,7 @@ const CONFIG = {
       sunColor: 0xa8bfe0, sunInt: 0.95, sunPos: [-220, 300, -160],
       hemiSky: 0x2f4260, hemiGround: 0x11151c, hemiInt: 0.46,
       fillColor: 0x3a4c6a, fillInt: 0.22,
-      fog: 0x101c2e, exposure: 1.32,
+      fog: 0x101c2e, exposure: 1.32, bloom: 0.85,
       glow: 0xaac4ea, glowOp: 0.22,
       cloud: 0x3a4860, cloudOp: 0.4,
       cloudN: 0.3,
@@ -478,7 +478,7 @@ const CONFIG = {
       sunColor: 0xeaf2ff, sunInt: 2.3, sunPos: [180, 300, 160],
       hemiSky: 0xd6e0ec, hemiGround: 0x93999e, hemiInt: 0.85,
       fillColor: 0xc9d6e4, fillInt: 0.3,
-      fog: 0xdfe6ec, exposure: 0.95,
+      fog: 0xdfe6ec, exposure: 0.95, bloom: 0.35,
       glow: 0xeaf2ff, glowOp: 0.16,
       cloud: 0xf2f6fa, cloudOp: 0.9,
       cloudN: 0.6,
@@ -6887,6 +6887,47 @@ const POST = {
     );
     this.depthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
 
+    /* Bloom：1/4 分辨率亮部提取 + 两方向高斯模糊 */
+    const bw = Math.max(2, Math.floor(this.width / 4));
+    const bh = Math.max(2, Math.floor(this.height / 4));
+    const bopts = {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat, type: THREE.HalfFloatType,
+      depthBuffer: false, stencilBuffer: false
+    };
+    this.bloomRT = new THREE.WebGLRenderTarget(bw, bh, bopts);
+    this.bloomTmp = new THREE.WebGLRenderTarget(bw, bh, bopts);
+    this.brightMat = new THREE.ShaderMaterial({
+      uniforms: { tDiffuse: { value: null }, uThreshold: { value: 0.72 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: [
+        'uniform sampler2D tDiffuse; uniform float uThreshold; varying vec2 vUv;',
+        'void main(){',
+        '  vec3 c = texture2D(tDiffuse, vUv).rgb;',
+        '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+        '  float k = max(l - uThreshold, 0.0) / max(l, 1e-4);',
+        '  gl_FragColor = vec4(c * k, 1.0);',
+        '}'
+      ].join('\n'),
+      depthTest: false, depthWrite: false
+    });
+    this.blurMat = new THREE.ShaderMaterial({
+      uniforms: { tDiffuse: { value: null }, uDir: { value: new THREE.Vector2(1, 0) } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: [
+        'uniform sampler2D tDiffuse; uniform vec2 uDir; varying vec2 vUv;',
+        'void main(){',
+        '  vec3 sum = texture2D(tDiffuse, vUv).rgb * 0.227027;',
+        '  sum += texture2D(tDiffuse, vUv + uDir * 1.384615).rgb * 0.316216;',
+        '  sum += texture2D(tDiffuse, vUv - uDir * 1.384615).rgb * 0.316216;',
+        '  sum += texture2D(tDiffuse, vUv + uDir * 3.230769).rgb * 0.070270;',
+        '  sum += texture2D(tDiffuse, vUv - uDir * 3.230769).rgb * 0.070270;',
+        '  gl_FragColor = vec4(sum, 1.0);',
+        '}'
+      ].join('\n'),
+      depthTest: false, depthWrite: false
+    });
+
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         tDiffuse: { value: this.rt.texture },
@@ -6901,6 +6942,8 @@ const POST = {
         uMode: { value: 2 },
         uFilter: { value: 0 },
         tDepth: { value: this.depthRT.texture },
+        tBloom: { value: this.bloomRT.texture },
+        uBloomStrength: { value: 0.4 },
         uDepthRes: { value: new THREE.Vector2(this.depthRT.width, this.depthRT.height) },
         uNear: { value: 0.8 },
         uFar: { value: 9000 },
@@ -6927,6 +6970,8 @@ const POST = {
         'uniform float uMode;',
         'uniform float uFilter;',
         'uniform sampler2D tDepth;',
+        'uniform sampler2D tBloom;',
+        'uniform float uBloomStrength;',
         'uniform vec2 uDepthRes;',
         'uniform float uNear;',
         'uniform float uFar;',
@@ -6965,6 +7010,8 @@ const POST = {
         '    // 显示空间调色：染色 / 提亮 / 对比 / 饱和',
         '    col = col * uTint + uLift;',
         '    col = (col - 0.5) * uContrast + 0.5;',
+        '    vec3 bl = texture2D(tBloom, vUv).rgb;',
+        '    col += bl * uBloomStrength;',
         '    float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));',
         '    col = mix(vec3(lum), col, uSaturation);',
         '  }',
@@ -7012,6 +7059,7 @@ const POST = {
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
     quad.frustumCulled = false;
     this.quadScene.add(quad);
+    this.quadMesh = quad;
   },
 
   setSSAO: function (on) {
@@ -7040,6 +7088,12 @@ const POST = {
       const dh = Math.max(2, Math.floor(this.height * this.depthScale));
       this.depthRT.setSize(dw, dh);
       this.material.uniforms.uDepthRes.value.set(dw, dh);
+    }
+    if (this.bloomRT) {
+      const bw = Math.max(2, Math.floor(this.width / 4));
+      const bh = Math.max(2, Math.floor(this.height / 4));
+      this.bloomRT.setSize(bw, bh);
+      this.bloomTmp.setSize(bw, bh);
     }
     this.material.uniforms.tDiffuse.value = this.rt.texture;
   },
@@ -7100,6 +7154,32 @@ const POST = {
     this.renderer.render(scene, camera);
     this.sceneCalls = this.renderer.info.render.calls;
     this.sceneTris = this.renderer.info.render.triangles;
+
+    /* Bloom pass */
+    const bloomStrength = params.bloom == null ? 0.4 : params.bloom;
+    u.uBloomStrength.value = bloomStrength;
+    if (bloomStrength > 0.001) {
+      this.brightMat.uniforms.tDiffuse.value = this.rt.texture;
+      this.quadMesh.material = this.brightMat;
+      this.renderer.setRenderTarget(this.bloomRT);
+      this.renderer.clear();
+      this.renderer.render(this.quadScene, this.quadCam);
+
+      this.blurMat.uniforms.tDiffuse.value = this.bloomRT.texture;
+      this.blurMat.uniforms.uDir.value.set(1 / this.bloomRT.width, 0);
+      this.quadMesh.material = this.blurMat;
+      this.renderer.setRenderTarget(this.bloomTmp);
+      this.renderer.clear();
+      this.renderer.render(this.quadScene, this.quadCam);
+
+      this.blurMat.uniforms.tDiffuse.value = this.bloomTmp.texture;
+      this.blurMat.uniforms.uDir.value.set(0, 1 / this.bloomTmp.height);
+      this.renderer.setRenderTarget(this.bloomRT);
+      this.renderer.clear();
+      this.renderer.render(this.quadScene, this.quadCam);
+    }
+
+    this.quadMesh.material = this.material;
     this.renderer.setRenderTarget(null);
     this.renderer.render(this.quadScene, this.quadCam);
   }
@@ -7456,7 +7536,7 @@ const ASSETS = {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.93;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.VSMShadowMap;
   renderer.shadowMap.autoUpdate = false;
 
   const scene = new THREE.Scene();
@@ -7601,8 +7681,10 @@ const ASSETS = {
   sun.shadow.camera.bottom = -470;
   sun.shadow.camera.near = 10;
   sun.shadow.camera.far = 1600;
-  sun.shadow.bias = -0.00035;
-  sun.shadow.normalBias = 0.22;
+  sun.shadow.bias = -0.0002;
+  sun.shadow.normalBias = 0.02;
+  sun.shadow.radius = 3.0;
+  sun.shadow.blurSamples = 8;
   sun.target.position.set(0, 0, 30);
   scene.add(sun);
   scene.add(sun.target);
@@ -7611,7 +7693,7 @@ const ASSETS = {
   fill.position.set(-220, 140, -260);
   scene.add(fill);
 
-  const fog = new THREE.Fog(0xc6d4df, 1000, 3400);
+  const fog = new THREE.FogExp2(0xc6d4df, 0.00032);
   scene.fog = fog;
 
   /* =========================================================
@@ -7875,7 +7957,7 @@ const ASSETS = {
    *  主题（颜色 / 光强 / 材质 uniform 插值）
    * ======================================================= */
   const themeFieldsColor = ['skyTop', 'skyBottom', 'sunColor', 'hemiSky', 'hemiGround', 'fillColor', 'fog', 'glow', 'cloud'];
-  const themeFieldsNumber = ['sunInt', 'hemiInt', 'fillInt', 'exposure', 'glowOp', 'cloudOp', 'cloudN', 'snow', 'windowGlow', 'stars', 'lanterns'];
+  const themeFieldsNumber = ['sunInt', 'hemiInt', 'fillInt', 'exposure', 'glowOp', 'cloudOp', 'cloudN', 'snow', 'windowGlow', 'stars', 'lanterns', 'bloom'];
 
   const th = { sunPos: new THREE.Vector3(), grade: { tint: [1, 1, 1], lift: [0, 0, 0], sat: 1, contrast: 1, vignette: 0.2, grain: 0.01 } };
   const thT = { sunPos: new THREE.Vector3(), grade: { tint: [1, 1, 1], lift: [0, 0, 0], sat: 1, contrast: 1, vignette: 0.2, grain: 0.01 } };
@@ -8628,6 +8710,7 @@ const ASSETS = {
         lift: th.grade.lift,
         vignette: th.grade.vignette,
         grain: th.grade.grain * 0.5,
+        bloom: th.bloom || 0,
         filter: settings.photoFilter || 0,
         time: performance.now() * 0.001
       });
@@ -8918,6 +9001,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.4.0.20261018.1219","time":"2026-10-18T12:19:10.503Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.5.0.20261018.1338","time":"2026-10-18T13:38:05.665Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

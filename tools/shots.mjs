@@ -8,6 +8,7 @@
  *   node tools/shots.mjs --theme=snow --views=0 --width=1920 --height=1080
  */
 import { spawn } from 'node:child_process';
+import { lowerPriorityLater } from './_lowprio.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -48,8 +49,10 @@ async function shootView(view) {
     '--headless=new', '--disable-gpu', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
     '--hide-scrollbars', '--mute-audio', '--no-first-run', '--no-default-browser-check',
     '--remote-debugging-port=' + port, '--remote-allow-origins=*',
+    '--num-raster-threads=2', '--renderer-process-limit=1',
     '--user-data-dir=' + profile, '--window-size=' + W + ',' + H, 'about:blank'
   ], { stdio: 'ignore' });
+  lowerPriorityLater(profile);
 
   const wsUrl = await (async () => {
     for (let i = 0; i < 150; i++) {

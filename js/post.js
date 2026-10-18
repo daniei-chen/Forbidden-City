@@ -45,6 +45,47 @@ const POST = {
     );
     this.depthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
 
+    /* Bloom：1/4 分辨率亮部提取 + 两方向高斯模糊 */
+    const bw = Math.max(2, Math.floor(this.width / 4));
+    const bh = Math.max(2, Math.floor(this.height / 4));
+    const bopts = {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat, type: THREE.HalfFloatType,
+      depthBuffer: false, stencilBuffer: false
+    };
+    this.bloomRT = new THREE.WebGLRenderTarget(bw, bh, bopts);
+    this.bloomTmp = new THREE.WebGLRenderTarget(bw, bh, bopts);
+    this.brightMat = new THREE.ShaderMaterial({
+      uniforms: { tDiffuse: { value: null }, uThreshold: { value: 0.72 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: [
+        'uniform sampler2D tDiffuse; uniform float uThreshold; varying vec2 vUv;',
+        'void main(){',
+        '  vec3 c = texture2D(tDiffuse, vUv).rgb;',
+        '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+        '  float k = max(l - uThreshold, 0.0) / max(l, 1e-4);',
+        '  gl_FragColor = vec4(c * k, 1.0);',
+        '}'
+      ].join('\n'),
+      depthTest: false, depthWrite: false
+    });
+    this.blurMat = new THREE.ShaderMaterial({
+      uniforms: { tDiffuse: { value: null }, uDir: { value: new THREE.Vector2(1, 0) } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: [
+        'uniform sampler2D tDiffuse; uniform vec2 uDir; varying vec2 vUv;',
+        'void main(){',
+        '  vec3 sum = texture2D(tDiffuse, vUv).rgb * 0.227027;',
+        '  sum += texture2D(tDiffuse, vUv + uDir * 1.384615).rgb * 0.316216;',
+        '  sum += texture2D(tDiffuse, vUv - uDir * 1.384615).rgb * 0.316216;',
+        '  sum += texture2D(tDiffuse, vUv + uDir * 3.230769).rgb * 0.070270;',
+        '  sum += texture2D(tDiffuse, vUv - uDir * 3.230769).rgb * 0.070270;',
+        '  gl_FragColor = vec4(sum, 1.0);',
+        '}'
+      ].join('\n'),
+      depthTest: false, depthWrite: false
+    });
+
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         tDiffuse: { value: this.rt.texture },
@@ -59,6 +100,8 @@ const POST = {
         uMode: { value: 2 },
         uFilter: { value: 0 },
         tDepth: { value: this.depthRT.texture },
+        tBloom: { value: this.bloomRT.texture },
+        uBloomStrength: { value: 0.4 },
         uDepthRes: { value: new THREE.Vector2(this.depthRT.width, this.depthRT.height) },
         uNear: { value: 0.8 },
         uFar: { value: 9000 },
@@ -85,6 +128,8 @@ const POST = {
         'uniform float uMode;',
         'uniform float uFilter;',
         'uniform sampler2D tDepth;',
+        'uniform sampler2D tBloom;',
+        'uniform float uBloomStrength;',
         'uniform vec2 uDepthRes;',
         'uniform float uNear;',
         'uniform float uFar;',
@@ -123,6 +168,8 @@ const POST = {
         '    // 显示空间调色：染色 / 提亮 / 对比 / 饱和',
         '    col = col * uTint + uLift;',
         '    col = (col - 0.5) * uContrast + 0.5;',
+        '    vec3 bl = texture2D(tBloom, vUv).rgb;',
+        '    col += bl * uBloomStrength;',
         '    float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));',
         '    col = mix(vec3(lum), col, uSaturation);',
         '  }',
@@ -170,6 +217,7 @@ const POST = {
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
     quad.frustumCulled = false;
     this.quadScene.add(quad);
+    this.quadMesh = quad;
   },
 
   setSSAO: function (on) {
@@ -198,6 +246,12 @@ const POST = {
       const dh = Math.max(2, Math.floor(this.height * this.depthScale));
       this.depthRT.setSize(dw, dh);
       this.material.uniforms.uDepthRes.value.set(dw, dh);
+    }
+    if (this.bloomRT) {
+      const bw = Math.max(2, Math.floor(this.width / 4));
+      const bh = Math.max(2, Math.floor(this.height / 4));
+      this.bloomRT.setSize(bw, bh);
+      this.bloomTmp.setSize(bw, bh);
     }
     this.material.uniforms.tDiffuse.value = this.rt.texture;
   },
@@ -258,6 +312,32 @@ const POST = {
     this.renderer.render(scene, camera);
     this.sceneCalls = this.renderer.info.render.calls;
     this.sceneTris = this.renderer.info.render.triangles;
+
+    /* Bloom pass */
+    const bloomStrength = params.bloom == null ? 0.4 : params.bloom;
+    u.uBloomStrength.value = bloomStrength;
+    if (bloomStrength > 0.001) {
+      this.brightMat.uniforms.tDiffuse.value = this.rt.texture;
+      this.quadMesh.material = this.brightMat;
+      this.renderer.setRenderTarget(this.bloomRT);
+      this.renderer.clear();
+      this.renderer.render(this.quadScene, this.quadCam);
+
+      this.blurMat.uniforms.tDiffuse.value = this.bloomRT.texture;
+      this.blurMat.uniforms.uDir.value.set(1 / this.bloomRT.width, 0);
+      this.quadMesh.material = this.blurMat;
+      this.renderer.setRenderTarget(this.bloomTmp);
+      this.renderer.clear();
+      this.renderer.render(this.quadScene, this.quadCam);
+
+      this.blurMat.uniforms.tDiffuse.value = this.bloomTmp.texture;
+      this.blurMat.uniforms.uDir.value.set(0, 1 / this.bloomTmp.height);
+      this.renderer.setRenderTarget(this.bloomRT);
+      this.renderer.clear();
+      this.renderer.render(this.quadScene, this.quadCam);
+    }
+
+    this.quadMesh.material = this.material;
     this.renderer.setRenderTarget(null);
     this.renderer.render(this.quadScene, this.quadCam);
   }

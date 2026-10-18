@@ -75,7 +75,7 @@
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.93;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.VSMShadowMap;
   renderer.shadowMap.autoUpdate = false;
 
   const scene = new THREE.Scene();
@@ -220,8 +220,10 @@
   sun.shadow.camera.bottom = -470;
   sun.shadow.camera.near = 10;
   sun.shadow.camera.far = 1600;
-  sun.shadow.bias = -0.00035;
-  sun.shadow.normalBias = 0.22;
+  sun.shadow.bias = -0.0002;
+  sun.shadow.normalBias = 0.02;
+  sun.shadow.radius = 3.0;
+  sun.shadow.blurSamples = 8;
   sun.target.position.set(0, 0, 30);
   scene.add(sun);
   scene.add(sun.target);
@@ -230,7 +232,7 @@
   fill.position.set(-220, 140, -260);
   scene.add(fill);
 
-  const fog = new THREE.Fog(0xc6d4df, 1000, 3400);
+  const fog = new THREE.FogExp2(0xc6d4df, 0.00032);
   scene.fog = fog;
 
   /* =========================================================
@@ -494,7 +496,7 @@
    *  主题（颜色 / 光强 / 材质 uniform 插值）
    * ======================================================= */
   const themeFieldsColor = ['skyTop', 'skyBottom', 'sunColor', 'hemiSky', 'hemiGround', 'fillColor', 'fog', 'glow', 'cloud'];
-  const themeFieldsNumber = ['sunInt', 'hemiInt', 'fillInt', 'exposure', 'glowOp', 'cloudOp', 'cloudN', 'snow', 'windowGlow', 'stars', 'lanterns'];
+  const themeFieldsNumber = ['sunInt', 'hemiInt', 'fillInt', 'exposure', 'glowOp', 'cloudOp', 'cloudN', 'snow', 'windowGlow', 'stars', 'lanterns', 'bloom'];
 
   const th = { sunPos: new THREE.Vector3(), grade: { tint: [1, 1, 1], lift: [0, 0, 0], sat: 1, contrast: 1, vignette: 0.2, grain: 0.01 } };
   const thT = { sunPos: new THREE.Vector3(), grade: { tint: [1, 1, 1], lift: [0, 0, 0], sat: 1, contrast: 1, vignette: 0.2, grain: 0.01 } };
@@ -1247,6 +1249,7 @@
         lift: th.grade.lift,
         vignette: th.grade.vignette,
         grain: th.grade.grain * 0.5,
+        bloom: th.bloom || 0,
         filter: settings.photoFilter || 0,
         time: performance.now() * 0.001
       });

@@ -15,6 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { lowerPriorityLater } from './_lowprio.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -72,11 +73,13 @@ const profile = path.join(root, '.cache', 'harness-profile-' + chromePort);
 const proc = spawn(chrome, [
   '--headless=new', '--disable-gpu', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
   '--hide-scrollbars', '--mute-audio', '--no-first-run', '--no-default-browser-check',
+  '--num-raster-threads=2', '--renderer-process-limit=1',
   '--remote-debugging-port=' + chromePort, '--remote-allow-origins=*',
   '--user-data-dir=' + profile,
   '--window-size=' + W + ',' + H,
   'about:blank'
 ], { stdio: 'ignore' });
+lowerPriorityLater(profile);
 
 async function getWs() {
   for (let i = 0; i < 200; i++) {

@@ -7,6 +7,7 @@
  *   node tools/smoke.mjs
  */
 import { spawn } from 'node:child_process';
+import { lowerPriorityLater } from './_lowprio.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -40,9 +41,11 @@ const proc = spawn(CHROME, [
   '--headless=new', '--disable-gpu', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
   '--hide-scrollbars', '--mute-audio', '--no-first-run', '--no-default-browser-check',
   '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
+  '--num-raster-threads=2', '--renderer-process-limit=1',
   '--remote-debugging-port=' + port, '--remote-allow-origins=*',
   '--user-data-dir=' + profile, '--window-size=1600,900', 'about:blank'
 ], { stdio: 'ignore' });
+lowerPriorityLater(profile);
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const results = [];
