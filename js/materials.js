@@ -24,6 +24,7 @@ MATS.init = function () {
   MATS.facade11 = S({ map: TEX.facade(11), roughness: 0.62, metalness: 0.05 });
   MATS.facade7 = S({ map: TEX.facade(7), roughness: 0.62, metalness: 0.05 });
   MATS.facade5 = S({ map: TEX.facade(5), roughness: 0.62, metalness: 0.05 });
+  MATS.mullion = S({ color: 0x55291f, roughness: 0.72, metalness: 0.06 });
   MATS.lattice = S({ map: TEX.lattice(), roughness: 0.6, metalness: 0.08 });
   MATS.latticeDark = S({ map: TEX.lattice('dark'), roughness: 0.6, metalness: 0.08 });
   MATS.dougong = S({ map: TEX.dougong(), roughness: 0.6, metalness: 0.12 });
@@ -81,9 +82,10 @@ MATS.init = function () {
   MATS.leafLight = S({ color: 0x3f5f35, roughness: 0.92 });
   MATS.grass = S({ color: 0x6e7060, roughness: 1.0 });
   MATS.water = S({
-    map: TEX.water(), color: 0xb6cdd3, roughness: 0.16, metalness: 0.28
+    map: TEX.water(), color: 0xaec9d4, roughness: 0.1, metalness: 0.34
   });
   MATS.water.map.repeat.set(1, 1);
+MATS.water.envMapIntensity = 1.35;
 
   /* ---- 室内 ---- */
   MATS.coffer = S({ map: TEX.coffer(), color: 0xffffff, roughness: 0.72, emissive: 0x18211f, emissiveIntensity: 0.7 });

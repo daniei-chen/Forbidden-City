@@ -249,17 +249,26 @@
   const cloudGroup = new THREE.Group();
   scene.add(cloudGroup);
   const clouds = [];
-  for (let i = 0; i < 10; i++) {
-    const base = 0.6 + TEX.rand() * 0.4;
+  for (let i = 0; i < 24; i++) {
+    const cirrus = i >= 16;
+    const base = cirrus ? (0.5 + TEX.rand() * 0.5) : (0.6 + TEX.rand() * 0.4);
     const m = new THREE.SpriteMaterial({
       map: TEX.cloud(), color: 0xffffff, transparent: true,
-      opacity: base * 0.26, depthWrite: false
+      opacity: cirrus ? base * 0.13 : base * 0.26, depthWrite: false
     });
     const sp = new THREE.Sprite(m);
-    sp.position.set((TEX.rand() - 0.5) * 3000, 480 + TEX.rand() * 380, (TEX.rand() - 0.5) * 2800 - 150);
-    const sc = 220 + TEX.rand() * 320;
-    sp.scale.set(sc, sc * 0.38, 1);
-    sp.userData.speed = 1.6 + TEX.rand() * 2.4;
+    const px = (TEX.rand() - 0.5) * 3400;
+    const py = cirrus ? (860 + TEX.rand() * 420) : (480 + TEX.rand() * 380);
+    const pz = (TEX.rand() - 0.5) * 3200 - 150;
+    sp.position.set(px, py, pz);
+    if (cirrus) {
+      const sc = 620 + TEX.rand() * 460;
+      sp.scale.set(sc, 70 + TEX.rand() * 70, 1);
+    } else {
+      const sc = 220 + TEX.rand() * 320;
+      sp.scale.set(sc, sc * 0.38, 1);
+    }
+    sp.userData.speed = cirrus ? (0.5 + TEX.rand() * 1.2) : (1.6 + TEX.rand() * 2.4);
     sp.userData.base = base;
     cloudGroup.add(sp);
     clouds.push(sp);
@@ -1321,6 +1330,7 @@
       if (c.position.x > 1400) c.position.x = -1400;
     }
     MATS.water.map.offset.x -= dt * 0.004;
+    MATS.water.map.offset.y += dt * 0.0022;
     EFFECTS.update(dt, th);
     if (!staticMode) NPC.update(dt);
 

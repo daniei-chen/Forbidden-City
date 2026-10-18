@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.12.0.20261018.1748">
-<meta name="build-time" content="2026-10-18T17:48:18.633Z">
+<meta name="generator" content="forbidden-city-build 5.13.0.20261018.1812">
+<meta name="build-time" content="2026-10-18T18:12:05.453Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T17:48:18.633Z
-  version: 5.12.0.20261018.1748
+  build: 2026-10-18T18:12:05.453Z
+  version: 5.13.0.20261018.1812
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.12.0',
+  version: '5.13.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -404,7 +404,7 @@ const CONFIG = {
       pixelRatio: 1.5,
       shadowSize: 4096,
       shadows: true,
-      clouds: 14,
+      clouds: 24,
       snow: 2600,
       stars: true
     },
@@ -413,7 +413,7 @@ const CONFIG = {
       pixelRatio: 1.2,
       shadowSize: 2048,
       shadows: true,
-      clouds: 9,
+      clouds: 14,
       snow: 1500,
       stars: true
     },
@@ -1364,6 +1364,7 @@ MATS.init = function () {
   MATS.facade11 = S({ map: TEX.facade(11), roughness: 0.62, metalness: 0.05 });
   MATS.facade7 = S({ map: TEX.facade(7), roughness: 0.62, metalness: 0.05 });
   MATS.facade5 = S({ map: TEX.facade(5), roughness: 0.62, metalness: 0.05 });
+  MATS.mullion = S({ color: 0x55291f, roughness: 0.72, metalness: 0.06 });
   MATS.lattice = S({ map: TEX.lattice(), roughness: 0.6, metalness: 0.08 });
   MATS.latticeDark = S({ map: TEX.lattice('dark'), roughness: 0.6, metalness: 0.08 });
   MATS.dougong = S({ map: TEX.dougong(), roughness: 0.6, metalness: 0.12 });
@@ -1421,9 +1422,10 @@ MATS.init = function () {
   MATS.leafLight = S({ color: 0x3f5f35, roughness: 0.92 });
   MATS.grass = S({ color: 0x6e7060, roughness: 1.0 });
   MATS.water = S({
-    map: TEX.water(), color: 0xb6cdd3, roughness: 0.16, metalness: 0.28
+    map: TEX.water(), color: 0xaec9d4, roughness: 0.1, metalness: 0.34
   });
   MATS.water.map.repeat.set(1, 1);
+MATS.water.envMapIntensity = 1.35;
 
   /* ---- 室内 ---- */
   MATS.coffer = S({ map: TEX.coffer(), color: 0xffffff, roughness: 0.72, emissive: 0x18211f, emissiveIntensity: 0.7 });
@@ -3841,6 +3843,28 @@ BUILD.hall = function (o) {
         }
       }
     }
+    /* 窗棂 3D：每间做 5 竖 + 4 横细棂条，增强近景窗格层次 */
+    const latticeGeos = [];
+    const winW = bayW - 0.7;
+    const winH = hf * 0.55;
+    const wy = yBase + hf * 0.44;
+    const nv = 5, nh = 4;
+    for (let bi = 0; bi < bays; bi++) {
+      const cx = -span / 2 + bayW * (bi + 0.5);
+      for (const s of [-1, 1]) {
+        const zz = s * (zF + 0.035);
+        for (let iv = 0; iv < nv; iv++) {
+          const gbar = new THREE.BoxGeometry(0.045, winH, 0.045);
+          gbar.translate(cx - winW / 2 + (winW * iv) / (nv - 1), wy, zz);
+          latticeGeos.push(gbar);
+        }
+        for (let ih = 0; ih < nh; ih++) {
+          const gbar = new THREE.BoxGeometry(winW, 0.045, 0.045);
+          gbar.translate(cx, wy - winH / 2 + (winH * ih) / (nh - 1), zz);
+          latticeGeos.push(gbar);
+        }
+      }
+    }
     const addMerged = function (geos, mat) {
       if (!geos.length) return;
       const mesh = new THREE.Mesh(GEOM.merge(geos), mat);
@@ -3848,6 +3872,7 @@ BUILD.hall = function (o) {
       mesh.receiveShadow = true;
       g.add(mesh);
     };
+    addMerged(latticeGeos, MATS.mullion);
     addMerged(goldGeos, MATS.goldDark);
     addMerged(doorGeos, MATS.column);
     addMerged(studGeos, MATS.goldDark);
@@ -8083,17 +8108,26 @@ const ASSETS = {
   const cloudGroup = new THREE.Group();
   scene.add(cloudGroup);
   const clouds = [];
-  for (let i = 0; i < 10; i++) {
-    const base = 0.6 + TEX.rand() * 0.4;
+  for (let i = 0; i < 24; i++) {
+    const cirrus = i >= 16;
+    const base = cirrus ? (0.5 + TEX.rand() * 0.5) : (0.6 + TEX.rand() * 0.4);
     const m = new THREE.SpriteMaterial({
       map: TEX.cloud(), color: 0xffffff, transparent: true,
-      opacity: base * 0.26, depthWrite: false
+      opacity: cirrus ? base * 0.13 : base * 0.26, depthWrite: false
     });
     const sp = new THREE.Sprite(m);
-    sp.position.set((TEX.rand() - 0.5) * 3000, 480 + TEX.rand() * 380, (TEX.rand() - 0.5) * 2800 - 150);
-    const sc = 220 + TEX.rand() * 320;
-    sp.scale.set(sc, sc * 0.38, 1);
-    sp.userData.speed = 1.6 + TEX.rand() * 2.4;
+    const px = (TEX.rand() - 0.5) * 3400;
+    const py = cirrus ? (860 + TEX.rand() * 420) : (480 + TEX.rand() * 380);
+    const pz = (TEX.rand() - 0.5) * 3200 - 150;
+    sp.position.set(px, py, pz);
+    if (cirrus) {
+      const sc = 620 + TEX.rand() * 460;
+      sp.scale.set(sc, 70 + TEX.rand() * 70, 1);
+    } else {
+      const sc = 220 + TEX.rand() * 320;
+      sp.scale.set(sc, sc * 0.38, 1);
+    }
+    sp.userData.speed = cirrus ? (0.5 + TEX.rand() * 1.2) : (1.6 + TEX.rand() * 2.4);
     sp.userData.base = base;
     cloudGroup.add(sp);
     clouds.push(sp);
@@ -9155,6 +9189,7 @@ const ASSETS = {
       if (c.position.x > 1400) c.position.x = -1400;
     }
     MATS.water.map.offset.x -= dt * 0.004;
+    MATS.water.map.offset.y += dt * 0.0022;
     EFFECTS.update(dt, th);
     if (!staticMode) NPC.update(dt);
 
@@ -9397,6 +9432,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.12.0.20261018.1748","time":"2026-10-18T17:48:18.633Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.13.0.20261018.1812","time":"2026-10-18T18:12:05.453Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

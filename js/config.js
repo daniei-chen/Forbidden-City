@@ -3,7 +3,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.12.0',
+  version: '5.13.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -13,7 +13,7 @@ const CONFIG = {
       pixelRatio: 1.5,
       shadowSize: 4096,
       shadows: true,
-      clouds: 14,
+      clouds: 24,
       snow: 2600,
       stars: true
     },
@@ -22,7 +22,7 @@ const CONFIG = {
       pixelRatio: 1.2,
       shadowSize: 2048,
       shadows: true,
-      clouds: 9,
+      clouds: 14,
       snow: 1500,
       stars: true
     },

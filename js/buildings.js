@@ -269,6 +269,28 @@ BUILD.hall = function (o) {
         }
       }
     }
+    /* 窗棂 3D：每间做 5 竖 + 4 横细棂条，增强近景窗格层次 */
+    const latticeGeos = [];
+    const winW = bayW - 0.7;
+    const winH = hf * 0.55;
+    const wy = yBase + hf * 0.44;
+    const nv = 5, nh = 4;
+    for (let bi = 0; bi < bays; bi++) {
+      const cx = -span / 2 + bayW * (bi + 0.5);
+      for (const s of [-1, 1]) {
+        const zz = s * (zF + 0.035);
+        for (let iv = 0; iv < nv; iv++) {
+          const gbar = new THREE.BoxGeometry(0.045, winH, 0.045);
+          gbar.translate(cx - winW / 2 + (winW * iv) / (nv - 1), wy, zz);
+          latticeGeos.push(gbar);
+        }
+        for (let ih = 0; ih < nh; ih++) {
+          const gbar = new THREE.BoxGeometry(winW, 0.045, 0.045);
+          gbar.translate(cx, wy - winH / 2 + (winH * ih) / (nh - 1), zz);
+          latticeGeos.push(gbar);
+        }
+      }
+    }
     const addMerged = function (geos, mat) {
       if (!geos.length) return;
       const mesh = new THREE.Mesh(GEOM.merge(geos), mat);
@@ -276,6 +298,7 @@ BUILD.hall = function (o) {
       mesh.receiveShadow = true;
       g.add(mesh);
     };
+    addMerged(latticeGeos, MATS.mullion);
     addMerged(goldGeos, MATS.goldDark);
     addMerged(doorGeos, MATS.column);
     addMerged(studGeos, MATS.goldDark);
