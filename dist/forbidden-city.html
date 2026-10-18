@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.19.0.20261018.2052">
-<meta name="build-time" content="2026-10-18T20:52:54.647Z">
+<meta name="generator" content="forbidden-city-build 5.20.0.20261018.2110">
+<meta name="build-time" content="2026-10-18T21:10:09.660Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T20:52:54.647Z
-  version: 5.19.0.20261018.2052
+  build: 2026-10-18T21:10:09.660Z
+  version: 5.20.0.20261018.2110
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.19.0',
+  version: '5.20.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -4391,6 +4391,34 @@ BUILD.cornerTower = function (o) {
       g.add(wp2);
     }
   }
+  /* 窗棂 3D 棂条（角楼一层四面各三窗） */
+  for (let s = -1; s <= 1; s += 2) {
+    for (let k = -1; k <= 1; k++) {
+      for (const face of [0, 1]) {
+        const cx = face === 0 ? k * 3.2 : s * (5.8 + 0.1);
+        const cz = face === 0 ? s * (5.8 + 0.1) : k * 3.2;
+        for (let iv = 0; iv < 3; iv++) {
+          const bar = new THREE.BoxGeometry(0.05, 2.1, 0.05);
+          bar.translate(cx - 1.0 + iv * 1.0, y0 + 1.75, cz);
+          BATCH.add(bar, MATS.mullion, null, { cast: false });
+          bar.dispose();
+        }
+        for (let ih = 0; ih < 2; ih++) {
+          const bar = new THREE.BoxGeometry(2.5, 0.05, 0.05);
+          bar.translate(cx, y0 + 1.1 + ih * 1.35, cz);
+          BATCH.add(bar, MATS.mullion, null, { cast: false });
+          bar.dispose();
+        }
+      }
+    }
+  }
+
+  /* 斗拱（两层） */
+  if (typeof DETAIL !== 'undefined' && DETAIL.addDougong) {
+    DETAIL.addDougong(g, { bw: 12.2, bd: 12.2, y: y0 + 3.05, bays: 3, scale: 0.8 });
+    DETAIL.addDougong(g, { bw: 11.0, bd: 11.0, y: y0 + 7.45, bays: 3, scale: 0.7 });
+  }
+
   GEOM.band({ w: 12.2, d: 12.2, h: 0.7, y: y0 + 3.2, tileU: 1.6 });
 
   /* 一层腰檐 */
@@ -9684,6 +9712,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.19.0.20261018.2052","time":"2026-10-18T20:52:54.647Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.20.0.20261018.2110","time":"2026-10-18T21:10:09.660Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

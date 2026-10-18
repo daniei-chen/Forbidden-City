@@ -782,6 +782,34 @@ BUILD.cornerTower = function (o) {
       g.add(wp2);
     }
   }
+  /* 窗棂 3D 棂条（角楼一层四面各三窗） */
+  for (let s = -1; s <= 1; s += 2) {
+    for (let k = -1; k <= 1; k++) {
+      for (const face of [0, 1]) {
+        const cx = face === 0 ? k * 3.2 : s * (5.8 + 0.1);
+        const cz = face === 0 ? s * (5.8 + 0.1) : k * 3.2;
+        for (let iv = 0; iv < 3; iv++) {
+          const bar = new THREE.BoxGeometry(0.05, 2.1, 0.05);
+          bar.translate(cx - 1.0 + iv * 1.0, y0 + 1.75, cz);
+          BATCH.add(bar, MATS.mullion, null, { cast: false });
+          bar.dispose();
+        }
+        for (let ih = 0; ih < 2; ih++) {
+          const bar = new THREE.BoxGeometry(2.5, 0.05, 0.05);
+          bar.translate(cx, y0 + 1.1 + ih * 1.35, cz);
+          BATCH.add(bar, MATS.mullion, null, { cast: false });
+          bar.dispose();
+        }
+      }
+    }
+  }
+
+  /* 斗拱（两层） */
+  if (typeof DETAIL !== 'undefined' && DETAIL.addDougong) {
+    DETAIL.addDougong(g, { bw: 12.2, bd: 12.2, y: y0 + 3.05, bays: 3, scale: 0.8 });
+    DETAIL.addDougong(g, { bw: 11.0, bd: 11.0, y: y0 + 7.45, bays: 3, scale: 0.7 });
+  }
+
   GEOM.band({ w: 12.2, d: 12.2, h: 0.7, y: y0 + 3.2, tileU: 1.6 });
 
   /* 一层腰檐 */
