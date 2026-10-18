@@ -1,0 +1,17 @@
+{
+  "name": "forbidden-city-digital-restoration",
+  "version": "5.2.0",
+  "private": true,
+  "description": "紫禁城数字复原 — Three.js 程序化建模 / 四时段 / 中轴巡礼 / 后期调色",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs --desktop",
+    "smoke": "node tools/smoke.mjs",
+    "shots": "node tools/shots.mjs",
+    "check": "node tools/check.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

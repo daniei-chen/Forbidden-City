@@ -1,0 +1,11 @@
+.cache/
+node_modules/
+*.log
+*.bak
+*.zip
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+shots/*.png
+dist/build-info.json
