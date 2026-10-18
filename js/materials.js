@@ -108,6 +108,10 @@ MATS.init = function () {
     transparent: true, opacity: 0.42, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -1.5, polygonOffsetUnits: -2
   });
+  MATS.leafCard = new THREE.MeshStandardMaterial({
+    map: TEX.leafCard(), alphaTest: 0.45, transparent: false,
+    side: THREE.DoubleSide, roughness: 0.92, metalness: 0.0, color: 0xffffff
+  });
   MATS.fallenLeaf = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 1.0, metalness: 0.0 });
   MATS.fallenLeaf2 = new THREE.MeshStandardMaterial({ color: 0xa98a52, roughness: 1.0, metalness: 0.0 });
 

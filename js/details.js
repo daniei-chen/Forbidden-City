@@ -221,6 +221,26 @@ DETAIL.tree = function (o) {
     }
   }
 
+  /* 树冠叶片卡片：打散球簇轮廓，近景更自然 */
+  let crownY2 = trunkH * 0.9 + h * 0.2;
+  let crownR2 = h * 0.26;
+  if (species === 'cypress') { crownY2 = trunkH * 0.8 + h * 0.22; crownR2 = h * 0.18; }
+  const cardN = 9;
+  for (let ci = 0; ci < cardN; ci++) {
+    const a = TEX.rand() * Math.PI * 2;
+    const rr = crownR2 * (0.1 + TEX.rand() * 0.85);
+    const cx = Math.cos(a) * rr;
+    const cz = Math.sin(a) * rr;
+    const cy = crownY2 + (TEX.rand() - 0.32) * crownR2 * 1.1;
+    const sz = h * (0.22 + TEX.rand() * 0.2);
+    const gcard = new THREE.PlaneGeometry(sz, sz * 0.82);
+    gcard.rotateY(TEX.rand() * Math.PI);
+    gcard.rotateZ((TEX.rand() - 0.5) * 0.35);
+    gcard.translate(cx, cy, cz);
+    BATCH.add(gcard, MATS.leafCard, GEOM.mat4(0, 0, 0), { cast: false });
+    gcard.dispose();
+  }
+
   /* 树底 AO */
   BATCH.add(DETAIL._aoPlane(), MATS.aoDecal,
     GEOM.mat4(0, 0.02, 0, 0, 0, 0, h * 0.5, 1, h * 0.42), { cast: false });

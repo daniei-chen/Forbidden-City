@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.11.0.20261018.1724">
-<meta name="build-time" content="2026-10-18T17:24:21.436Z">
+<meta name="generator" content="forbidden-city-build 5.12.0.20261018.1748">
+<meta name="build-time" content="2026-10-18T17:48:18.633Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T17:24:21.436Z
-  version: 5.11.0.20261018.1724
+  build: 2026-10-18T17:48:18.633Z
+  version: 5.12.0.20261018.1748
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.11.0',
+  version: '5.12.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -535,6 +535,44 @@ TEX.once = function (name, fn) {
  * 1. 琉璃瓦面：竖向筒瓦 + 横向瓦垄
  *    一张贴图覆盖约 2.2m × 2.2m（4 条筒瓦、4 排瓦）
  * ----------------------------------------------------------- */
+/* 叶片簇卡片（透明，用于树冠细节） */
+TEX.leafCard = function () {
+  if (TEX._leafCard) return TEX._leafCard;
+  const S = 256;
+  const cv = document.createElement('canvas');
+  cv.width = S; cv.height = S;
+  const g = cv.getContext('2d');
+  const cols = ['#4c6b33', '#5d7d3e', '#3f5c2b', '#6b8a4a', '#7d8c42', '#556d33'];
+  for (let i = 0; i < 130; i++) {
+    const a = TEX.rand() * Math.PI * 2;
+    const r = Math.pow(TEX.rand(), 0.55) * S * 0.42;
+    const x = S / 2 + Math.cos(a) * r;
+    const y = S / 2 + Math.sin(a) * r * 0.92;
+    const sz = 6 + TEX.rand() * 12;
+    g.save();
+    g.translate(x, y);
+    g.rotate(TEX.rand() * Math.PI);
+    g.fillStyle = cols[Math.floor(TEX.rand() * cols.length)];
+    g.globalAlpha = 0.8 + TEX.rand() * 0.2;
+    g.beginPath();
+    g.ellipse(0, 0, sz, sz * 0.46, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+  }
+  g.globalCompositeOperation = 'destination-in';
+  const gr = g.createRadialGradient(S / 2, S / 2, S * 0.16, S / 2, S / 2, S * 0.5);
+  gr.addColorStop(0, 'rgba(0,0,0,1)');
+  gr.addColorStop(0.72, 'rgba(0,0,0,0.92)');
+  gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, S, S);
+  g.globalCompositeOperation = 'source-over';
+  const tex = new THREE.CanvasTexture(cv);
+  tex.encoding = THREE.sRGBEncoding;
+  tex.anisotropy = 4;
+  TEX._leafCard = tex;
+  return tex;
+};
 TEX.roof = function () {
   return TEX.once('roof', function () {
     const W = 512, H = 512, cv = TEX.canvas(W, H), g = cv.getContext('2d');
@@ -1409,6 +1447,10 @@ MATS.init = function () {
     map: TEX.stain(), color: 0x4a5c36, roughness: 1.0, metalness: 0.0,
     transparent: true, opacity: 0.42, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -1.5, polygonOffsetUnits: -2
+  });
+  MATS.leafCard = new THREE.MeshStandardMaterial({
+    map: TEX.leafCard(), alphaTest: 0.45, transparent: false,
+    side: THREE.DoubleSide, roughness: 0.92, metalness: 0.0, color: 0xffffff
   });
   MATS.fallenLeaf = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 1.0, metalness: 0.0 });
   MATS.fallenLeaf2 = new THREE.MeshStandardMaterial({ color: 0xa98a52, roughness: 1.0, metalness: 0.0 });
@@ -2540,6 +2582,26 @@ DETAIL.tree = function (o) {
         rr, rr * 0.82, rr
       );
     }
+  }
+
+  /* 树冠叶片卡片：打散球簇轮廓，近景更自然 */
+  let crownY2 = trunkH * 0.9 + h * 0.2;
+  let crownR2 = h * 0.26;
+  if (species === 'cypress') { crownY2 = trunkH * 0.8 + h * 0.22; crownR2 = h * 0.18; }
+  const cardN = 9;
+  for (let ci = 0; ci < cardN; ci++) {
+    const a = TEX.rand() * Math.PI * 2;
+    const rr = crownR2 * (0.1 + TEX.rand() * 0.85);
+    const cx = Math.cos(a) * rr;
+    const cz = Math.sin(a) * rr;
+    const cy = crownY2 + (TEX.rand() - 0.32) * crownR2 * 1.1;
+    const sz = h * (0.22 + TEX.rand() * 0.2);
+    const gcard = new THREE.PlaneGeometry(sz, sz * 0.82);
+    gcard.rotateY(TEX.rand() * Math.PI);
+    gcard.rotateZ((TEX.rand() - 0.5) * 0.35);
+    gcard.translate(cx, cy, cz);
+    BATCH.add(gcard, MATS.leafCard, GEOM.mat4(0, 0, 0), { cast: false });
+    gcard.dispose();
   }
 
   /* 树底 AO */
@@ -9335,6 +9397,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.11.0.20261018.1724","time":"2026-10-18T17:24:21.436Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.12.0.20261018.1748","time":"2026-10-18T17:48:18.633Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

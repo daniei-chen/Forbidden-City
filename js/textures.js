@@ -40,6 +40,44 @@ TEX.once = function (name, fn) {
  * 1. 琉璃瓦面：竖向筒瓦 + 横向瓦垄
  *    一张贴图覆盖约 2.2m × 2.2m（4 条筒瓦、4 排瓦）
  * ----------------------------------------------------------- */
+/* 叶片簇卡片（透明，用于树冠细节） */
+TEX.leafCard = function () {
+  if (TEX._leafCard) return TEX._leafCard;
+  const S = 256;
+  const cv = document.createElement('canvas');
+  cv.width = S; cv.height = S;
+  const g = cv.getContext('2d');
+  const cols = ['#4c6b33', '#5d7d3e', '#3f5c2b', '#6b8a4a', '#7d8c42', '#556d33'];
+  for (let i = 0; i < 130; i++) {
+    const a = TEX.rand() * Math.PI * 2;
+    const r = Math.pow(TEX.rand(), 0.55) * S * 0.42;
+    const x = S / 2 + Math.cos(a) * r;
+    const y = S / 2 + Math.sin(a) * r * 0.92;
+    const sz = 6 + TEX.rand() * 12;
+    g.save();
+    g.translate(x, y);
+    g.rotate(TEX.rand() * Math.PI);
+    g.fillStyle = cols[Math.floor(TEX.rand() * cols.length)];
+    g.globalAlpha = 0.8 + TEX.rand() * 0.2;
+    g.beginPath();
+    g.ellipse(0, 0, sz, sz * 0.46, 0, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+  }
+  g.globalCompositeOperation = 'destination-in';
+  const gr = g.createRadialGradient(S / 2, S / 2, S * 0.16, S / 2, S / 2, S * 0.5);
+  gr.addColorStop(0, 'rgba(0,0,0,1)');
+  gr.addColorStop(0.72, 'rgba(0,0,0,0.92)');
+  gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, S, S);
+  g.globalCompositeOperation = 'source-over';
+  const tex = new THREE.CanvasTexture(cv);
+  tex.encoding = THREE.sRGBEncoding;
+  tex.anisotropy = 4;
+  TEX._leafCard = tex;
+  return tex;
+};
 TEX.roof = function () {
   return TEX.once('roof', function () {
     const W = 512, H = 512, cv = TEX.canvas(W, H), g = cv.getContext('2d');
