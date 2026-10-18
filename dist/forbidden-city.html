@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.18.0.20261018.2015">
-<meta name="build-time" content="2026-10-18T20:15:54.332Z">
+<meta name="generator" content="forbidden-city-build 5.19.0.20261018.2052">
+<meta name="build-time" content="2026-10-18T20:52:54.647Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T20:15:54.332Z
-  version: 5.18.0.20261018.2015
+  build: 2026-10-18T20:52:54.647Z
+  version: 5.19.0.20261018.2052
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.18.0',
+  version: '5.19.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -3466,6 +3466,8 @@ NPC.makeCat = function () {
   return { group: g, parts: { legs: legs, tail: tail, body: body, head: head } };
 };
 
+if (typeof window !== 'undefined') window.__NPC = NPC;
+
 </script>
 <script data-src="js/audio.js">
 /* ==== js/audio.js ==== */
@@ -3693,7 +3695,45 @@ BUILD.begin = function (x, z, ry) {
   return g;
 };
 
+/* 按材质合并建筑组内的静态网格：显著降低 draw call（几何不变） */
+BUILD.mergeGroup = function (root) {
+  if (!root || !root.children || root.children.length < 3) return;
+  const groups = new Map();
+  const list = [];
+  for (let i = 0; i < root.children.length; i++) {
+    const c = root.children[i];
+    if (!c || !c.isMesh || c.isInstancedMesh) continue;
+    if (c.userData && c.userData.noMerge) continue;
+    if (c.geometry && c.geometry.morphAttributes && Object.keys(c.geometry.morphAttributes).length) continue;
+    c.updateMatrix();
+    list.push(c);
+    const key = c.material.uuid + '|' + (c.castShadow ? 1 : 0) + '|' + (c.receiveShadow ? 1 : 0);
+    let arr = groups.get(key);
+    if (!arr) { arr = []; groups.set(key, arr); }
+    arr.push(c);
+  }
+  groups.forEach(function (arr) {
+    if (arr.length < 2) return;
+    const geos = [];
+    for (let i = 0; i < arr.length; i++) {
+      const c = arr[i];
+      const g2 = c.geometry.clone();
+      g2.applyMatrix4(c.matrix);
+      geos.push(g2);
+      root.remove(c);
+    }
+    const merged = new THREE.Mesh(GEOM.merge(geos), arr[0].material);
+    merged.castShadow = arr[0].castShadow;
+    merged.receiveShadow = arr[0].receiveShadow;
+    merged.matrixAutoUpdate = false;
+    merged.updateMatrix();
+    root.add(merged);
+    for (let i = 0; i < geos.length; i++) geos[i].dispose();
+  });
+};
+
 BUILD.end = function () {
+  if (BUILD.group) BUILD.mergeGroup(BUILD.group);
   BUILD._stack.pop();
   const st = BUILD._stack;
   const top = st.length ? st[st.length - 1] : null;
@@ -6624,6 +6664,8 @@ INTERIOR.buildAll = function (root) {
   for (let i = 0; i < list.length; i++) INTERIOR.hall(list[i]);
 };
 
+if (typeof window !== 'undefined') window.__INTERIOR = INTERIOR;
+
 </script>
 <script data-src="js/walk.js">
 /* ==== js/walk.js ==== */
@@ -9415,7 +9457,7 @@ const ASSETS = {
         dm.visible = detailAllowed && lodTmp.distanceToSquared(camera.position) < 260 * 260;
       }
       if (NPC.group && !WALK.active) {
-        NPC.group.visible = ctrl.target.distanceToSquared(new THREE.Vector3(0, 10, 0)) < 520 * 520;
+        NPC.group.visible = ctrl.target.distanceToSquared(new THREE.Vector3(0, 10, 0)) < 280 * 280;
       } else if (NPC.group && WALK.active) {
         NPC.group.visible = true;
       }
@@ -9642,6 +9684,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.18.0.20261018.2015","time":"2026-10-18T20:15:54.332Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.19.0.20261018.2052","time":"2026-10-18T20:52:54.647Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

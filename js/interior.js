@@ -488,3 +488,5 @@ INTERIOR.buildAll = function (root) {
   ];
   for (let i = 0; i < list.length; i++) INTERIOR.hall(list[i]);
 };
+
+if (typeof window !== 'undefined') window.__INTERIOR = INTERIOR;

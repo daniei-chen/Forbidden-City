@@ -375,3 +375,5 @@ NPC.makeCat = function () {
   g.scale.set(1.25, 1.25, 1.25);
   return { group: g, parts: { legs: legs, tail: tail, body: body, head: head } };
 };
+
+if (typeof window !== 'undefined') window.__NPC = NPC;

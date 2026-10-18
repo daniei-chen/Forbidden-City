@@ -86,7 +86,45 @@ BUILD.begin = function (x, z, ry) {
   return g;
 };
 
+/* 按材质合并建筑组内的静态网格：显著降低 draw call（几何不变） */
+BUILD.mergeGroup = function (root) {
+  if (!root || !root.children || root.children.length < 3) return;
+  const groups = new Map();
+  const list = [];
+  for (let i = 0; i < root.children.length; i++) {
+    const c = root.children[i];
+    if (!c || !c.isMesh || c.isInstancedMesh) continue;
+    if (c.userData && c.userData.noMerge) continue;
+    if (c.geometry && c.geometry.morphAttributes && Object.keys(c.geometry.morphAttributes).length) continue;
+    c.updateMatrix();
+    list.push(c);
+    const key = c.material.uuid + '|' + (c.castShadow ? 1 : 0) + '|' + (c.receiveShadow ? 1 : 0);
+    let arr = groups.get(key);
+    if (!arr) { arr = []; groups.set(key, arr); }
+    arr.push(c);
+  }
+  groups.forEach(function (arr) {
+    if (arr.length < 2) return;
+    const geos = [];
+    for (let i = 0; i < arr.length; i++) {
+      const c = arr[i];
+      const g2 = c.geometry.clone();
+      g2.applyMatrix4(c.matrix);
+      geos.push(g2);
+      root.remove(c);
+    }
+    const merged = new THREE.Mesh(GEOM.merge(geos), arr[0].material);
+    merged.castShadow = arr[0].castShadow;
+    merged.receiveShadow = arr[0].receiveShadow;
+    merged.matrixAutoUpdate = false;
+    merged.updateMatrix();
+    root.add(merged);
+    for (let i = 0; i < geos.length; i++) geos[i].dispose();
+  });
+};
+
 BUILD.end = function () {
+  if (BUILD.group) BUILD.mergeGroup(BUILD.group);
   BUILD._stack.pop();
   const st = BUILD._stack;
   const top = st.length ? st[st.length - 1] : null;

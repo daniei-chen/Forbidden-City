@@ -1352,7 +1352,7 @@
         dm.visible = detailAllowed && lodTmp.distanceToSquared(camera.position) < 260 * 260;
       }
       if (NPC.group && !WALK.active) {
-        NPC.group.visible = ctrl.target.distanceToSquared(new THREE.Vector3(0, 10, 0)) < 520 * 520;
+        NPC.group.visible = ctrl.target.distanceToSquared(new THREE.Vector3(0, 10, 0)) < 280 * 280;
       } else if (NPC.group && WALK.active) {
         NPC.group.visible = true;
       }
