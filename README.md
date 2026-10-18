@@ -254,3 +254,10 @@ npm run shots     # 批量渲染机位截图
 ## 版本
 
 见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.2.0**。
+
+## 许可与致谢
+
+- 本项目代码以 **MIT License** 发布（见 [LICENSE](LICENSE)）。
+- 捆绑的 `three.min.js` 为 [three.js](https://threejs.org) r149，MIT License，© mrdoob and three.js authors，其版权头保留在文件中。
+- 除 three.js 外，所有模型、几何、程序化贴图、场景与截图均由本项目代码生成。
+- 本项目为个人技术演示，与故宫博物院无隶属或合作关系。
