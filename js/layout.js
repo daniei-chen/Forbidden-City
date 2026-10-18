@@ -1111,6 +1111,14 @@ LAYOUT.build = function (root) {
   ground.receiveShadow = true;
   root.add(ground);
 
+  /* 地面大尺度斑驳叠加（打散铺装重复感） */
+  const mottle = new THREE.Mesh(new THREE.PlaneGeometry(753, 961), MATS.groundMottle);
+  mottle.rotation.x = -Math.PI / 2;
+  mottle.position.set(0, 0.045, -0.5);
+  mottle.receiveShadow = false;
+  mottle.renderOrder = 1;
+  root.add(mottle);
+
   LAYOUT.terrace(root);
   LAYOUT.river(root);
   LAYOUT.taiheHall();

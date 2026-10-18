@@ -78,6 +78,32 @@ TEX.leafCard = function () {
   TEX._leafCard = tex;
   return tex;
 };
+/* 地面大尺度斑驳（透明叠加，打散铺装重复感） */
+TEX.groundMottle = function () {
+  if (TEX._groundMottle) return TEX._groundMottle;
+  const S = 512;
+  const cv = TEX.canvas(S, S);
+  const g = cv.getContext('2d');
+  const blob = function (cx, cy, r, dark, a) {
+    const grd = g.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+    const c = dark ? '0,0,0' : '255,255,255';
+    grd.addColorStop(0, 'rgba(' + c + ',' + a + ')');
+    grd.addColorStop(0.6, 'rgba(' + c + ',' + (a * 0.55) + ')');
+    grd.addColorStop(1, 'rgba(' + c + ',0)');
+    g.fillStyle = grd;
+    g.beginPath(); g.arc(cx, cy, r, 0, 6.283); g.fill();
+  };
+  for (let i = 0; i < 26; i++) {
+    blob(TEX.rand() * S, TEX.rand() * S, 40 + TEX.rand() * 130, TEX.rand() < 0.56, 0.05 + TEX.rand() * 0.06);
+  }
+  for (let i = 0; i < 30; i++) {
+    blob(TEX.rand() * S, TEX.rand() * S, 8 + TEX.rand() * 40, TEX.rand() < 0.5, 0.03 + TEX.rand() * 0.05);
+  }
+  const tex = TEX.tex(cv, 3.4, 4.4, true);
+  TEX._groundMottle = tex;
+  return tex;
+};
+
 TEX.roof = function () {
   return TEX.once('roof', function () {
     const W = 512, H = 512, cv = TEX.canvas(W, H), g = cv.getContext('2d');

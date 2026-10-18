@@ -105,6 +105,11 @@ MATS.water.envMapIntensity = 1.35;
   });
 
   /* ---- 接地 AO / 云影 ---- */
+  MATS.groundMottle = new THREE.MeshBasicMaterial({
+    map: TEX.groundMottle(), transparent: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
+  });
+
   MATS.moss = new THREE.MeshStandardMaterial({
     map: TEX.stain(), color: 0x4a5c36, roughness: 1.0, metalness: 0.0,
     transparent: true, opacity: 0.42, depthWrite: false,

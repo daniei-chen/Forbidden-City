@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.26.0.20261018.2312">
-<meta name="build-time" content="2026-10-18T23:12:30.722Z">
+<meta name="generator" content="forbidden-city-build 5.27.0.20261018.2338">
+<meta name="build-time" content="2026-10-18T23:38:54.483Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T23:12:30.722Z
-  version: 5.26.0.20261018.2312
+  build: 2026-10-18T23:38:54.483Z
+  version: 5.27.0.20261018.2338
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.26.0',
+  version: '5.27.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -573,6 +573,32 @@ TEX.leafCard = function () {
   TEX._leafCard = tex;
   return tex;
 };
+/* 地面大尺度斑驳（透明叠加，打散铺装重复感） */
+TEX.groundMottle = function () {
+  if (TEX._groundMottle) return TEX._groundMottle;
+  const S = 512;
+  const cv = TEX.canvas(S, S);
+  const g = cv.getContext('2d');
+  const blob = function (cx, cy, r, dark, a) {
+    const grd = g.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+    const c = dark ? '0,0,0' : '255,255,255';
+    grd.addColorStop(0, 'rgba(' + c + ',' + a + ')');
+    grd.addColorStop(0.6, 'rgba(' + c + ',' + (a * 0.55) + ')');
+    grd.addColorStop(1, 'rgba(' + c + ',0)');
+    g.fillStyle = grd;
+    g.beginPath(); g.arc(cx, cy, r, 0, 6.283); g.fill();
+  };
+  for (let i = 0; i < 26; i++) {
+    blob(TEX.rand() * S, TEX.rand() * S, 40 + TEX.rand() * 130, TEX.rand() < 0.56, 0.05 + TEX.rand() * 0.06);
+  }
+  for (let i = 0; i < 30; i++) {
+    blob(TEX.rand() * S, TEX.rand() * S, 8 + TEX.rand() * 40, TEX.rand() < 0.5, 0.03 + TEX.rand() * 0.05);
+  }
+  const tex = TEX.tex(cv, 3.4, 4.4, true);
+  TEX._groundMottle = tex;
+  return tex;
+};
+
 TEX.roof = function () {
   return TEX.once('roof', function () {
     const W = 512, H = 512, cv = TEX.canvas(W, H), g = cv.getContext('2d');
@@ -1468,6 +1494,11 @@ MATS.water.envMapIntensity = 1.35;
   });
 
   /* ---- 接地 AO / 云影 ---- */
+  MATS.groundMottle = new THREE.MeshBasicMaterial({
+    map: TEX.groundMottle(), transparent: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
+  });
+
   MATS.moss = new THREE.MeshStandardMaterial({
     map: TEX.stain(), color: 0x4a5c36, roughness: 1.0, metalness: 0.0,
     transparent: true, opacity: 0.42, depthWrite: false,
@@ -5950,6 +5981,14 @@ LAYOUT.build = function (root) {
   ground.receiveShadow = true;
   root.add(ground);
 
+  /* 地面大尺度斑驳叠加（打散铺装重复感） */
+  const mottle = new THREE.Mesh(new THREE.PlaneGeometry(753, 961), MATS.groundMottle);
+  mottle.rotation.x = -Math.PI / 2;
+  mottle.position.set(0, 0.045, -0.5);
+  mottle.receiveShadow = false;
+  mottle.renderOrder = 1;
+  root.add(mottle);
+
   LAYOUT.terrace(root);
   LAYOUT.river(root);
   LAYOUT.taiheHall();
@@ -9879,6 +9918,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.26.0.20261018.2312","time":"2026-10-18T23:12:30.722Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.27.0.20261018.2338","time":"2026-10-18T23:38:54.483Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
