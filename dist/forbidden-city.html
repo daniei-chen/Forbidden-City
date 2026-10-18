@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.7.0.20261018.1457">
-<meta name="build-time" content="2026-10-18T14:57:10.484Z">
+<meta name="generator" content="forbidden-city-build 5.8.0.20261018.1515">
+<meta name="build-time" content="2026-10-18T15:15:55.743Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T14:57:10.484Z
-  version: 5.7.0.20261018.1457
+  build: 2026-10-18T15:15:55.743Z
+  version: 5.8.0.20261018.1515
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.7.0',
+  version: '5.8.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -4697,7 +4697,7 @@ LAYOUT.middleHalls = function () {
   BUILD.hall({
     baseY: 8.13, podiumH: 1.2, podiumPad: 6, rail: true,
     enterable: true, doorW: 4.6,
-    bodyW: 24, bodyD: 24, bodyH: 8.4, bays: 3, sideBays: 3,
+    hero: true, bodyW: 24, bodyD: 24, bodyH: 8.4, bays: 3, sideBays: 3,
     facadeMat: MATS.facade5,
     layers: 1, facets: 'pyramid',
     eave1: [15.8, 15.8], rise1: 7.6,
@@ -4711,7 +4711,7 @@ LAYOUT.middleHalls = function () {
   BUILD.hall({
     baseY: 8.13, podiumH: 1.3, podiumPad: 6, rail: true,
     enterable: true, doorW: 5.2,
-    bodyW: 49.7, bodyD: 25, bodyH: 8.8, bays: 9,
+    hero: true, bodyW: 49.7, bodyD: 25, bodyH: 8.8, bays: 9,
     facadeMat: MATS.facade9,
     layers: 2,
     facets: 'gable', gd: 12.6, gableBase: 0.2,
@@ -5482,6 +5482,61 @@ LAYOUT.propsExtra = function () {
 /* =============================================================
  *  总装
  * ============================================================= */
+/* 补种树木 + 落叶堆：沿墙、院落、花园外缘，全部走 BATCH 合并 */
+LAYOUT.extraTrees = function () {
+  const rnd = TEX.rand;
+  const spots = [];
+  const push = function (x, z) { spots.push({ x: x, z: z }); };
+  /* 外墙内侧 */
+  for (const sx of [-1, 1]) {
+    for (const z of [-430, -350, -270, 180, 260, 340, 430]) push(sx * 352, z);
+  }
+  for (const x of [-300, -200, -100, 100, 200, 300]) {
+    push(x, 432);
+    push(x, -438);
+  }
+  /* 东六宫 / 西六宫院落空隙 */
+  for (const sx of [-1, 1]) {
+    for (const z of [-70, -130, -190, -250, -310]) push(sx * (118 + rnd() * 40), z);
+  }
+  /* 文华殿 / 武英殿前 */
+  for (const sx of [-1, 1]) {
+    for (let k = 0; k < 3; k++) push(sx * (205 + rnd() * 35), 225 + k * 22);
+  }
+  /* 御花园外缘 */
+  for (const sx of [-1, 1]) {
+    for (const z of [-300, -330, -365, -395]) push(sx * (86 + rnd() * 18), z);
+  }
+  /* 慈宁宫 / 寿康宫一带 */
+  for (const z of [-380, -410, -440]) { push(-205, z); push(205, z); }
+
+  const leafGeosA = [], leafGeosB = [];
+  for (let i = 0; i < spots.length; i++) {
+    const sp = spots[i];
+    BUILD.begin(sp.x, sp.z, rnd() * Math.PI * 2);
+    BUILD.tree({ h: 8 + rnd() * 6 });
+    BUILD.end();
+    /* 树下落叶堆（扁平小面片，合并绘制） */
+    const n = 2 + Math.floor(rnd() * 3);
+    for (let k = 0; k < n; k++) {
+      const g = new THREE.CircleGeometry(0.8 + rnd() * 1.5, 7);
+      g.rotateX(-Math.PI / 2);
+      g.translate(sp.x + (rnd() - 0.5) * 5, 0.045 + k * 0.004, sp.z + (rnd() - 0.5) * 5);
+      (rnd() < 0.55 ? leafGeosA : leafGeosB).push(g);
+    }
+  }
+  if (leafGeosA.length) {
+    const m = new THREE.Mesh(GEOM.merge(leafGeosA), MATS.leafDark || MATS.leaf);
+    m.receiveShadow = true;
+    BUILD.parent.add(m);
+  }
+  if (leafGeosB.length) {
+    const m = new THREE.Mesh(GEOM.merge(leafGeosB), MATS.leafLight || MATS.leaf);
+    m.receiveShadow = true;
+    BUILD.parent.add(m);
+  }
+};
+
 LAYOUT.build = function (root) {
   BUILD.init(root);
 
@@ -5527,6 +5582,7 @@ LAYOUT.build = function (root) {
   LAYOUT.weathering();
   LAYOUT.aoBands();
   LAYOUT.treeBelts();
+  LAYOUT.extraTrees();
   LAYOUT.propsExtra();
   LAYOUT.moat();
 
@@ -5609,6 +5665,22 @@ GARDEN.buildAll = function () {
   }
 
   /* ---------------- 堆秀山 + 御景亭 ---------------- */
+  /* ---------------- 石桌石凳（御花园休憩陈设） ---------------- */
+  GARDEN.stoneTable = function (x, z) {
+    BUILD.begin(x, z, 0);
+    BATCH.add(new THREE.CylinderGeometry(1.25, 1.25, 0.16, 16), MATS.marbleRail, GEOM.mat4(0, 0.86, 0));
+    BATCH.add(new THREE.CylinderGeometry(0.34, 0.5, 0.78, 10), MATS.marbleRail, GEOM.mat4(0, 0.39, 0));
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + Math.PI / 4;
+      BATCH.add(new THREE.CylinderGeometry(0.38, 0.42, 0.46, 10), MATS.marbleRail,
+        GEOM.mat4(Math.cos(a) * 2.15, 0.23, Math.sin(a) * 2.15));
+    }
+    BUILD.addCollider(0, 0, 2.4, 2.4);
+    BUILD.end();
+  };
+  GARDEN.stoneTable(26, -372);
+  GARDEN.stoneTable(-26, -372);
+
   BUILD.begin(64, -352, 0);
   BUILD.rockery({ w: 16, d: 12, h: 9, rocks: 20 });
   BUILD.end();
@@ -9117,6 +9189,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.7.0.20261018.1457","time":"2026-10-18T14:57:10.484Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.8.0.20261018.1515","time":"2026-10-18T15:15:55.743Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

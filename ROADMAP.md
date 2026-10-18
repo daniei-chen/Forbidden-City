@@ -78,3 +78,4 @@ pm run smoke` → ④ 多机位截图 → ⑤ 更新文档/版本 → ⑥ 记录
 | R18 | P2：Bloom / 大气雾 / VSM 软阴影；工具降优先级 | 冒烟 + harness |
 | R19 | P3：太和殿 Hero 高精试点（窗框/雀替/门扇/脊兽） | 冒烟 + harness + 截图 |
 | R20 | P5：屋顶构件合并 / 细节 LOD / NPC 远景隐藏 | 冒烟 + harness + draw 统计 |
+| R21 | P4：补种树木 / 落叶 / 石桌石凳；Hero 推广中和殿、保和殿 | 冒烟 + harness + 截图 |

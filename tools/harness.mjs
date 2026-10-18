@@ -231,8 +231,9 @@ if (UPDATE || !fs.existsSync(baselineMetricsFile)) {
   } else {
     comparison = JSON.parse(fs.readFileSync(scoreFile, 'utf8'));
     const base = JSON.parse(fs.readFileSync(baselineMetricsFile, 'utf8'));
-    const perfDrop = base.perf && base.perf.benchMs && metricsDoc.perf.benchMs
-      ? (metricsDoc.perf.benchMs - base.perf.benchMs) / base.perf.benchMs : 0;
+    /* 用 draw calls（稳定指标）判定性能回退；benchMs 在软件渲染下噪声很大，仅记录 */
+    const perfDrop = base.perf && base.perf.draws && metricsDoc.perf.draws
+      ? (metricsDoc.perf.draws - base.perf.draws) / base.perf.draws : 0;
     const s = comparison.summary || {};
     const pass = (s.minSsim == null || s.minSsim >= thresholds.ssimMin) &&
       (s.maeMean == null || s.maeMean <= thresholds.maeMax) &&

@@ -106,7 +106,7 @@ LAYOUT.middleHalls = function () {
   BUILD.hall({
     baseY: 8.13, podiumH: 1.2, podiumPad: 6, rail: true,
     enterable: true, doorW: 4.6,
-    bodyW: 24, bodyD: 24, bodyH: 8.4, bays: 3, sideBays: 3,
+    hero: true, bodyW: 24, bodyD: 24, bodyH: 8.4, bays: 3, sideBays: 3,
     facadeMat: MATS.facade5,
     layers: 1, facets: 'pyramid',
     eave1: [15.8, 15.8], rise1: 7.6,
@@ -120,7 +120,7 @@ LAYOUT.middleHalls = function () {
   BUILD.hall({
     baseY: 8.13, podiumH: 1.3, podiumPad: 6, rail: true,
     enterable: true, doorW: 5.2,
-    bodyW: 49.7, bodyD: 25, bodyH: 8.8, bays: 9,
+    hero: true, bodyW: 49.7, bodyD: 25, bodyH: 8.8, bays: 9,
     facadeMat: MATS.facade9,
     layers: 2,
     facets: 'gable', gd: 12.6, gableBase: 0.2,
@@ -891,6 +891,61 @@ LAYOUT.propsExtra = function () {
 /* =============================================================
  *  总装
  * ============================================================= */
+/* 补种树木 + 落叶堆：沿墙、院落、花园外缘，全部走 BATCH 合并 */
+LAYOUT.extraTrees = function () {
+  const rnd = TEX.rand;
+  const spots = [];
+  const push = function (x, z) { spots.push({ x: x, z: z }); };
+  /* 外墙内侧 */
+  for (const sx of [-1, 1]) {
+    for (const z of [-430, -350, -270, 180, 260, 340, 430]) push(sx * 352, z);
+  }
+  for (const x of [-300, -200, -100, 100, 200, 300]) {
+    push(x, 432);
+    push(x, -438);
+  }
+  /* 东六宫 / 西六宫院落空隙 */
+  for (const sx of [-1, 1]) {
+    for (const z of [-70, -130, -190, -250, -310]) push(sx * (118 + rnd() * 40), z);
+  }
+  /* 文华殿 / 武英殿前 */
+  for (const sx of [-1, 1]) {
+    for (let k = 0; k < 3; k++) push(sx * (205 + rnd() * 35), 225 + k * 22);
+  }
+  /* 御花园外缘 */
+  for (const sx of [-1, 1]) {
+    for (const z of [-300, -330, -365, -395]) push(sx * (86 + rnd() * 18), z);
+  }
+  /* 慈宁宫 / 寿康宫一带 */
+  for (const z of [-380, -410, -440]) { push(-205, z); push(205, z); }
+
+  const leafGeosA = [], leafGeosB = [];
+  for (let i = 0; i < spots.length; i++) {
+    const sp = spots[i];
+    BUILD.begin(sp.x, sp.z, rnd() * Math.PI * 2);
+    BUILD.tree({ h: 8 + rnd() * 6 });
+    BUILD.end();
+    /* 树下落叶堆（扁平小面片，合并绘制） */
+    const n = 2 + Math.floor(rnd() * 3);
+    for (let k = 0; k < n; k++) {
+      const g = new THREE.CircleGeometry(0.8 + rnd() * 1.5, 7);
+      g.rotateX(-Math.PI / 2);
+      g.translate(sp.x + (rnd() - 0.5) * 5, 0.045 + k * 0.004, sp.z + (rnd() - 0.5) * 5);
+      (rnd() < 0.55 ? leafGeosA : leafGeosB).push(g);
+    }
+  }
+  if (leafGeosA.length) {
+    const m = new THREE.Mesh(GEOM.merge(leafGeosA), MATS.leafDark || MATS.leaf);
+    m.receiveShadow = true;
+    BUILD.parent.add(m);
+  }
+  if (leafGeosB.length) {
+    const m = new THREE.Mesh(GEOM.merge(leafGeosB), MATS.leafLight || MATS.leaf);
+    m.receiveShadow = true;
+    BUILD.parent.add(m);
+  }
+};
+
 LAYOUT.build = function (root) {
   BUILD.init(root);
 
@@ -936,6 +991,7 @@ LAYOUT.build = function (root) {
   LAYOUT.weathering();
   LAYOUT.aoBands();
   LAYOUT.treeBelts();
+  LAYOUT.extraTrees();
   LAYOUT.propsExtra();
   LAYOUT.moat();
 

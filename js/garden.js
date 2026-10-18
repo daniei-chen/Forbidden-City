@@ -70,6 +70,22 @@ GARDEN.buildAll = function () {
   }
 
   /* ---------------- 堆秀山 + 御景亭 ---------------- */
+  /* ---------------- 石桌石凳（御花园休憩陈设） ---------------- */
+  GARDEN.stoneTable = function (x, z) {
+    BUILD.begin(x, z, 0);
+    BATCH.add(new THREE.CylinderGeometry(1.25, 1.25, 0.16, 16), MATS.marbleRail, GEOM.mat4(0, 0.86, 0));
+    BATCH.add(new THREE.CylinderGeometry(0.34, 0.5, 0.78, 10), MATS.marbleRail, GEOM.mat4(0, 0.39, 0));
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + Math.PI / 4;
+      BATCH.add(new THREE.CylinderGeometry(0.38, 0.42, 0.46, 10), MATS.marbleRail,
+        GEOM.mat4(Math.cos(a) * 2.15, 0.23, Math.sin(a) * 2.15));
+    }
+    BUILD.addCollider(0, 0, 2.4, 2.4);
+    BUILD.end();
+  };
+  GARDEN.stoneTable(26, -372);
+  GARDEN.stoneTable(-26, -372);
+
   BUILD.begin(64, -352, 0);
   BUILD.rockery({ w: 16, d: 12, h: 9, rocks: 20 });
   BUILD.end();
