@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.6.0.20261018.1426">
-<meta name="build-time" content="2026-10-18T14:26:33.228Z">
+<meta name="generator" content="forbidden-city-build 5.7.0.20261018.1457">
+<meta name="build-time" content="2026-10-18T14:57:10.484Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T14:26:33.228Z
-  version: 5.6.0.20261018.1426
+  build: 2026-10-18T14:57:10.484Z
+  version: 5.7.0.20261018.1457
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.6.0',
+  version: '5.7.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -1644,6 +1644,7 @@ GEOM.roofTier = function (o) {
   const tile = o.tile || 2.2;
   const mat = o.mat || MATS.roof;
   const group = o.group || new THREE.Group();
+  const _roofMeshes = [];
   const rise = y1 - y0;
 
   const slopes = [
@@ -1713,6 +1714,7 @@ GEOM.roofTier = function (o) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       group.add(mesh);
+      _roofMeshes.push(mesh);
     }
   }
 
@@ -1752,6 +1754,7 @@ GEOM.roofTier = function (o) {
       const rm = new THREE.Mesh(tube, MATS.ridge);
       rm.castShadow = true;
       group.add(rm);
+      _roofMeshes.push(rm);
     }
     // 走兽：檐角起 5 只
     if (beastGeo) {
@@ -1786,6 +1789,7 @@ GEOM.roofTier = function (o) {
         mesh.rotation.y = pry;
         mesh.castShadow = true;
         group.add(mesh);
+        _roofMeshes.push(mesh);
       }
     }
   }
@@ -1793,6 +1797,28 @@ GEOM.roofTier = function (o) {
   /* 攒尖宝顶 */
   if (o.finial) {
     GEOM.finial(y1 + (o.ridgeH || 0.9) * 0.4, o.finialScale || 1);
+  }
+
+  /* 按材质合并屋顶网格：显著减少 draw call（视觉完全一致） */
+  if (!o.batch && _roofMeshes.length > 1) {
+    const byMat = new Map();
+    for (let mi = 0; mi < _roofMeshes.length; mi++) {
+      const m = _roofMeshes[mi];
+      m.updateMatrix();
+      const geo = m.geometry.clone().applyMatrix4(m.matrix);
+      if (!byMat.has(m.material)) byMat.set(m.material, []);
+      byMat.get(m.material).push(geo);
+      group.remove(m);
+      m.geometry.dispose();
+    }
+    byMat.forEach(function (geos, mat2) {
+      const merged = GEOM.merge(geos);
+      const mm = new THREE.Mesh(merged, mat2);
+      mm.castShadow = true;
+      mm.receiveShadow = true;
+      group.add(mm);
+      for (let gi = 0; gi < geos.length; gi++) geos[gi].dispose();
+    });
   }
 
   /* 檐下阴影板（从下往上看不会漏空） */
@@ -8768,6 +8794,8 @@ const ASSETS = {
   let running = false;
   let staticMode = false;
   let shadowFrame = 0;
+  let lodFrame = 0;
+  const lodTmp = new THREE.Vector3();
   let autoCycleT = 0;
 
   function draw() {
@@ -8852,6 +8880,24 @@ const ASSETS = {
     MATS.water.map.offset.x -= dt * 0.004;
     EFFECTS.update(dt, th);
     if (!staticMode) NPC.update(dt);
+
+    /* LOD：远景剔除瓦当/椽头等小构件实例；NPC 远景隐藏 */
+    lodFrame = (lodFrame + 1) % 15;
+    if (lodFrame === 0) {
+      const detailAllowed = resolvedQuality !== 'low';
+      const detailMeshes = (typeof DETAIL !== 'undefined' && DETAIL.detailMeshes) ? DETAIL.detailMeshes : [];
+      for (let di = 0; di < detailMeshes.length; di++) {
+        const dm = detailMeshes[di];
+        if (!dm || !dm.parent) continue;
+        dm.getWorldPosition(lodTmp);
+        dm.visible = detailAllowed && lodTmp.distanceToSquared(camera.position) < 260 * 260;
+      }
+      if (NPC.group && !WALK.active) {
+        NPC.group.visible = ctrl.target.distanceToSquared(new THREE.Vector3(0, 10, 0)) < 520 * 520;
+      } else if (NPC.group && WALK.active) {
+        NPC.group.visible = true;
+      }
+    }
     INTERIOR.updateVisibility(camera);
     if (labelGroup.visible) {
       for (let i = 0; i < labelGroup.children.length; i++) {
@@ -9071,6 +9117,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.6.0.20261018.1426","time":"2026-10-18T14:26:33.228Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.7.0.20261018.1457","time":"2026-10-18T14:57:10.484Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

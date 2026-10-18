@@ -108,6 +108,7 @@ GEOM.roofTier = function (o) {
   const tile = o.tile || 2.2;
   const mat = o.mat || MATS.roof;
   const group = o.group || new THREE.Group();
+  const _roofMeshes = [];
   const rise = y1 - y0;
 
   const slopes = [
@@ -177,6 +178,7 @@ GEOM.roofTier = function (o) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       group.add(mesh);
+      _roofMeshes.push(mesh);
     }
   }
 
@@ -216,6 +218,7 @@ GEOM.roofTier = function (o) {
       const rm = new THREE.Mesh(tube, MATS.ridge);
       rm.castShadow = true;
       group.add(rm);
+      _roofMeshes.push(rm);
     }
     // 走兽：檐角起 5 只
     if (beastGeo) {
@@ -250,6 +253,7 @@ GEOM.roofTier = function (o) {
         mesh.rotation.y = pry;
         mesh.castShadow = true;
         group.add(mesh);
+        _roofMeshes.push(mesh);
       }
     }
   }
@@ -257,6 +261,28 @@ GEOM.roofTier = function (o) {
   /* 攒尖宝顶 */
   if (o.finial) {
     GEOM.finial(y1 + (o.ridgeH || 0.9) * 0.4, o.finialScale || 1);
+  }
+
+  /* 按材质合并屋顶网格：显著减少 draw call（视觉完全一致） */
+  if (!o.batch && _roofMeshes.length > 1) {
+    const byMat = new Map();
+    for (let mi = 0; mi < _roofMeshes.length; mi++) {
+      const m = _roofMeshes[mi];
+      m.updateMatrix();
+      const geo = m.geometry.clone().applyMatrix4(m.matrix);
+      if (!byMat.has(m.material)) byMat.set(m.material, []);
+      byMat.get(m.material).push(geo);
+      group.remove(m);
+      m.geometry.dispose();
+    }
+    byMat.forEach(function (geos, mat2) {
+      const merged = GEOM.merge(geos);
+      const mm = new THREE.Mesh(merged, mat2);
+      mm.castShadow = true;
+      mm.receiveShadow = true;
+      group.add(mm);
+      for (let gi = 0; gi < geos.length; gi++) geos[gi].dispose();
+    });
   }
 
   /* 檐下阴影板（从下往上看不会漏空） */

@@ -1237,6 +1237,8 @@
   let running = false;
   let staticMode = false;
   let shadowFrame = 0;
+  let lodFrame = 0;
+  const lodTmp = new THREE.Vector3();
   let autoCycleT = 0;
 
   function draw() {
@@ -1321,6 +1323,24 @@
     MATS.water.map.offset.x -= dt * 0.004;
     EFFECTS.update(dt, th);
     if (!staticMode) NPC.update(dt);
+
+    /* LOD：远景剔除瓦当/椽头等小构件实例；NPC 远景隐藏 */
+    lodFrame = (lodFrame + 1) % 15;
+    if (lodFrame === 0) {
+      const detailAllowed = resolvedQuality !== 'low';
+      const detailMeshes = (typeof DETAIL !== 'undefined' && DETAIL.detailMeshes) ? DETAIL.detailMeshes : [];
+      for (let di = 0; di < detailMeshes.length; di++) {
+        const dm = detailMeshes[di];
+        if (!dm || !dm.parent) continue;
+        dm.getWorldPosition(lodTmp);
+        dm.visible = detailAllowed && lodTmp.distanceToSquared(camera.position) < 260 * 260;
+      }
+      if (NPC.group && !WALK.active) {
+        NPC.group.visible = ctrl.target.distanceToSquared(new THREE.Vector3(0, 10, 0)) < 520 * 520;
+      } else if (NPC.group && WALK.active) {
+        NPC.group.visible = true;
+      }
+    }
     INTERIOR.updateVisibility(camera);
     if (labelGroup.visible) {
       for (let i = 0; i < labelGroup.children.length; i++) {
