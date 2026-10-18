@@ -257,9 +257,9 @@ npm run shots     # 批量渲染机位截图
 - 性能未在真实 GPU 实测（无头环境为软件渲染），已内置 FPS 监控与自动降级
 ## 版本
 
-见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.21.0**。
+见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.22.0**。
 
-## 自动化评测（harness）
+## 验收报告与画廊\n\n- [REALISM.md](REALISM.md)：自动生成的 REALISM 验收报告（构建指标 / 24 机位截图矩阵 / 16 项验收 / 差距清单）\n- [docs/gallery.html](docs/gallery.html)：四时段截图矩阵可视化画廊\n- 重新生成：`npm run report`\n\n## 自动化评测（harness）
 
 固定机位 × 四时段截图矩阵 + 硬指标 + 感知对比（SSIM / MAE / 亮度 / 直方图）+ HTML 报告，用于量化每次修改。
 

@@ -92,3 +92,4 @@ pm run smoke` → ④ 多机位截图 → ⑤ 更新文档/版本 → ⑥ 记录
 | R32 | 建筑组级合批（-33% draws）| 冒烟 + harness + draw 统计 |
 | R33 | 角楼窗棂 3D + 斗拱 | 冒烟 + harness |
 | R34 | 修复评测主题即时同步（雪景/夜景基线保真）| 冒烟 + harness |
+| R35 | REALISM 自动报告 + 截图画廊 | report + 冒烟 |

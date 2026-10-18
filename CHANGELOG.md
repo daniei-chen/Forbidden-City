@@ -1,5 +1,15 @@
 # 更新日志
 
+## v5.22.0 — REALISM 验收报告与画廊
+
+**新增**
+- `tools/realism-report.mjs`：自动汇总构建指标、24 机位截图矩阵、16 项验收状态与差距清单，生成 `REALISM.md`
+- `docs/gallery.html`：四时段截图矩阵可视化画廊（GitHub Pages 可直接浏览）
+- npm 脚本 `npm run report`
+
+**说明**
+- 报告数据来自 dist 构建信息、harness 基线与最近一次感知对比，可随每次迭代重新生成
+- 当前指标：meshes 1841、全景 draw calls 878（harness 静态模式）、3.55M tris、SSIM 0.9954 / MAE 0.27%
 ## v5.21.0 — 评测保真修复（雪景/夜景基线）
 
 **修复**

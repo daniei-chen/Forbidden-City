@@ -20,7 +20,7 @@
 | 13 | 桌面高画质 ≥ 30 FPS | **间接验证（真实 GPU 未实测）** | 内置 `__app.bench()`：无头 SwiftShader 软件渲染（v5.13.0），全景 draw calls 约 1222、3.5M tris（v5.19.0 组级合批后）；已做屋顶合批、细节 LOD、远景剔除；软件渲染不代表真实 GPU，已内置 FPS 显示与四档画质 |
 | 14 | 冒烟测试 20 项以上全过 | **达成** | **27/27 通过**（启动、四时段、标注、巡礼、画质、殿内、小人/跳跃/第三人称、侍卫、拍照接口、雪景过渡、脚印、零异常） |
 | 15 | 单文件构建可用 | **达成** | `dist/forbidden-city.html` ~10.4 MB（v5.13.0，含 CC0 素材内联），桌面副本哈希一致 |
-| 16 | 文档同步 | **达成** | README / CHANGELOG / REFERENCE / REFERENCE_MORE / ROADMAP / 本验收矩阵 |
+| 16 | 文档同步 | **达成** | README / CHANGELOG / REFERENCE / REFERENCE_MORE / ROADMAP / 本验收矩阵 / REALISM.md（自动生成）/ docs/gallery.html |
 
 ## 已知简化（如实披露）
 
