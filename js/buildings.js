@@ -187,6 +187,22 @@ BUILD.hall = function (o) {
     addPlane(new THREE.PlaneGeometry(bw - 1.2, fh), facMat, 0, y0 + fh / 2 + 0.35, -bd / 2 - 0.05, Math.PI);
   }
 
+  /* 侧墙随机风化雨痕（合批绘制，给墙面粉化/雨渍的随机差异） */
+  if (!o.noFacade) {
+    const nStreak = 5 + Math.floor(TEX.rand() * 5);
+    for (let i = 0; i < nStreak; i++) {
+      const sw = 0.55 + TEX.rand() * 1.5;
+      const sh = 2.0 + TEX.rand() * 4.5;
+      const sy = y0 + 1.0 + TEX.rand() * Math.max(1, bh * 0.62);
+      const sz2 = (TEX.rand() - 0.5) * (bd - 2.0);
+      for (const s of [-1, 1]) {
+        const gs = new THREE.PlaneGeometry(sw, sh);
+        BATCH.add(gs, MATS.stain, GEOM.mat4(s * (bw / 2 + 0.055), sy, sz2, 0, s > 0 ? Math.PI / 2 : -Math.PI / 2, 0), { cast: false });
+        gs.dispose();
+      }
+    }
+  }
+
   /* 柱列 */
   if (!o.noColumns) {
     const bays = o.bays || 9;
@@ -519,8 +535,22 @@ BUILD.gate = function (o) {
     const sz = side === 0 ? 1 : -1;
     for (let i = 0; i < arches; i++) {
       const ax = (i - (arches - 1) / 2) * (o.archGap || aw * 2.1);
+      /* 汉白玉券脸（门洞外圈石框，略大于门扇） */
+      const surround = new THREE.Mesh(BUILD.archGeo(aw + 1.7, ah + 0.95), MATS.marbleRail);
+      surround.position.set(ax, base + 0.55, sz * (D / 2 + 0.02));
+      if (sz < 0) surround.rotation.y = Math.PI;
+      surround.castShadow = false;
+      surround.receiveShadow = true;
+      g.add(surround);
+      /* 门洞石槛 */
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(aw * 0.95, 0.28, 0.7), MATS.marbleRail);
+      sill.position.set(ax, base + 0.72, sz * (D / 2 + 0.06));
+      sill.castShadow = false;
+      sill.receiveShadow = true;
+      g.add(sill);
+      /* 铁门扇 */
       const arch = new THREE.Mesh(BUILD.archGeo(aw, ah), MATS.ironGate);
-      arch.position.set(ax, base + 0.6, sz * (D / 2 + 0.07));
+      arch.position.set(ax, base + 0.6, sz * (D / 2 + 0.1));
       if (sz < 0) arch.rotation.y = Math.PI;
       arch.castShadow = false;
       g.add(arch);
@@ -590,7 +620,7 @@ BUILD.gate = function (o) {
       upperH: t.upperH, eave2: t.eave2, rise2: t.rise2, ridgeHalf: t.ridgeHalf,
       plaque: t.plaque, plaqueW: t.plaqueW,
       beasts1: 6, beasts2: 6,
-      noColumns: t.noColumns
+      noColumns: t.noColumns, hero: true
     });
   }
   return g;
