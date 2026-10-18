@@ -899,6 +899,21 @@ LAYOUT.spouts = function () {
 };
 
 /* =============================================================
+ *  太和殿广场「品级山」石标（清代官员站位标记，两列 18 排）
+ * ============================================================= */
+LAYOUT.rankStones = function () {
+  const g1 = new THREE.BoxGeometry(0.5, 0.24, 0.32);
+  const g2 = new THREE.BoxGeometry(0.34, 0.12, 0.24);
+  for (const sx of [-1, 1]) {
+    for (let i = 0; i < 18; i++) {
+      const z = 132 + i * 8.8;
+      const x = sx * (7.0 + (i % 3) * 0.3);
+      BATCH.add(g1, MATS.marbleRail, GEOM.mat4(x, 0.12, z), { cast: false });
+      BATCH.add(g2, MATS.marbleRail, GEOM.mat4(x, 0.30, z), { cast: false });
+    }
+  }
+};
+/* =============================================================
  *  精细陈设：18 座铜鼎 + 铜龟铜鹤
  * ============================================================= */
 LAYOUT.detailProps = function () {
@@ -1111,6 +1126,7 @@ LAYOUT.build = function (root) {
   LAYOUT.detailProps();
   LAYOUT.vats();
   LAYOUT.spouts();
+  LAYOUT.rankStones();
   LAYOUT.sidePalaces();
   LAYOUT.garden();
   GARDEN.buildAll();
