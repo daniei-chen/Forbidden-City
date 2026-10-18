@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.21.0.20261018.2125">
-<meta name="build-time" content="2026-10-18T21:25:20.085Z">
+<meta name="generator" content="forbidden-city-build 5.23.0.20261018.2200">
+<meta name="build-time" content="2026-10-18T22:00:08.374Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T21:25:20.085Z
-  version: 5.21.0.20261018.2125
+  build: 2026-10-18T22:00:08.374Z
+  version: 5.23.0.20261018.2200
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.21.0',
+  version: '5.23.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -7090,6 +7090,14 @@ const EFFECTS = {
     }
   },
 
+  updateLanternGlow: function (st) {
+    if (!this.lanternGlows) return;
+    const k = (st && st.lanterns != null) ? Math.max(0, Math.min(1, st.lanterns)) : 0;
+    for (let i = 0; i < this.lanternGlows.length; i++) {
+      this.lanternGlows[i].material.opacity = k * 0.5;
+    }
+    if (this.lanternGroundMat) this.lanternGroundMat.opacity = k * 0.32;
+  },
   /* ---------------- 飘叶 ---------------- */
   leaves: null,
   leafData: null,
@@ -7236,6 +7244,34 @@ const EFFECTS = {
     scene.add(caps);
     this.lanternCaps = caps;
 
+    /* 宫灯光晕（加法精灵）+ 地面光斑 */
+    this.lanternGlows = [];
+    for (let i = 0; i < spots.length; i++) {
+      const m = new THREE.SpriteMaterial({
+        map: TEX.dot(), color: 0xffb060, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      const sp = new THREE.Sprite(m);
+      sp.position.set(spots[i][0], 2.42, spots[i][1]);
+      sp.scale.set(4.6, 4.6, 1);
+      scene.add(sp);
+      this.lanternGlows.push(sp);
+    }
+    const groundGeos = [];
+    for (let i = 0; i < spots.length; i++) {
+      const g = new THREE.PlaneGeometry(7.5, 7.5);
+      g.rotateX(-Math.PI / 2);
+      g.translate(spots[i][0], 0.07, spots[i][1]);
+      groundGeos.push(g);
+    }
+    this.lanternGroundMat = new THREE.MeshBasicMaterial({
+      map: TEX.dot(), color: 0xffa860, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const groundMesh = new THREE.Mesh(GEOM.merge(groundGeos), this.lanternGroundMat);
+    groundMesh.renderOrder = 2;
+    scene.add(groundMesh);
+    this.lanternGround = groundMesh;
     this.lanternData = spots.map(function (p) {
       return { x: p[0], y: 3.14, z: p[1], phase: Math.random() * 6.28 };
     });
@@ -7408,6 +7444,7 @@ const EFFECTS = {
     this.updateBirds(dt, st);
     this.updateLeaves(dt, st);
     this.updateLanterns(dt);
+    this.updateLanternGlow(st);
     this.updateCloudShadows(dt, st);
     if (st.snow < 0.2) {
       for (let i = 0; i < this.footprints.length; i++) {
@@ -9714,6 +9751,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.21.0.20261018.2125","time":"2026-10-18T21:25:20.085Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.23.0.20261018.2200","time":"2026-10-18T22:00:08.374Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

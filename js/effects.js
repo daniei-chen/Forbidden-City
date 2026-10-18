@@ -135,6 +135,14 @@ const EFFECTS = {
     }
   },
 
+  updateLanternGlow: function (st) {
+    if (!this.lanternGlows) return;
+    const k = (st && st.lanterns != null) ? Math.max(0, Math.min(1, st.lanterns)) : 0;
+    for (let i = 0; i < this.lanternGlows.length; i++) {
+      this.lanternGlows[i].material.opacity = k * 0.5;
+    }
+    if (this.lanternGroundMat) this.lanternGroundMat.opacity = k * 0.32;
+  },
   /* ---------------- 飘叶 ---------------- */
   leaves: null,
   leafData: null,
@@ -281,6 +289,34 @@ const EFFECTS = {
     scene.add(caps);
     this.lanternCaps = caps;
 
+    /* 宫灯光晕（加法精灵）+ 地面光斑 */
+    this.lanternGlows = [];
+    for (let i = 0; i < spots.length; i++) {
+      const m = new THREE.SpriteMaterial({
+        map: TEX.dot(), color: 0xffb060, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      const sp = new THREE.Sprite(m);
+      sp.position.set(spots[i][0], 2.42, spots[i][1]);
+      sp.scale.set(4.6, 4.6, 1);
+      scene.add(sp);
+      this.lanternGlows.push(sp);
+    }
+    const groundGeos = [];
+    for (let i = 0; i < spots.length; i++) {
+      const g = new THREE.PlaneGeometry(7.5, 7.5);
+      g.rotateX(-Math.PI / 2);
+      g.translate(spots[i][0], 0.07, spots[i][1]);
+      groundGeos.push(g);
+    }
+    this.lanternGroundMat = new THREE.MeshBasicMaterial({
+      map: TEX.dot(), color: 0xffa860, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const groundMesh = new THREE.Mesh(GEOM.merge(groundGeos), this.lanternGroundMat);
+    groundMesh.renderOrder = 2;
+    scene.add(groundMesh);
+    this.lanternGround = groundMesh;
     this.lanternData = spots.map(function (p) {
       return { x: p[0], y: 3.14, z: p[1], phase: Math.random() * 6.28 };
     });
@@ -453,6 +489,7 @@ const EFFECTS = {
     this.updateBirds(dt, st);
     this.updateLeaves(dt, st);
     this.updateLanterns(dt);
+    this.updateLanternGlow(st);
     this.updateCloudShadows(dt, st);
     if (st.snow < 0.2) {
       for (let i = 0; i < this.footprints.length; i++) {
