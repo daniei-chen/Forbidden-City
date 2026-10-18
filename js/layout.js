@@ -151,7 +151,7 @@ LAYOUT.taiheGate = function () {
     eave1: [20.6, 10.8], inner1: [14.8, 7.6], rise1: 4.0,
     upperH: 3.2,
     eave2: [17.0, 9.1], ridgeHalf: 15.2, rise2: 4.3,
-    plaque: '太和门', plaqueW: 4.2,
+    hero: true, plaque: '太和门', plaqueW: 4.2,
     stairs: { w: 16, steps: 6, run: 5.0 },
     beasts1: 5, beasts2: 5, tile: 2.0
   });
@@ -417,7 +417,7 @@ LAYOUT.innerCourt = function () {
     eave1: [22.8, 12.6], inner1: [16.6, 9.2], rise1: 3.8,
     upperH: 3.0,
     eave2: [18.6, 10.8], ridgeHalf: 12.4, rise2: 4.4,
-    plaque: '乾清宫', plaqueW: 4.0,
+    hero: true, plaque: '乾清宫', plaqueW: 4.0,
     stairs: { w: 14, steps: 5, run: 4.4 },
     beasts1: 5, beasts2: 5, tile: 2.1
   });
@@ -431,7 +431,7 @@ LAYOUT.innerCourt = function () {
     facadeMat: MATS.facade5,
     layers: 1, facets: 'hip',
     eave1: [18.2, 10.0], ridgeHalf: 12.4, rise1: 4.6,
-    plaque: '坤宁宫', plaqueW: 3.6,
+    hero: true, plaque: '坤宁宫', plaqueW: 3.6,
     stairs: { w: 12, steps: 5, run: 4.2 },
     beasts1: 4, tile: 2.0
   });
@@ -737,6 +737,90 @@ LAYOUT.wear = function () {
 };
 
 /* =============================================================
+ *  地面碎石 / 落叶堆积 / 墙面雨痕
+ * ============================================================= */
+LAYOUT.debris = function () {
+  const rnd = TEX.rand;
+  const stoneGeos = [];
+  const leafA = [], leafB = [];
+  const blocked = function (x, z, m) {
+    m = m == null ? 1.6 : m;
+    const cs = (typeof BUILD !== 'undefined' && BUILD.colliders) ? BUILD.colliders : [];
+    for (let i = 0; i < cs.length; i++) {
+      const c = cs[i];
+      if (x > c.minX - m && x < c.maxX + m && z > c.minZ - m && z < c.maxZ + m) return true;
+    }
+    return false;
+  };
+  /* 碎石：墙根、院落角落、甬道边 */
+  for (let i = 0; i < 170; i++) {
+    const r = rnd();
+    let x, z;
+    if (r < 0.4) {
+      x = (rnd() < 0.5 ? -1 : 1) * (300 + rnd() * 66);
+      z = -470 + rnd() * 940;
+    } else if (r < 0.66) {
+      x = -355 + rnd() * 710;
+      z = (rnd() < 0.5 ? -1 : 1) * (430 + rnd() * 40);
+    } else {
+      x = -330 + rnd() * 660;
+      z = -460 + rnd() * 920;
+    }
+    if (blocked(x, z, 1.4)) continue;
+    const g = new THREE.IcosahedronGeometry(0.1 + rnd() * 0.26, 0);
+    g.scale(1.0, 0.5 + rnd() * 0.4, 1.0);
+    g.translate(x, 0.05 + rnd() * 0.05, z);
+    stoneGeos.push(g);
+  }
+  /* 落叶堆：墙根、树池边、角落 */
+  for (let i = 0; i < 110; i++) {
+    const r = rnd();
+    let x, z;
+    if (r < 0.5) {
+      x = (rnd() < 0.5 ? -1 : 1) * (340 + rnd() * 30);
+      z = -460 + rnd() * 920;
+    } else {
+      x = -340 + rnd() * 680;
+      z = (rnd() < 0.5 ? -1 : 1) * (455 + rnd() * 18);
+    }
+    if (blocked(x, z, 1.2)) continue;
+    const n = 1 + Math.floor(rnd() * 3);
+    for (let k = 0; k < n; k++) {
+      const g = new THREE.CircleGeometry(0.5 + rnd() * 1.1, 6);
+      g.rotateX(-Math.PI / 2);
+      g.translate(x + (rnd() - 0.5) * 2.2, 0.04 + k * 0.003, z + (rnd() - 0.5) * 2.2);
+      (rnd() < 0.5 ? leafA : leafB).push(g);
+    }
+  }
+  if (stoneGeos.length) {
+    const mesh = new THREE.Mesh(GEOM.merge(stoneGeos), MATS.marbleRail);
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    BUILD.parent.add(mesh);
+  }
+  if (leafA.length) { const m = new THREE.Mesh(GEOM.merge(leafA), MATS.fallenLeaf || MATS.leafDark); m.receiveShadow = true; BUILD.parent.add(m); }
+  if (leafB.length) { const m = new THREE.Mesh(GEOM.merge(leafB), MATS.fallenLeaf2 || MATS.leafLight); m.receiveShadow = true; BUILD.parent.add(m); }
+
+  /* 墙面雨痕（竖直污渍，较淡） */
+  const streak = function (x, y, z, w, h, ry) {
+    const g = new THREE.PlaneGeometry(w, h);
+    BATCH.add(g, MATS.stain, GEOM.mat4(x, y, z, 0, ry, 0), { cast: false });
+  };
+  for (let i = 0; i < 22; i++) {
+    const z = -440 + rnd() * 880;
+    const y = 2.0 + rnd() * 3.4;
+    const w = 0.9 + rnd() * 1.6;
+    const h = 3.5 + rnd() * 3.5;
+    if (rnd() < 0.5) streak(371.5, y, z, w, h, -Math.PI / 2);
+    else streak(-371.5, y, z, w, h, Math.PI / 2);
+  }
+  for (let i = 0; i < 10; i++) {
+    streak(-300 + rnd() * 600, 2.0 + rnd() * 3.0, -476.8, 1.0 + rnd() * 1.2, 3.5 + rnd() * 3.0, 0);
+    streak(-300 + rnd() * 600, 2.0 + rnd() * 3.0, 475.8, 1.0 + rnd() * 1.2, 3.5 + rnd() * 3.0, Math.PI);
+  }
+};
+
+/* =============================================================
  *  接地 AO 条带（城墙内侧 + 宫门台基）
  * ============================================================= */
 LAYOUT.aoBands = function () {
@@ -980,12 +1064,12 @@ LAYOUT.extraTrees = function () {
     }
   }
   if (leafGeosA.length) {
-    const m = new THREE.Mesh(GEOM.merge(leafGeosA), MATS.leafDark || MATS.leaf);
+    const m = new THREE.Mesh(GEOM.merge(leafGeosA), MATS.fallenLeaf || MATS.leafDark);
     m.receiveShadow = true;
     BUILD.parent.add(m);
   }
   if (leafGeosB.length) {
-    const m = new THREE.Mesh(GEOM.merge(leafGeosB), MATS.leafLight || MATS.leaf);
+    const m = new THREE.Mesh(GEOM.merge(leafGeosB), MATS.fallenLeaf2 || MATS.leafLight);
     m.receiveShadow = true;
     BUILD.parent.add(m);
   }
@@ -1038,6 +1122,7 @@ LAYOUT.build = function (root) {
   LAYOUT.treeBelts();
   LAYOUT.extraTrees();
   LAYOUT.wear();
+  LAYOUT.debris();
   LAYOUT.propsExtra();
   LAYOUT.moat();
 

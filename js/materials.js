@@ -104,10 +104,12 @@ MATS.init = function () {
 
   /* ---- 接地 AO / 云影 ---- */
   MATS.moss = new THREE.MeshStandardMaterial({
-    color: 0x51663f, roughness: 1.0, metalness: 0.0,
-    transparent: true, opacity: 0.5, depthWrite: false,
+    map: TEX.stain(), color: 0x4a5c36, roughness: 1.0, metalness: 0.0,
+    transparent: true, opacity: 0.42, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -1.5, polygonOffsetUnits: -2
   });
+  MATS.fallenLeaf = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 1.0, metalness: 0.0 });
+  MATS.fallenLeaf2 = new THREE.MeshStandardMaterial({ color: 0xa98a52, roughness: 1.0, metalness: 0.0 });
 
   MATS.aoStrip = new THREE.MeshBasicMaterial({
     map: TEX.aoStrip(), transparent: true, opacity: 0.5,

@@ -20,7 +20,7 @@ GARDEN.buildAll = function () {
     layers: 2,
     eave1: [15.8, 10.4], inner1: [10.8, 7.0], rise1: 2.8,
     upperH: 2.4, eave2: [12.6, 8.2], ridgeHalf: 8.2, rise2: 2.6,
-    plaque: '钦安殿', beasts1: 4, beasts2: 4, tile: 1.8
+    hero: true, plaque: '钦安殿', beasts1: 4, beasts2: 4, tile: 1.8
   });
   BUILD.end();
 
@@ -116,7 +116,7 @@ GARDEN.cining = function () {
     layers: 2,
     eave1: [25.2, 12.2], inner1: [15.4, 9.0], rise1: 3.4,
     upperH: 3.0, eave2: [19.8, 10.0], ridgeHalf: 15.0, rise2: 3.6,
-    plaque: '慈宁宫', tile: 1.9, beasts1: 5, beasts2: 5
+    hero: true, plaque: '慈宁宫', tile: 1.9, beasts1: 5, beasts2: 5
   });
   BUILD.end();
 
@@ -196,7 +196,7 @@ GARDEN.wenhuaWuying = function () {
         layers: 2,
         eave1: [21.6, 10.6], inner1: [12.6, 7.4], rise1: 3.2,
         upperH: 2.8, eave2: [17.4, 8.9], ridgeHalf: 13.0, rise2: 3.4,
-        plaque: '文渊阁', tile: 1.9, roofMat: MATS.roofBlack,
+        hero: true, plaque: '文渊阁', tile: 1.9, roofMat: MATS.roofBlack,
         beasts1: 4, beasts2: 4
       });
       BUILD.end();
