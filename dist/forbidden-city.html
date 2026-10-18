@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.15.0.20261018.1857">
-<meta name="build-time" content="2026-10-18T18:57:22.589Z">
+<meta name="generator" content="forbidden-city-build 5.16.0.20261018.1940">
+<meta name="build-time" content="2026-10-18T19:40:14.623Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T18:57:22.589Z
-  version: 5.15.0.20261018.1857
+  build: 2026-10-18T19:40:14.623Z
+  version: 5.16.0.20261018.1940
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.15.0',
+  version: '5.16.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -439,7 +439,7 @@ const CONFIG = {
       sunColor: 0xfff2da, sunInt: 3.1, sunPos: [250, 330, 185],
       hemiSky: 0xa7c1dc, hemiGround: 0x6d5c47, hemiInt: 0.55,
       fillColor: 0x9db7d6, fillInt: 0.22,
-      fog: 0xc6d4df, exposure: 0.93, bloom: 0.42,
+      fog: 0xc6d4df, exposure: 0.93, bloom: 0.42, rays: 0.14,
       glow: 0xfff0cc, glowOp: 0.32,
       cloud: 0xffffff, cloudOp: 1.0,
       cloudN: 0.55,
@@ -452,7 +452,7 @@ const CONFIG = {
       sunColor: 0xffd0a6, sunInt: 2.15, sunPos: [-280, 220, 140],
       hemiSky: 0xa4b4d4, hemiGround: 0x4a4238, hemiInt: 0.62,
       fillColor: 0x7d8fc4, fillInt: 0.3,
-      fog: 0xc4b0a6, exposure: 1.0, bloom: 0.55,
+      fog: 0xc4b0a6, exposure: 1.0, bloom: 0.55, rays: 0.52,
       glow: 0xffc290, glowOp: 0.5,
       cloud: 0xffd9b8, cloudOp: 1.0,
       cloudN: 0.6,
@@ -465,7 +465,7 @@ const CONFIG = {
       sunColor: 0xa8bfe0, sunInt: 0.95, sunPos: [-220, 300, -160],
       hemiSky: 0x2f4260, hemiGround: 0x11151c, hemiInt: 0.46,
       fillColor: 0x3a4c6a, fillInt: 0.22,
-      fog: 0x101c2e, exposure: 1.32, bloom: 0.85,
+      fog: 0x101c2e, exposure: 1.32, bloom: 0.85, rays: 0.0,
       glow: 0xaac4ea, glowOp: 0.22,
       cloud: 0x3a4860, cloudOp: 0.4,
       cloudN: 0.3,
@@ -478,7 +478,7 @@ const CONFIG = {
       sunColor: 0xeaf2ff, sunInt: 2.3, sunPos: [180, 300, 160],
       hemiSky: 0xd6e0ec, hemiGround: 0x93999e, hemiInt: 0.85,
       fillColor: 0xc9d6e4, fillInt: 0.3,
-      fog: 0xdfe6ec, exposure: 0.95, bloom: 0.35,
+      fog: 0xdfe6ec, exposure: 0.95, bloom: 0.35, rays: 0.10,
       glow: 0xeaf2ff, glowOp: 0.16,
       cloud: 0xf2f6fa, cloudOp: 0.9,
       cloudN: 0.6,
@@ -7362,6 +7362,15 @@ const POST = {
     };
     this.bloomRT = new THREE.WebGLRenderTarget(bw, bh, bopts);
     this.bloomTmp = new THREE.WebGLRenderTarget(bw, bh, bopts);
+
+    /* 体积光/太阳径向光束：1/6 分辨率径向模糊 */
+    const rw6 = Math.max(2, Math.floor(this.width / 6));
+    const rh6 = Math.max(2, Math.floor(this.height / 6));
+    this.raysRT = new THREE.WebGLRenderTarget(rw6, rh6, {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat, type: THREE.HalfFloatType,
+      depthBuffer: false, stencilBuffer: false
+    });
     this.brightMat = new THREE.ShaderMaterial({
       uniforms: { tDiffuse: { value: null }, uThreshold: { value: 0.72 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
@@ -7408,6 +7417,8 @@ const POST = {
         uFilter: { value: 0 },
         tDepth: { value: this.depthRT.texture },
         tBloom: { value: this.bloomRT.texture },
+        tRays: { value: this.raysRT.texture },
+        uRaysStrength: { value: 0 },
         uBloomStrength: { value: 0.4 },
         uDepthRes: { value: new THREE.Vector2(this.depthRT.width, this.depthRT.height) },
         uNear: { value: 0.8 },
@@ -7437,6 +7448,8 @@ const POST = {
         'uniform sampler2D tDepth;',
         'uniform sampler2D tBloom;',
         'uniform float uBloomStrength;',
+        'uniform sampler2D tRays;',
+        'uniform float uRaysStrength;',
         'uniform vec2 uDepthRes;',
         'uniform float uNear;',
         'uniform float uFar;',
@@ -7477,6 +7490,7 @@ const POST = {
         '    col = (col - 0.5) * uContrast + 0.5;',
         '    vec3 bl = texture2D(tBloom, vUv).rgb;',
         '    col += bl * uBloomStrength;',
+        '    col += texture2D(tRays, vUv).rgb * uRaysStrength;',
         '    float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));',
         '    col = mix(vec3(lum), col, uSaturation);',
         '  }',
@@ -7519,6 +7533,29 @@ const POST = {
       depthWrite: false
     });
 
+    this.raysMat = new THREE.ShaderMaterial({
+      uniforms: { tDiffuse: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: [
+        'uniform sampler2D tDiffuse;',
+        'uniform vec2 uSun;',
+        'varying vec2 vUv;',
+        'void main(){',
+        '  vec3 sum = vec3(0.0);',
+        '  float wsum = 0.0;',
+        '  for (int i = 0; i < 16; i++) {',
+        '    float t = float(i) / 15.0;',
+        '    vec2 uv = vUv + (uSun - vUv) * t * 0.38;',
+        '    float w = pow(1.0 - t, 2.2);',
+        '    sum += texture2D(tDiffuse, uv).rgb * w;',
+        '    wsum += w;',
+        '  }',
+        '  gl_FragColor = vec4(sum / max(wsum, 1e-4), 1.0);',
+        '}'
+      ].join('\n'),
+      depthTest: false, depthWrite: false
+    });
+
     this.quadScene = new THREE.Scene();
     this.quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
@@ -7559,6 +7596,11 @@ const POST = {
       const bh = Math.max(2, Math.floor(this.height / 4));
       this.bloomRT.setSize(bw, bh);
       this.bloomTmp.setSize(bw, bh);
+    }
+    if (this.raysRT) {
+      const rw = Math.max(2, Math.floor(this.width / 6));
+      const rh = Math.max(2, Math.floor(this.height / 6));
+      this.raysRT.setSize(rw, rh);
     }
     this.material.uniforms.tDiffuse.value = this.rt.texture;
   },
@@ -7640,6 +7682,18 @@ const POST = {
       this.blurMat.uniforms.tDiffuse.value = this.bloomTmp.texture;
       this.blurMat.uniforms.uDir.value.set(0, 1 / this.bloomTmp.height);
       this.renderer.setRenderTarget(this.bloomRT);
+      this.renderer.clear();
+      this.renderer.render(this.quadScene, this.quadCam);
+    }
+
+    /* 太阳径向光束 pass */
+    const raysStrength = params.rays == null ? 0 : params.rays;
+    u.uRaysStrength.value = raysStrength;
+    if (raysStrength > 0.001 && params.sunUv && params.sunUv[0] >= -0.2 && params.sunUv[0] <= 1.2 && params.sunUv[1] >= -0.2 && params.sunUv[1] <= 1.2) {
+      this.raysMat.uniforms.tDiffuse.value = this.rt.texture;
+      this.raysMat.uniforms.uSun.value.set(params.sunUv[0], params.sunUv[1]);
+      this.quadMesh.material = this.raysMat;
+      this.renderer.setRenderTarget(this.raysRT);
       this.renderer.clear();
       this.renderer.render(this.quadScene, this.quadCam);
     }
@@ -8431,7 +8485,7 @@ const ASSETS = {
    *  主题（颜色 / 光强 / 材质 uniform 插值）
    * ======================================================= */
   const themeFieldsColor = ['skyTop', 'skyBottom', 'sunColor', 'hemiSky', 'hemiGround', 'fillColor', 'fog', 'glow', 'cloud'];
-  const themeFieldsNumber = ['sunInt', 'hemiInt', 'fillInt', 'exposure', 'glowOp', 'cloudOp', 'cloudN', 'snow', 'windowGlow', 'stars', 'lanterns', 'bloom'];
+  const themeFieldsNumber = ['sunInt', 'hemiInt', 'fillInt', 'exposure', 'glowOp', 'cloudOp', 'cloudN', 'snow', 'windowGlow', 'stars', 'lanterns', 'bloom', 'rays'];
 
   const th = { sunPos: new THREE.Vector3(), grade: { tint: [1, 1, 1], lift: [0, 0, 0], sat: 1, contrast: 1, vignette: 0.2, grain: 0.01 } };
   const thT = { sunPos: new THREE.Vector3(), grade: { tint: [1, 1, 1], lift: [0, 0, 0], sat: 1, contrast: 1, vignette: 0.2, grain: 0.01 } };
@@ -9187,6 +9241,12 @@ const ASSETS = {
         vignette: th.grade.vignette,
         grain: th.grade.grain * 0.5,
         bloom: th.bloom || 0,
+        rays: th.rays || 0,
+        sunUv: (function () {
+          const v = sunGlow.position.clone().project(camera);
+          if (v.z > 1) return [-1, -1];
+          return [v.x * 0.5 + 0.5, v.y * 0.5 + 0.5];
+        })(),
         filter: settings.photoFilter || 0,
         time: performance.now() * 0.001
       });
@@ -9499,6 +9559,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.15.0.20261018.1857","time":"2026-10-18T18:57:22.589Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.16.0.20261018.1940","time":"2026-10-18T19:40:14.623Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

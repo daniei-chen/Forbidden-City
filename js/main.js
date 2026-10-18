@@ -505,7 +505,7 @@
    *  主题（颜色 / 光强 / 材质 uniform 插值）
    * ======================================================= */
   const themeFieldsColor = ['skyTop', 'skyBottom', 'sunColor', 'hemiSky', 'hemiGround', 'fillColor', 'fog', 'glow', 'cloud'];
-  const themeFieldsNumber = ['sunInt', 'hemiInt', 'fillInt', 'exposure', 'glowOp', 'cloudOp', 'cloudN', 'snow', 'windowGlow', 'stars', 'lanterns', 'bloom'];
+  const themeFieldsNumber = ['sunInt', 'hemiInt', 'fillInt', 'exposure', 'glowOp', 'cloudOp', 'cloudN', 'snow', 'windowGlow', 'stars', 'lanterns', 'bloom', 'rays'];
 
   const th = { sunPos: new THREE.Vector3(), grade: { tint: [1, 1, 1], lift: [0, 0, 0], sat: 1, contrast: 1, vignette: 0.2, grain: 0.01 } };
   const thT = { sunPos: new THREE.Vector3(), grade: { tint: [1, 1, 1], lift: [0, 0, 0], sat: 1, contrast: 1, vignette: 0.2, grain: 0.01 } };
@@ -1261,6 +1261,12 @@
         vignette: th.grade.vignette,
         grain: th.grade.grain * 0.5,
         bloom: th.bloom || 0,
+        rays: th.rays || 0,
+        sunUv: (function () {
+          const v = sunGlow.position.clone().project(camera);
+          if (v.z > 1) return [-1, -1];
+          return [v.x * 0.5 + 0.5, v.y * 0.5 + 0.5];
+        })(),
         filter: settings.photoFilter || 0,
         time: performance.now() * 0.001
       });

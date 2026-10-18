@@ -55,6 +55,15 @@ const POST = {
     };
     this.bloomRT = new THREE.WebGLRenderTarget(bw, bh, bopts);
     this.bloomTmp = new THREE.WebGLRenderTarget(bw, bh, bopts);
+
+    /* 体积光/太阳径向光束：1/6 分辨率径向模糊 */
+    const rw6 = Math.max(2, Math.floor(this.width / 6));
+    const rh6 = Math.max(2, Math.floor(this.height / 6));
+    this.raysRT = new THREE.WebGLRenderTarget(rw6, rh6, {
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat, type: THREE.HalfFloatType,
+      depthBuffer: false, stencilBuffer: false
+    });
     this.brightMat = new THREE.ShaderMaterial({
       uniforms: { tDiffuse: { value: null }, uThreshold: { value: 0.72 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
@@ -101,6 +110,8 @@ const POST = {
         uFilter: { value: 0 },
         tDepth: { value: this.depthRT.texture },
         tBloom: { value: this.bloomRT.texture },
+        tRays: { value: this.raysRT.texture },
+        uRaysStrength: { value: 0 },
         uBloomStrength: { value: 0.4 },
         uDepthRes: { value: new THREE.Vector2(this.depthRT.width, this.depthRT.height) },
         uNear: { value: 0.8 },
@@ -130,6 +141,8 @@ const POST = {
         'uniform sampler2D tDepth;',
         'uniform sampler2D tBloom;',
         'uniform float uBloomStrength;',
+        'uniform sampler2D tRays;',
+        'uniform float uRaysStrength;',
         'uniform vec2 uDepthRes;',
         'uniform float uNear;',
         'uniform float uFar;',
@@ -170,6 +183,7 @@ const POST = {
         '    col = (col - 0.5) * uContrast + 0.5;',
         '    vec3 bl = texture2D(tBloom, vUv).rgb;',
         '    col += bl * uBloomStrength;',
+        '    col += texture2D(tRays, vUv).rgb * uRaysStrength;',
         '    float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));',
         '    col = mix(vec3(lum), col, uSaturation);',
         '  }',
@@ -212,6 +226,29 @@ const POST = {
       depthWrite: false
     });
 
+    this.raysMat = new THREE.ShaderMaterial({
+      uniforms: { tDiffuse: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: [
+        'uniform sampler2D tDiffuse;',
+        'uniform vec2 uSun;',
+        'varying vec2 vUv;',
+        'void main(){',
+        '  vec3 sum = vec3(0.0);',
+        '  float wsum = 0.0;',
+        '  for (int i = 0; i < 16; i++) {',
+        '    float t = float(i) / 15.0;',
+        '    vec2 uv = vUv + (uSun - vUv) * t * 0.38;',
+        '    float w = pow(1.0 - t, 2.2);',
+        '    sum += texture2D(tDiffuse, uv).rgb * w;',
+        '    wsum += w;',
+        '  }',
+        '  gl_FragColor = vec4(sum / max(wsum, 1e-4), 1.0);',
+        '}'
+      ].join('\n'),
+      depthTest: false, depthWrite: false
+    });
+
     this.quadScene = new THREE.Scene();
     this.quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
@@ -252,6 +289,11 @@ const POST = {
       const bh = Math.max(2, Math.floor(this.height / 4));
       this.bloomRT.setSize(bw, bh);
       this.bloomTmp.setSize(bw, bh);
+    }
+    if (this.raysRT) {
+      const rw = Math.max(2, Math.floor(this.width / 6));
+      const rh = Math.max(2, Math.floor(this.height / 6));
+      this.raysRT.setSize(rw, rh);
     }
     this.material.uniforms.tDiffuse.value = this.rt.texture;
   },
@@ -333,6 +375,18 @@ const POST = {
       this.blurMat.uniforms.tDiffuse.value = this.bloomTmp.texture;
       this.blurMat.uniforms.uDir.value.set(0, 1 / this.bloomTmp.height);
       this.renderer.setRenderTarget(this.bloomRT);
+      this.renderer.clear();
+      this.renderer.render(this.quadScene, this.quadCam);
+    }
+
+    /* 太阳径向光束 pass */
+    const raysStrength = params.rays == null ? 0 : params.rays;
+    u.uRaysStrength.value = raysStrength;
+    if (raysStrength > 0.001 && params.sunUv && params.sunUv[0] >= -0.2 && params.sunUv[0] <= 1.2 && params.sunUv[1] >= -0.2 && params.sunUv[1] <= 1.2) {
+      this.raysMat.uniforms.tDiffuse.value = this.rt.texture;
+      this.raysMat.uniforms.uSun.value.set(params.sunUv[0], params.sunUv[1]);
+      this.quadMesh.material = this.raysMat;
+      this.renderer.setRenderTarget(this.raysRT);
       this.renderer.clear();
       this.renderer.render(this.quadScene, this.quadCam);
     }
