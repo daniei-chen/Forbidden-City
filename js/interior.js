@@ -300,6 +300,23 @@ INTERIOR.hall = function (o) {
     g.add(beam);
   }
 
+  /* 额枋彩画带（四面） */
+  const bandH2 = 0.95;
+  const bandY2 = fy + H - 2.15;
+  const addBand2 = function (w, wx, wz, ry) {
+    const geo = new THREE.PlaneGeometry(w, bandH2);
+    const uv = geo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * (w / 4.2));
+    const m = new THREE.Mesh(geo, MATS.caihua);
+    m.position.set(wx, bandY2, wz);
+    m.rotation.y = ry;
+    g.add(m);
+  };
+  addBand2(hw * 2, cx, cz - hd + 0.07, 0);
+  addBand2(hw * 2, cx, cz + hd - 0.07, Math.PI);
+  addBand2(hd * 2, cx + hw - 0.07, cz, -Math.PI / 2);
+  addBand2(hd * 2, cx - hw + 0.07, cz, Math.PI / 2);
+
   /* 柱列 */
   const colH = H - 1.6;
   const nCol = Math.max(4, Math.round(bw / 6));
@@ -309,6 +326,62 @@ INTERIOR.hall = function (o) {
       const col = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, colH, 12), MATS.column);
       col.position.set(x, fy + colH / 2, cz + sz * (hd - 0.8));
       g.add(col);
+    }
+  }
+
+  /* 缠龙金柱（等级 ≥2）：宝座两侧四根 */
+  if (o.rank >= 2) {
+    const goldColMat = new THREE.MeshStandardMaterial({ color: 0xb58a36, roughness: 0.42, metalness: 0.7 });
+    const gcH = H - 2.0;
+    for (const sx of [-1, 1]) {
+      for (const k of [-1, 0]) {
+        const x = cx + sx * hw * 0.55;
+        const z = cz + k * hd * 0.35 - hd * 0.1;
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, gcH, 14), goldColMat);
+        col.position.set(x, fy + gcH / 2, z);
+        g.add(col);
+        const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.64, 0.35, 14), MATS.marbleRail);
+        drum.position.set(x, fy + 0.17, z);
+        g.add(drum);
+      }
+    }
+  }
+
+  /* 宫灯（悬挂，金属+暖光） */
+  for (const sx of [-1, 1]) {
+    const lx = cx + sx * hw * 0.45;
+    const lz = cz + hd * 0.18;
+    const ly = fy + H - 2.2;
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 6), MATS.trunk);
+    cord.position.set(lx, ly + 1.1, lz);
+    g.add(cord);
+    const lampMat = new THREE.MeshStandardMaterial({
+      color: 0xc9a24a, roughness: 0.4, metalness: 0.4,
+      emissive: 0xffc46a, emissiveIntensity: 0.55
+    });
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 10), lampMat);
+    lamp.position.set(lx, ly, lz);
+    g.add(lamp);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 0.16, 10), MATS.goldDark);
+    cap.position.set(lx, ly + 0.45, lz);
+    g.add(cap);
+  }
+
+  /* 铜香炉一对（等级 ≥2） */
+  if (o.rank >= 2) {
+    const bronze = MATS.bronze || MATS.goldDark;
+    for (const sx of [-1, 1]) {
+      const bx = cx + sx * hw * 0.72;
+      const bz = cz - hd * 0.35;
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.26, 0.42, 12), bronze);
+      body.position.set(bx, fy + 0.21, bz);
+      g.add(body);
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.44, 0.12, 12), bronze);
+      foot.position.set(bx, fy + 0.06, bz);
+      g.add(foot);
+      const lid = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8), bronze);
+      lid.position.set(bx, fy + 0.52, bz);
+      g.add(lid);
     }
   }
 
