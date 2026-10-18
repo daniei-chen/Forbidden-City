@@ -101,6 +101,7 @@ const EFFECTS = {
     this._lampGeom = ng;
     this.initFootprints(scene);
     this.initBirds(scene);
+    this.initButterflies(scene);
     this.initLeaves(scene);
     this.initLanterns(scene);
     this.initCloudShadows(scene);
@@ -346,6 +347,58 @@ const EFFECTS = {
     this.lanternCaps.instanceMatrix.needsUpdate = true;
   },
 
+  /* ---------------- 蝴蝶（花园） ---------------- */
+  butterflies: null,
+  butterflyAnchors: null,
+  butterflyTime: 0,
+  initButterflies: function (scene) {
+    const spots = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396], [-60, -300], [60, -300]];
+    const geo = new THREE.PlaneGeometry(0.22, 0.16);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffcf6e, side: THREE.DoubleSide });
+    const inst = new THREE.InstancedMesh(geo, mat, 10);
+    inst.frustumCulled = false;
+    scene.add(inst);
+    this.butterflies = inst;
+    this.butterflyAnchors = [];
+    for (let i = 0; i < 10; i++) {
+      const a = spots[i % spots.length];
+      this.butterflyAnchors.push({
+        ax: a[0], az: a[1],
+        phase: Math.random() * 6.28,
+        r: 2 + TEX.rand() * 3,
+        sp: 0.4 + Math.random() * 0.5
+      });
+    }
+  },
+  updateButterflies: function (dt, st) {
+    const b = this.butterflies;
+    if (!b) return;
+    const show = st ? st.snow < 0.6 : true;
+    b.visible = show;
+    if (!show) return;
+    this.butterflyTime += dt;
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const e = new THREE.Euler();
+    const p = new THREE.Vector3();
+    const s = new THREE.Vector3(1, 1, 1);
+    for (let i = 0; i < this.butterflyAnchors.length; i++) {
+      const a = this.butterflyAnchors[i];
+      const t = this.butterflyTime * a.sp + a.phase;
+      p.set(
+        a.ax + Math.cos(t) * a.r,
+        0.9 + Math.sin(t * 1.7) * 0.35 + Math.abs(Math.sin(t * 3)) * 0.3,
+        a.az + Math.sin(t * 0.8) * a.r
+      );
+      e.set(0, t * 2.0, Math.sin(t * 14) * 0.6);
+      q.setFromEuler(e);
+      s.set(1, Math.abs(Math.sin(t * 14)) * 0.7 + 0.4, 1);
+      m.compose(p, q, s);
+      b.setMatrixAt(i, m);
+    }
+    b.instanceMatrix.needsUpdate = true;
+  },
+
   /* ---------------- 飞鸟群 ---------------- */
   birds: null,
   birdData: null,
@@ -477,6 +530,7 @@ const EFFECTS = {
       if (this.leaves) this.leaves.visible = false;
       if (this.birds) this.birds.visible = false;
       if (this.lanternBodies) this.lanternBodies.visible = false;
+      if (this.butterflies) this.butterflies.visible = false;
       if (this.lanternCaps) this.lanternCaps.visible = false;
       if (this.lanternPosts) this.lanternPosts.visible = false;
       if (this.cloudShadows) {
@@ -490,6 +544,7 @@ const EFFECTS = {
     this.updateLeaves(dt, st);
     this.updateLanterns(dt);
     this.updateLanternGlow(st);
+    this.updateButterflies(dt, st);
     this.updateCloudShadows(dt, st);
     if (st.snow < 0.2) {
       for (let i = 0; i < this.footprints.length; i++) {

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.25.0.20261018.2248">
-<meta name="build-time" content="2026-10-18T22:48:44.992Z">
+<meta name="generator" content="forbidden-city-build 5.26.0.20261018.2312">
+<meta name="build-time" content="2026-10-18T23:12:30.722Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T22:48:44.992Z
-  version: 5.25.0.20261018.2248
+  build: 2026-10-18T23:12:30.722Z
+  version: 5.26.0.20261018.2312
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.25.0',
+  version: '5.26.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -6047,6 +6047,21 @@ GARDEN.buildAll = function () {
       GEOM.box(0.28, 1.0, 0.28, MATS.marbleRail, i * 6.5, 0.5, 9.6);
       GEOM.box(0.28, 1.0, 0.28, MATS.marbleRail, i * 6.5, 0.5, -9.6);
     }
+    /* 荷叶 + 荷花（避开石桥） */
+    for (let k = 0; k < 26; k++) {
+      let lx = -13 + TEX.rand() * 26;
+      let lz = -6.2 + TEX.rand() * 12.4;
+      if (Math.abs(lx) < 4.6) continue;
+      const r = 0.4 + TEX.rand() * 0.5;
+      const pad = new THREE.CircleGeometry(r, 8);
+      pad.rotateX(-Math.PI / 2);
+      BATCH.add(pad, MATS.leafLight, GEOM.mat4(lx, 0.31 + TEX.rand() * 0.015, lz), { cast: false });
+      if (TEX.rand() < 0.28) {
+        BATCH.add(new THREE.SphereGeometry(0.11 + TEX.rand() * 0.05, 7, 5), MATS.flowerPink,
+          GEOM.mat4(lx + (TEX.rand() - 0.5) * 0.7, 0.4, lz + (TEX.rand() - 0.5) * 0.7), { cast: false });
+      }
+    }
+
     /* 石桥 */
     GEOM.box(9.0, 0.8, 18.0, MATS.marbleRail, 0, 0.5, 0);
     GEOM.box(9.6, 0.2, 18.6, MATS.path, 0, 0.94, 0);
@@ -7114,6 +7129,7 @@ const EFFECTS = {
     this._lampGeom = ng;
     this.initFootprints(scene);
     this.initBirds(scene);
+    this.initButterflies(scene);
     this.initLeaves(scene);
     this.initLanterns(scene);
     this.initCloudShadows(scene);
@@ -7359,6 +7375,58 @@ const EFFECTS = {
     this.lanternCaps.instanceMatrix.needsUpdate = true;
   },
 
+  /* ---------------- 蝴蝶（花园） ---------------- */
+  butterflies: null,
+  butterflyAnchors: null,
+  butterflyTime: 0,
+  initButterflies: function (scene) {
+    const spots = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396], [-60, -300], [60, -300]];
+    const geo = new THREE.PlaneGeometry(0.22, 0.16);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffcf6e, side: THREE.DoubleSide });
+    const inst = new THREE.InstancedMesh(geo, mat, 10);
+    inst.frustumCulled = false;
+    scene.add(inst);
+    this.butterflies = inst;
+    this.butterflyAnchors = [];
+    for (let i = 0; i < 10; i++) {
+      const a = spots[i % spots.length];
+      this.butterflyAnchors.push({
+        ax: a[0], az: a[1],
+        phase: Math.random() * 6.28,
+        r: 2 + TEX.rand() * 3,
+        sp: 0.4 + Math.random() * 0.5
+      });
+    }
+  },
+  updateButterflies: function (dt, st) {
+    const b = this.butterflies;
+    if (!b) return;
+    const show = st ? st.snow < 0.6 : true;
+    b.visible = show;
+    if (!show) return;
+    this.butterflyTime += dt;
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const e = new THREE.Euler();
+    const p = new THREE.Vector3();
+    const s = new THREE.Vector3(1, 1, 1);
+    for (let i = 0; i < this.butterflyAnchors.length; i++) {
+      const a = this.butterflyAnchors[i];
+      const t = this.butterflyTime * a.sp + a.phase;
+      p.set(
+        a.ax + Math.cos(t) * a.r,
+        0.9 + Math.sin(t * 1.7) * 0.35 + Math.abs(Math.sin(t * 3)) * 0.3,
+        a.az + Math.sin(t * 0.8) * a.r
+      );
+      e.set(0, t * 2.0, Math.sin(t * 14) * 0.6);
+      q.setFromEuler(e);
+      s.set(1, Math.abs(Math.sin(t * 14)) * 0.7 + 0.4, 1);
+      m.compose(p, q, s);
+      b.setMatrixAt(i, m);
+    }
+    b.instanceMatrix.needsUpdate = true;
+  },
+
   /* ---------------- 飞鸟群 ---------------- */
   birds: null,
   birdData: null,
@@ -7490,6 +7558,7 @@ const EFFECTS = {
       if (this.leaves) this.leaves.visible = false;
       if (this.birds) this.birds.visible = false;
       if (this.lanternBodies) this.lanternBodies.visible = false;
+      if (this.butterflies) this.butterflies.visible = false;
       if (this.lanternCaps) this.lanternCaps.visible = false;
       if (this.lanternPosts) this.lanternPosts.visible = false;
       if (this.cloudShadows) {
@@ -7503,6 +7572,7 @@ const EFFECTS = {
     this.updateLeaves(dt, st);
     this.updateLanterns(dt);
     this.updateLanternGlow(st);
+    this.updateButterflies(dt, st);
     this.updateCloudShadows(dt, st);
     if (st.snow < 0.2) {
       for (let i = 0; i < this.footprints.length; i++) {
@@ -9809,6 +9879,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.25.0.20261018.2248","time":"2026-10-18T22:48:44.992Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.26.0.20261018.2312","time":"2026-10-18T23:12:30.722Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

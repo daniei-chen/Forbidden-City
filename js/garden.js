@@ -57,6 +57,21 @@ GARDEN.buildAll = function () {
       GEOM.box(0.28, 1.0, 0.28, MATS.marbleRail, i * 6.5, 0.5, 9.6);
       GEOM.box(0.28, 1.0, 0.28, MATS.marbleRail, i * 6.5, 0.5, -9.6);
     }
+    /* 荷叶 + 荷花（避开石桥） */
+    for (let k = 0; k < 26; k++) {
+      let lx = -13 + TEX.rand() * 26;
+      let lz = -6.2 + TEX.rand() * 12.4;
+      if (Math.abs(lx) < 4.6) continue;
+      const r = 0.4 + TEX.rand() * 0.5;
+      const pad = new THREE.CircleGeometry(r, 8);
+      pad.rotateX(-Math.PI / 2);
+      BATCH.add(pad, MATS.leafLight, GEOM.mat4(lx, 0.31 + TEX.rand() * 0.015, lz), { cast: false });
+      if (TEX.rand() < 0.28) {
+        BATCH.add(new THREE.SphereGeometry(0.11 + TEX.rand() * 0.05, 7, 5), MATS.flowerPink,
+          GEOM.mat4(lx + (TEX.rand() - 0.5) * 0.7, 0.4, lz + (TEX.rand() - 0.5) * 0.7), { cast: false });
+      }
+    }
+
     /* 石桥 */
     GEOM.box(9.0, 0.8, 18.0, MATS.marbleRail, 0, 0.5, 0);
     GEOM.box(9.6, 0.2, 18.6, MATS.path, 0, 0.94, 0);
