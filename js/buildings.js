@@ -211,6 +211,76 @@ BUILD.hall = function (o) {
     }
   }
 
+  /* Hero 高精细节：窗框、雀替、门扇（仅主要殿宇开启） */
+  if (o.hero && !o.noFacade) {
+    const hf = Math.min(bh * 0.76, o.facadeH || 6.4);
+    const bays = o.bays || 9;
+    const span = bw - 2.0;
+    const bayW = span / bays;
+    const goldGeos = [];
+    const doorGeos = [];
+    const studGeos = [];
+    const zF = bd / 2 + 0.12;
+    const yBase = y0 + 0.5;
+    /* 每间竖框 */
+    for (let j = 0; j <= bays; j++) {
+      const cx = -span / 2 + bayW * j;
+      for (const s of [-1, 1]) {
+        const bar = new THREE.BoxGeometry(0.16, hf * 0.9, 0.14);
+        bar.translate(cx, yBase + hf * 0.46, s * zF);
+        goldGeos.push(bar);
+      }
+    }
+    /* 上下槛 */
+    for (const s of [-1, 1]) {
+      const top = new THREE.BoxGeometry(span + 0.3, 0.18, 0.16);
+      top.translate(0, yBase + hf * 0.9, s * zF);
+      goldGeos.push(top);
+      const sill = new THREE.BoxGeometry(span + 0.3, 0.22, 0.16);
+      sill.translate(0, yBase + 0.12, s * zF);
+      goldGeos.push(sill);
+    }
+    /* 明间门扇（可入殿的殿堂保持门洞，不做遮挡） */
+    if (!o.enterable) {
+      for (const s of [-1, 1]) {
+        for (const sd of [-1, 1]) {
+          const leaf = new THREE.BoxGeometry(bayW * 0.44, hf * 0.72, 0.1);
+          leaf.translate(sd * bayW * 0.24, yBase + hf * 0.4, s * (zF + 0.04));
+          doorGeos.push(leaf);
+          for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 3; c++) {
+              const stud = new THREE.SphereGeometry(0.055, 6, 5);
+              stud.translate(sd * bayW * 0.24 + (c - 1) * 0.32, yBase + hf * 0.26 + r * 0.42, s * (zF + 0.1));
+              studGeos.push(stud);
+            }
+          }
+        }
+      }
+    }
+    /* 雀替（柱头两侧） */
+    const nCol = bays + 1;
+    for (let i = 0; i < nCol; i++) {
+      const cx = -span / 2 + (span * i) / (nCol - 1);
+      for (const s of [-1, 1]) {
+        for (const sd of [-1, 1]) {
+          const bracket = new THREE.BoxGeometry(0.55, 0.28, 0.34);
+          bracket.translate(cx + sd * 0.42, y0 + bh - 1.15, s * (bd / 2 + 0.35));
+          goldGeos.push(bracket);
+        }
+      }
+    }
+    const addMerged = function (geos, mat) {
+      if (!geos.length) return;
+      const mesh = new THREE.Mesh(GEOM.merge(geos), mat);
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      g.add(mesh);
+    };
+    addMerged(goldGeos, MATS.goldDark);
+    addMerged(doorGeos, MATS.column);
+    addMerged(studGeos, MATS.goldDark);
+  }
+
   /* 额枋彩画带 */
   if (o.caihua !== false) {
     const ch = Math.min(1.35, bh * 0.15);

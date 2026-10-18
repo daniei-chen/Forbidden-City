@@ -84,7 +84,7 @@ LAYOUT.taiheHall = function () {
   BUILD.begin(0, 58.5, 0);
   BUILD.hall({
     baseY: yTop + 1.5, podiumH: 1.0, podiumPad: 7, rail: true, railSpacing: 2.4,
-    enterable: true, doorW: 7.0,
+    enterable: true, doorW: 7.0, hero: true,
     bodyW: 64, bodyD: 37, bodyH: 9.4, bays: 11,
     facadeMat: MATS.facade11,
     layers: 2,
@@ -93,7 +93,7 @@ LAYOUT.taiheHall = function () {
     eave2: [28.8, 17.8], ridgeHalf: 19.8, rise2: 7.0,
     plaque: '太和殿', plaqueW: 5.4,
     stairs: { w: 22, steps: 5, run: 4.2, dragon: true },
-    beasts1: 7, beasts2: 7, tile: 2.5, ridgeH: 1.0
+    beasts1: 10, beasts2: 10, tile: 2.5, ridgeH: 1.0
   });
   BUILD.end();
 };
