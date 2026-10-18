@@ -187,6 +187,20 @@ BUILD.hall = function (o) {
     addPlane(new THREE.PlaneGeometry(bw - 1.2, fh), facMat, 0, y0 + fh / 2 + 0.35, -bd / 2 - 0.05, Math.PI);
   }
 
+  /* 墙基脏污带（合批）：靠近地面的积灰/水渍 */
+  if (!o.noFacade) {
+    for (const s of [-1, 1]) {
+      const gs = new THREE.PlaneGeometry(bd - 1.4, 1.15);
+      BATCH.add(gs, MATS.stain, GEOM.mat4(s * (bw / 2 + 0.052), y0 + 0.48, 0, 0, s > 0 ? Math.PI / 2 : -Math.PI / 2, 0), { cast: false });
+      gs.dispose();
+    }
+    for (const s of [-1, 1]) {
+      const gs = new THREE.PlaneGeometry(bw - 1.4, 0.95);
+      BATCH.add(gs, MATS.stain, GEOM.mat4(0, y0 + 0.42, s * (bd / 2 + 0.052), 0, s > 0 ? 0 : Math.PI, 0), { cast: false });
+      gs.dispose();
+    }
+  }
+
   /* 侧墙随机风化雨痕（合批绘制，给墙面粉化/雨渍的随机差异） */
   if (!o.noFacade) {
     const nStreak = 5 + Math.floor(TEX.rand() * 5);

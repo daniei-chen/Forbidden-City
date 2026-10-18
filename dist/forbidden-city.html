@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.14.0.20261018.1834">
-<meta name="build-time" content="2026-10-18T18:34:28.770Z">
+<meta name="generator" content="forbidden-city-build 5.15.0.20261018.1857">
+<meta name="build-time" content="2026-10-18T18:57:22.589Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T18:34:28.770Z
-  version: 5.14.0.20261018.1834
+  build: 2026-10-18T18:57:22.589Z
+  version: 5.15.0.20261018.1857
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.14.0',
+  version: '5.15.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -995,19 +995,42 @@ TEX.water = function () {
  * ----------------------------------------------------------- */
 TEX.cloud = function () {
   return TEX.once('cloud', function () {
-    const S = 256, cv = TEX.canvas(S, S), g = cv.getContext('2d');
-    const blob = function (cx, cy, r, a) {
-      const grd = g.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
+    const S = 512, cv = TEX.canvas(S, S), g = cv.getContext('2d');
+    const blob = function (cx, cy, rx, ry, a) {
+      g.save();
+      g.translate(cx, cy);
+      g.scale(1, ry / rx);
+      const grd = g.createRadialGradient(0, 0, rx * 0.12, 0, 0, rx);
       grd.addColorStop(0, 'rgba(255,255,255,' + a + ')');
-      grd.addColorStop(0.55, 'rgba(255,255,255,' + (a * 0.55) + ')');
+      grd.addColorStop(0.5, 'rgba(255,255,255,' + (a * 0.62) + ')');
+      grd.addColorStop(0.82, 'rgba(255,255,255,' + (a * 0.2) + ')');
       grd.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = grd;
-      g.beginPath(); g.arc(cx, cy, r, 0, 6.283); g.fill();
+      g.beginPath(); g.arc(0, 0, rx, 0, 6.283); g.fill();
+      g.restore();
     };
-    blob(S * 0.5, S * 0.56, S * 0.42, 0.85);
-    blob(S * 0.32, S * 0.52, S * 0.26, 0.7);
-    blob(S * 0.68, S * 0.5, S * 0.28, 0.7);
-    blob(S * 0.5, S * 0.42, S * 0.24, 0.6);
+    /* 横向云带：多次叠加，形成卷积云轮廓 */
+    for (let i = 0; i < 30; i++) {
+      const t = i / 29;
+      const cx = S * (0.14 + 0.72 * t + (TEX.rand() - 0.5) * 0.08);
+      const cy = S * (0.56 + (TEX.rand() - 0.5) * 0.14 - Math.sin(t * Math.PI) * 0.06);
+      const rx = S * (0.055 + TEX.rand() * 0.13) * (0.55 + 0.7 * Math.sin(t * Math.PI));
+      blob(cx, cy, rx, rx * (0.5 + TEX.rand() * 0.35), 0.08 + TEX.rand() * 0.14);
+    }
+    /* 核心体量 */
+    blob(S * 0.44, S * 0.55, S * 0.24, S * 0.1, 0.42);
+    blob(S * 0.58, S * 0.53, S * 0.2, S * 0.09, 0.38);
+    blob(S * 0.5, S * 0.47, S * 0.16, S * 0.07, 0.3);
+    /* 边缘侵蚀：更碎更透气 */
+    g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 80; i++) {
+      const x = S * TEX.rand();
+      const y = S * (0.3 + TEX.rand() * 0.42);
+      g.globalAlpha = 0.04 + TEX.rand() * 0.14;
+      g.beginPath(); g.arc(x, y, 2 + TEX.rand() * 12, 0, 6.283); g.fill();
+    }
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
     return TEX.tex(cv, 1, 1);
   });
 };
@@ -3759,6 +3782,20 @@ BUILD.hall = function (o) {
     const fh = Math.min(bh * 0.76, o.facadeH || 6.4);
     addPlane(new THREE.PlaneGeometry(bw - 1.2, fh), facMat, 0, y0 + fh / 2 + 0.35, bd / 2 + 0.05, 0);
     addPlane(new THREE.PlaneGeometry(bw - 1.2, fh), facMat, 0, y0 + fh / 2 + 0.35, -bd / 2 - 0.05, Math.PI);
+  }
+
+  /* 墙基脏污带（合批）：靠近地面的积灰/水渍 */
+  if (!o.noFacade) {
+    for (const s of [-1, 1]) {
+      const gs = new THREE.PlaneGeometry(bd - 1.4, 1.15);
+      BATCH.add(gs, MATS.stain, GEOM.mat4(s * (bw / 2 + 0.052), y0 + 0.48, 0, 0, s > 0 ? Math.PI / 2 : -Math.PI / 2, 0), { cast: false });
+      gs.dispose();
+    }
+    for (const s of [-1, 1]) {
+      const gs = new THREE.PlaneGeometry(bw - 1.4, 0.95);
+      BATCH.add(gs, MATS.stain, GEOM.mat4(0, y0 + 0.42, s * (bd / 2 + 0.052), 0, s > 0 ? 0 : Math.PI, 0), { cast: false });
+      gs.dispose();
+    }
   }
 
   /* 侧墙随机风化雨痕（合批绘制，给墙面粉化/雨渍的随机差异） */
@@ -9462,6 +9499,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.14.0.20261018.1834","time":"2026-10-18T18:34:28.770Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.15.0.20261018.1857","time":"2026-10-18T18:57:22.589Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

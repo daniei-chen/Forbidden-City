@@ -500,19 +500,42 @@ TEX.water = function () {
  * ----------------------------------------------------------- */
 TEX.cloud = function () {
   return TEX.once('cloud', function () {
-    const S = 256, cv = TEX.canvas(S, S), g = cv.getContext('2d');
-    const blob = function (cx, cy, r, a) {
-      const grd = g.createRadialGradient(cx, cy, r * 0.15, cx, cy, r);
+    const S = 512, cv = TEX.canvas(S, S), g = cv.getContext('2d');
+    const blob = function (cx, cy, rx, ry, a) {
+      g.save();
+      g.translate(cx, cy);
+      g.scale(1, ry / rx);
+      const grd = g.createRadialGradient(0, 0, rx * 0.12, 0, 0, rx);
       grd.addColorStop(0, 'rgba(255,255,255,' + a + ')');
-      grd.addColorStop(0.55, 'rgba(255,255,255,' + (a * 0.55) + ')');
+      grd.addColorStop(0.5, 'rgba(255,255,255,' + (a * 0.62) + ')');
+      grd.addColorStop(0.82, 'rgba(255,255,255,' + (a * 0.2) + ')');
       grd.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = grd;
-      g.beginPath(); g.arc(cx, cy, r, 0, 6.283); g.fill();
+      g.beginPath(); g.arc(0, 0, rx, 0, 6.283); g.fill();
+      g.restore();
     };
-    blob(S * 0.5, S * 0.56, S * 0.42, 0.85);
-    blob(S * 0.32, S * 0.52, S * 0.26, 0.7);
-    blob(S * 0.68, S * 0.5, S * 0.28, 0.7);
-    blob(S * 0.5, S * 0.42, S * 0.24, 0.6);
+    /* 横向云带：多次叠加，形成卷积云轮廓 */
+    for (let i = 0; i < 30; i++) {
+      const t = i / 29;
+      const cx = S * (0.14 + 0.72 * t + (TEX.rand() - 0.5) * 0.08);
+      const cy = S * (0.56 + (TEX.rand() - 0.5) * 0.14 - Math.sin(t * Math.PI) * 0.06);
+      const rx = S * (0.055 + TEX.rand() * 0.13) * (0.55 + 0.7 * Math.sin(t * Math.PI));
+      blob(cx, cy, rx, rx * (0.5 + TEX.rand() * 0.35), 0.08 + TEX.rand() * 0.14);
+    }
+    /* 核心体量 */
+    blob(S * 0.44, S * 0.55, S * 0.24, S * 0.1, 0.42);
+    blob(S * 0.58, S * 0.53, S * 0.2, S * 0.09, 0.38);
+    blob(S * 0.5, S * 0.47, S * 0.16, S * 0.07, 0.3);
+    /* 边缘侵蚀：更碎更透气 */
+    g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 80; i++) {
+      const x = S * TEX.rand();
+      const y = S * (0.3 + TEX.rand() * 0.42);
+      g.globalAlpha = 0.04 + TEX.rand() * 0.14;
+      g.beginPath(); g.arc(x, y, 2 + TEX.rand() * 12, 0, 6.283); g.fill();
+    }
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
     return TEX.tex(cv, 1, 1);
   });
 };
