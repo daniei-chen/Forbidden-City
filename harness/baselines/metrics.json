@@ -1,0 +1,404 @@
+{
+  "generatedAt": "2026-10-18T12:05:31.646Z",
+  "elapsedSec": 296.9,
+  "matrix": {
+    "description": "自动化评测截图矩阵：固定机位 × 时段，static=1 保证可复现",
+    "quality": "medium",
+    "width": 1024,
+    "height": 576,
+    "views": [
+      0,
+      1,
+      4,
+      8,
+      9,
+      6
+    ],
+    "themes": [
+      "day",
+      "dusk",
+      "night",
+      "snow"
+    ],
+    "settleMs": 600
+  },
+  "thresholds": {
+    "ssimMin": 0.985,
+    "maeMax": 3,
+    "brightnessMax": 2,
+    "perfDropMax": 0.25,
+    "note": "SSIM/MAE 仅在与本地基线对比时生效；CI 环境使用 --no-compare"
+  },
+  "renderer": "headless chrome / swiftshader",
+  "version": "5.3.0",
+  "quality": "medium",
+  "perf": {
+    "benchMs": 11.7,
+    "fps": 85.5,
+    "draws": 1759,
+    "tris": 3404056,
+    "meshes": 2453
+  },
+  "items": [
+    {
+      "key": "day-v0",
+      "theme": "day",
+      "view": 0,
+      "file": "day-v0.jpg",
+      "bytes": 109674,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 11.7,
+        "fps": 85.5,
+        "draws": 1759,
+        "tris": 3404056,
+        "assets": true
+      }
+    },
+    {
+      "key": "day-v1",
+      "theme": "day",
+      "view": 1,
+      "file": "day-v1.jpg",
+      "bytes": 119337,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 11.4,
+        "fps": 87.7,
+        "draws": 995,
+        "tris": 3068058,
+        "assets": true
+      }
+    },
+    {
+      "key": "day-v4",
+      "theme": "day",
+      "view": 4,
+      "file": "day-v4.jpg",
+      "bytes": 137767,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 4,
+        "fps": 250,
+        "draws": 440,
+        "tris": 2887542,
+        "assets": true
+      }
+    },
+    {
+      "key": "day-v8",
+      "theme": "day",
+      "view": 8,
+      "file": "day-v8.jpg",
+      "bytes": 143305,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 4.4,
+        "fps": 227.3,
+        "draws": 332,
+        "tris": 2876659,
+        "assets": true
+      }
+    },
+    {
+      "key": "day-v9",
+      "theme": "day",
+      "view": 9,
+      "file": "day-v9.jpg",
+      "bytes": 90120,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 6.6,
+        "fps": 151.5,
+        "draws": 534,
+        "tris": 2958600,
+        "assets": true
+      }
+    },
+    {
+      "key": "day-v6",
+      "theme": "day",
+      "view": 6,
+      "file": "day-v6.jpg",
+      "bytes": 119684,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 15.3,
+        "fps": 65.4,
+        "draws": 1714,
+        "tris": 3385178,
+        "assets": true
+      }
+    },
+    {
+      "key": "dusk-v0",
+      "theme": "dusk",
+      "view": 0,
+      "file": "dusk-v0.jpg",
+      "bytes": 114198,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 13.4,
+        "fps": 74.6,
+        "draws": 1759,
+        "tris": 3404056,
+        "assets": true
+      }
+    },
+    {
+      "key": "dusk-v1",
+      "theme": "dusk",
+      "view": 1,
+      "file": "dusk-v1.jpg",
+      "bytes": 119728,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 8.5,
+        "fps": 117.6,
+        "draws": 995,
+        "tris": 3068058,
+        "assets": true
+      }
+    },
+    {
+      "key": "dusk-v4",
+      "theme": "dusk",
+      "view": 4,
+      "file": "dusk-v4.jpg",
+      "bytes": 136307,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 5.1,
+        "fps": 196.1,
+        "draws": 440,
+        "tris": 2887542,
+        "assets": true
+      }
+    },
+    {
+      "key": "dusk-v8",
+      "theme": "dusk",
+      "view": 8,
+      "file": "dusk-v8.jpg",
+      "bytes": 144009,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 3.8,
+        "fps": 263.2,
+        "draws": 332,
+        "tris": 2876659,
+        "assets": true
+      }
+    },
+    {
+      "key": "dusk-v9",
+      "theme": "dusk",
+      "view": 9,
+      "file": "dusk-v9.jpg",
+      "bytes": 91312,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 7.8,
+        "fps": 128.2,
+        "draws": 534,
+        "tris": 2958600,
+        "assets": true
+      }
+    },
+    {
+      "key": "dusk-v6",
+      "theme": "dusk",
+      "view": 6,
+      "file": "dusk-v6.jpg",
+      "bytes": 123018,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 11.2,
+        "fps": 89.3,
+        "draws": 1714,
+        "tris": 3385178,
+        "assets": true
+      }
+    },
+    {
+      "key": "night-v0",
+      "theme": "night",
+      "view": 0,
+      "file": "night-v0.jpg",
+      "bytes": 122019,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 12.6,
+        "fps": 79.4,
+        "draws": 1759,
+        "tris": 3404056,
+        "assets": true
+      }
+    },
+    {
+      "key": "night-v1",
+      "theme": "night",
+      "view": 1,
+      "file": "night-v1.jpg",
+      "bytes": 127804,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 8.4,
+        "fps": 119,
+        "draws": 995,
+        "tris": 3068058,
+        "assets": true
+      }
+    },
+    {
+      "key": "night-v4",
+      "theme": "night",
+      "view": 4,
+      "file": "night-v4.jpg",
+      "bytes": 146735,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 5.2,
+        "fps": 192.3,
+        "draws": 440,
+        "tris": 2887542,
+        "assets": true
+      }
+    },
+    {
+      "key": "night-v8",
+      "theme": "night",
+      "view": 8,
+      "file": "night-v8.jpg",
+      "bytes": 153245,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 4.4,
+        "fps": 227.3,
+        "draws": 332,
+        "tris": 2876659,
+        "assets": true
+      }
+    },
+    {
+      "key": "night-v9",
+      "theme": "night",
+      "view": 9,
+      "file": "night-v9.jpg",
+      "bytes": 98049,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 4.4,
+        "fps": 227.3,
+        "draws": 534,
+        "tris": 2958600,
+        "assets": true
+      }
+    },
+    {
+      "key": "night-v6",
+      "theme": "night",
+      "view": 6,
+      "file": "night-v6.jpg",
+      "bytes": 130969,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 11.5,
+        "fps": 87,
+        "draws": 1714,
+        "tris": 3385178,
+        "assets": true
+      }
+    },
+    {
+      "key": "snow-v0",
+      "theme": "snow",
+      "view": 0,
+      "file": "snow-v0.jpg",
+      "bytes": 108608,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 11.1,
+        "fps": 90.1,
+        "draws": 1759,
+        "tris": 3404056,
+        "assets": true
+      }
+    },
+    {
+      "key": "snow-v1",
+      "theme": "snow",
+      "view": 1,
+      "file": "snow-v1.jpg",
+      "bytes": 117575,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 6.4,
+        "fps": 156.2,
+        "draws": 995,
+        "tris": 3068058,
+        "assets": true
+      }
+    },
+    {
+      "key": "snow-v4",
+      "theme": "snow",
+      "view": 4,
+      "file": "snow-v4.jpg",
+      "bytes": 135750,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 4.5,
+        "fps": 222.2,
+        "draws": 440,
+        "tris": 2887542,
+        "assets": true
+      }
+    },
+    {
+      "key": "snow-v8",
+      "theme": "snow",
+      "view": 8,
+      "file": "snow-v8.jpg",
+      "bytes": 141403,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 3.4,
+        "fps": 294.1,
+        "draws": 332,
+        "tris": 2876659,
+        "assets": true
+      }
+    },
+    {
+      "key": "snow-v9",
+      "theme": "snow",
+      "view": 9,
+      "file": "snow-v9.jpg",
+      "bytes": 88798,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 5.3,
+        "fps": 188.7,
+        "draws": 534,
+        "tris": 2958600,
+        "assets": true
+      }
+    },
+    {
+      "key": "snow-v6",
+      "theme": "snow",
+      "view": 6,
+      "file": "snow-v6.jpg",
+      "bytes": 118094,
+      "metrics": {
+        "meshes": 2453,
+        "benchMs": 10.3,
+        "fps": 97.1,
+        "draws": 1714,
+        "tris": 3385178,
+        "assets": true
+      }
+    }
+  ]
+}

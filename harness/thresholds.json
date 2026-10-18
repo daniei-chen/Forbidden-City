@@ -1,0 +1,7 @@
+{
+  "ssimMin": 0.985,
+  "maeMax": 3,
+  "brightnessMax": 2,
+  "perfDropMax": 0.25,
+  "note": "SSIM/MAE 仅在与本地基线对比时生效；CI 环境使用 --no-compare"
+}

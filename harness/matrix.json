@@ -1,0 +1,21 @@
+{
+  "description": "自动化评测截图矩阵：固定机位 × 时段，static=1 保证可复现",
+  "quality": "medium",
+  "width": 1024,
+  "height": 576,
+  "views": [
+    0,
+    1,
+    4,
+    8,
+    9,
+    6
+  ],
+  "themes": [
+    "day",
+    "dusk",
+    "night",
+    "snow"
+  ],
+  "settleMs": 600
+}

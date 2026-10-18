@@ -1,0 +1,42 @@
+name: realism-harness
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'js/**'
+      - 'assets/**'
+      - 'index.html'
+      - 'tools/harness.mjs'
+      - 'tools/build.mjs'
+      - 'harness/**'
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Ensure Chrome
+        run: |
+          if ! command -v google-chrome >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y google-chrome-stable || sudo apt-get install -y chromium-browser
+          fi
+          google-chrome --version || chromium-browser --version || true
+
+      - name: Render matrix (no baseline compare on CI)
+        run: node tools/harness.mjs --no-compare
+
+      - name: Upload report and screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: realism-harness
+          path: harness/out/
+          retention-days: 30

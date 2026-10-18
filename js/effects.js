@@ -434,6 +434,21 @@ const EFFECTS = {
 
   update: function (dt, st) {
     this._time += dt;
+    /* 静态评测：隐藏全部动态元素并跳过更新（截图可复现） */
+    if (this.staticMode) {
+      if (this.snow) this.snow.visible = false;
+      if (this.stars) this.stars.visible = false;
+      if (this.leaves) this.leaves.visible = false;
+      if (this.birds) this.birds.visible = false;
+      if (this.lanternBodies) this.lanternBodies.visible = false;
+      if (this.lanternCaps) this.lanternCaps.visible = false;
+      if (this.lanternPosts) this.lanternPosts.visible = false;
+      if (this.cloudShadows) {
+        for (let i = 0; i < this.cloudShadows.length; i++) this.cloudShadows[i].mesh.visible = false;
+      }
+      for (let i = 0; i < this.footprints.length; i++) this.footprints[i].mesh.visible = false;
+      return;
+    }
     this.snowAmount = st.snow;
     this.updateBirds(dt, st);
     this.updateLeaves(dt, st);

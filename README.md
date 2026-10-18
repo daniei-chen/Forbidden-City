@@ -253,7 +253,23 @@ npm run shots     # 批量渲染机位截图
 - 性能未在真实 GPU 实测（无头环境为软件渲染），已内置 FPS 监控与自动降级
 ## 版本
 
-见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.3.0**。
+见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.4.0**。
+
+## 自动化评测（harness）
+
+固定机位 × 四时段截图矩阵 + 硬指标 + 感知对比（SSIM / MAE / 亮度 / 直方图）+ HTML 报告，用于量化每次修改。
+
+```bash
+npm run harness:baseline   # 建立/更新基线（24 张：6 机位 × 4 时段）
+npm run harness            # 与基线对比，输出报告并在超阈值时退出码 1
+node tools/harness.mjs --no-compare   # CI：只渲染与出报告（不与本地基线比）
+```
+
+- 评测通过 `?static=1` 冻结动态元素、暂停 rAF 后用页面内 canvas 捕获，软件渲染下可复现；
+- 阈值在 `harness/thresholds.json`（SSIM / MAE / 性能回退），矩阵在 `harness/matrix.json`；
+- 报告：`harness/out/report.html`（当前 vs 基线并排 + 指标）；基线与截图存 `harness/baselines/`；
+- 当前基线（v5.4.0）：24 张，重复运行 **SSIM≈0.996、MAE≈0.25%，判定 PASS**；
+- GitHub Actions：示例见 `docs/ci-harness.yml.example`。复制到 `.github/workflows/harness.yml` 并给 token 授予 `workflow` scope（或网页端手动创建）即可启用，手动/推送触发并上传 report 工件。
 
 ## 外部素材（CC0）`n`n本项目使用 [Poly Haven](https://polyhaven.com) 的 CC0 素材（HDRI 与 PBR 贴图），完整来源、ID 与授权见 **[ASSETS.md](ASSETS.md)**。开发模式从 `assets/` 读取；单文件构建时由 `tools/build.mjs` 自动内联为 base64。`n`n## 许可与致谢
 

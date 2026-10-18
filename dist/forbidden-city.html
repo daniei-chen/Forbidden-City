@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.3.0.20261018.0845">
-<meta name="build-time" content="2026-10-18T08:45:08.814Z">
+<meta name="generator" content="forbidden-city-build 5.4.0.20261018.1219">
+<meta name="build-time" content="2026-10-18T12:19:10.503Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-18T08:45:08.814Z
-  version: 5.3.0.20261018.0845
+  build: 2026-10-18T12:19:10.503Z
+  version: 5.4.0.20261018.1219
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.3.0',
+  version: '5.4.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -6771,6 +6771,21 @@ const EFFECTS = {
 
   update: function (dt, st) {
     this._time += dt;
+    /* 静态评测：隐藏全部动态元素并跳过更新（截图可复现） */
+    if (this.staticMode) {
+      if (this.snow) this.snow.visible = false;
+      if (this.stars) this.stars.visible = false;
+      if (this.leaves) this.leaves.visible = false;
+      if (this.birds) this.birds.visible = false;
+      if (this.lanternBodies) this.lanternBodies.visible = false;
+      if (this.lanternCaps) this.lanternCaps.visible = false;
+      if (this.lanternPosts) this.lanternPosts.visible = false;
+      if (this.cloudShadows) {
+        for (let i = 0; i < this.cloudShadows.length; i++) this.cloudShadows[i].mesh.visible = false;
+      }
+      for (let i = 0; i < this.footprints.length; i++) this.footprints[i].mesh.visible = false;
+      return;
+    }
     this.snowAmount = st.snow;
     this.updateBirds(dt, st);
     this.updateLeaves(dt, st);
@@ -7485,8 +7500,11 @@ const ASSETS = {
 
   /* ---------------- 环境反射（PMREM） ---------------- */
   let pmrem = null, envRT = null;
+  const envRTs = {};
   function updateEnvironment(themeName) {
     const th = CONFIG.themes[themeName] || CONFIG.themes.day;
+    const envKey = themeName + '|' + ((typeof ASSETS !== 'undefined' && ASSETS.envReady) ? 'hdr' : 'proc');
+    if (envRTs[envKey]) { scene.environment = envRTs[envKey].texture; return; }
     let envCanvas = null;
     /* 优先使用真实 HDRI（CC0，按主题染色）；不可用时回退程序化天空 */
     if (typeof ASSETS !== 'undefined' && ASSETS.envReady) {
@@ -7520,8 +7538,8 @@ const ASSETS = {
     tex.mapping = THREE.EquirectangularReflectionMapping;
     tex.encoding = THREE.sRGBEncoding;
     if (!pmrem) pmrem = new THREE.PMREMGenerator(renderer);
-    if (envRT) envRT.dispose();
     envRT = pmrem.fromEquirectangular(tex);
+    envRTs[envKey] = envRT;
     scene.environment = envRT.texture;
     tex.dispose();
   }
@@ -8596,6 +8614,7 @@ const ASSETS = {
    * ======================================================= */
   const clock = new THREE.Clock();
   let running = false;
+  let staticMode = false;
   let shadowFrame = 0;
   let autoCycleT = 0;
 
@@ -8679,7 +8698,7 @@ const ASSETS = {
     }
     MATS.water.map.offset.x -= dt * 0.004;
     EFFECTS.update(dt, th);
-    NPC.update(dt);
+    if (!staticMode) NPC.update(dt);
     INTERIOR.updateVisibility(camera);
     if (labelGroup.visible) {
       for (let i = 0; i < labelGroup.children.length; i++) {
@@ -8718,6 +8737,14 @@ const ASSETS = {
       AVATAR.build();
       scene.add(AVATAR.group);
       NPC.build(scene);
+
+      /* 评测静态模式（harness）：固定镜头/主题，隐藏动态元素，保证截图可复现 */
+      staticMode = new URLSearchParams(location.search).get('static') === '1';
+      if (staticMode) {
+        if (typeof EFFECTS !== 'undefined') EFFECTS.staticMode = true;
+        if (typeof AVATAR !== 'undefined') AVATAR.setVisible(false);
+        if (typeof NPC !== 'undefined' && NPC.group) NPC.group.visible = false;
+      }
 
       /* 真实素材（CC0）：HDRI 环境光 + PBR 材质；失败自动回退程序化 */
       if (typeof ASSETS !== 'undefined' && resolvedQuality !== 'low' &&
@@ -8853,9 +8880,13 @@ const ASSETS = {
         },
         perf: perf,
         snapshot: snapshot,
+        pause: function (on) { running = !on; if (!on) { clock.getDelta(); requestAnimationFrame(animate); } },
+        drawOnce: function () { try { draw(); } catch (e) {} },
+        capture: function () { try { draw(); return renderer.domElement.toDataURL('image/jpeg', 0.9); } catch (e) { console.warn('capture failed', e); return null; } },
         bench: bench,
         setTheme: function (n) { setTheme(n); },
-        showView: function (i) { stopTourIfActive(); showView(i); },
+        snapTheme: function (n) { setTheme(n, true); },
+        showView: function (i, instant) { stopTourIfActive(); showView(i, instant === true); if (instant === true && !WALK.active && !TOUR.active) { try { ctrl.update(0.016); } catch (e) {} } },
         startTour: function () { TOUR.start(); },
         stopTour: function () { TOUR.stop(true); },
         setQuality: function (q) { settings.quality = q; applyQuality(); },
@@ -8887,6 +8918,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.3.0.20261018.0845","time":"2026-10-18T08:45:08.814Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.4.0.20261018.1219","time":"2026-10-18T12:19:10.503Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

@@ -119,8 +119,11 @@
 
   /* ---------------- 环境反射（PMREM） ---------------- */
   let pmrem = null, envRT = null;
+  const envRTs = {};
   function updateEnvironment(themeName) {
     const th = CONFIG.themes[themeName] || CONFIG.themes.day;
+    const envKey = themeName + '|' + ((typeof ASSETS !== 'undefined' && ASSETS.envReady) ? 'hdr' : 'proc');
+    if (envRTs[envKey]) { scene.environment = envRTs[envKey].texture; return; }
     let envCanvas = null;
     /* 优先使用真实 HDRI（CC0，按主题染色）；不可用时回退程序化天空 */
     if (typeof ASSETS !== 'undefined' && ASSETS.envReady) {
@@ -154,8 +157,8 @@
     tex.mapping = THREE.EquirectangularReflectionMapping;
     tex.encoding = THREE.sRGBEncoding;
     if (!pmrem) pmrem = new THREE.PMREMGenerator(renderer);
-    if (envRT) envRT.dispose();
     envRT = pmrem.fromEquirectangular(tex);
+    envRTs[envKey] = envRT;
     scene.environment = envRT.texture;
     tex.dispose();
   }
@@ -1230,6 +1233,7 @@
    * ======================================================= */
   const clock = new THREE.Clock();
   let running = false;
+  let staticMode = false;
   let shadowFrame = 0;
   let autoCycleT = 0;
 
@@ -1313,7 +1317,7 @@
     }
     MATS.water.map.offset.x -= dt * 0.004;
     EFFECTS.update(dt, th);
-    NPC.update(dt);
+    if (!staticMode) NPC.update(dt);
     INTERIOR.updateVisibility(camera);
     if (labelGroup.visible) {
       for (let i = 0; i < labelGroup.children.length; i++) {
@@ -1352,6 +1356,14 @@
       AVATAR.build();
       scene.add(AVATAR.group);
       NPC.build(scene);
+
+      /* 评测静态模式（harness）：固定镜头/主题，隐藏动态元素，保证截图可复现 */
+      staticMode = new URLSearchParams(location.search).get('static') === '1';
+      if (staticMode) {
+        if (typeof EFFECTS !== 'undefined') EFFECTS.staticMode = true;
+        if (typeof AVATAR !== 'undefined') AVATAR.setVisible(false);
+        if (typeof NPC !== 'undefined' && NPC.group) NPC.group.visible = false;
+      }
 
       /* 真实素材（CC0）：HDRI 环境光 + PBR 材质；失败自动回退程序化 */
       if (typeof ASSETS !== 'undefined' && resolvedQuality !== 'low' &&
@@ -1487,9 +1499,13 @@
         },
         perf: perf,
         snapshot: snapshot,
+        pause: function (on) { running = !on; if (!on) { clock.getDelta(); requestAnimationFrame(animate); } },
+        drawOnce: function () { try { draw(); } catch (e) {} },
+        capture: function () { try { draw(); return renderer.domElement.toDataURL('image/jpeg', 0.9); } catch (e) { console.warn('capture failed', e); return null; } },
         bench: bench,
         setTheme: function (n) { setTheme(n); },
-        showView: function (i) { stopTourIfActive(); showView(i); },
+        snapTheme: function (n) { setTheme(n, true); },
+        showView: function (i, instant) { stopTourIfActive(); showView(i, instant === true); if (instant === true && !WALK.active && !TOUR.active) { try { ctrl.update(0.016); } catch (e) {} } },
         startTour: function () { TOUR.start(); },
         stopTour: function () { TOUR.stop(true); },
         setQuality: function (q) { settings.quality = q; applyQuality(); },

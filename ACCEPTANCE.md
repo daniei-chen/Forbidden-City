@@ -41,3 +41,9 @@ npm run build     # 构建单文件 dist/forbidden-city.html（--desktop 同步�
 npm run smoke     # 无头 Chrome 冒烟测试（26 项）
 npm run shots     # 多机位截图
 ```
+
+## 自动化评测（v5.4.0）
+
+- harness：24 张固定机位截图 + 硬指标 + SSIM/MAE 感知对比 + HTML 报告 + GitHub Actions；
+- 基线重复运行：SSIM 均值 0.9960、最低 0.9957、MAE 0.25%，判定 PASS；
+- 命令：`npm run harness` / `npm run harness:baseline`。
