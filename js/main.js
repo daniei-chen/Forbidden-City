@@ -537,6 +537,8 @@
       th.grade.grain = thT.grade.grain;
       th.grade.tint = thT.grade.tint.slice();
       th.grade.lift = thT.grade.lift.slice();
+      /* 即时切换时同步材质 uniform（积雪/窗光/灯笼等），保证评测截图与真实主题一致 */
+      updateTheme(1);
     }
     updateEnvironment(name);
     const btns = $('themes').querySelectorAll('button');
