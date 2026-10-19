@@ -141,6 +141,27 @@ const NPC = {
     return g;
   },
 
+  /* 雨伞：细杆 + 伞面（倒锥）+ 小顶珠 */
+  umbrellas: [],
+  makeUmbrella: function () {
+    const g = new THREE.Group();
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x4a3324, roughness: 0.85 });
+    const clothMat = new THREE.MeshStandardMaterial({ color: 0xb23a2e, roughness: 0.8, side: THREE.DoubleSide });
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 1.95, 5), poleMat);
+    pole.position.y = 1.05;
+    const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.78, 0.42, 12, 1, true), clothMat);
+    canopy.position.y = 2.02;
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5), MATS.goldDark || poleMat);
+    tip.position.y = 2.26;
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.1, 6), poleMat);
+    base.position.y = 0.05;
+    g.add(pole, canopy, tip, base);
+    g.traverse(function (o) { if (o.isMesh) { o.castShadow = true; } });
+    g.userData.isUmbrella = true;
+    this.umbrellas.push(g);
+    return g;
+  },
+
   build: function (scene) {
     if (this.group) return this.group;
     const g = new THREE.Group();
@@ -192,6 +213,10 @@ const NPC = {
     for (const r of routes) {
       const guard = this.makeGuard();
       g.add(guard.group);
+      const umb1 = this.makeUmbrella();
+      umb1.position.set(0.34, 0, 0.05);
+      umb1.visible = false;
+      guard.group.add(umb1);
       let len = 0;
       for (let i = 1; i < r.pts.length; i++) {
         len += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
@@ -214,6 +239,10 @@ const NPC = {
     for (const r of maidRoutes) {
       const maid = this.makeGuard({ robeColor: 0xc0717c, trimColor: 0xd8b45f, spear: false });
       g.add(maid.group);
+      const umb2 = this.makeUmbrella();
+      umb2.position.set(0.32, 0, 0.04);
+      umb2.visible = false;
+      maid.group.add(umb2);
       let len2 = 0;
       for (let i = 1; i < r.pts.length; i++) len2 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
       this.maids.push({ obj: maid, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0, greetT: 0, greetCd: 0, greetWith: null, admireT: 0, admireCd: 18 + Math.random() * 25, petalT: 0 });
@@ -234,6 +263,10 @@ const NPC = {
     this.ceremonyGuards = [];
     for (const csx of [-1, 1]) {
       const cgd = this.makeGuard();
+      const umb3 = this.makeUmbrella();
+      umb3.position.set(0.32, 0, 0.05);
+      umb3.visible = false;
+      cgd.group.add(umb3);
       cgd.group.position.set(csx * 16, 0, 440);
       cgd.group.rotation.y = csx > 0 ? -Math.PI / 2 : Math.PI / 2;
       g.add(cgd.group);
@@ -343,6 +376,13 @@ const NPC = {
       });
     }
   },
+  umbrellaInfo: function () {
+    const total = (this.umbrellas || []).length;
+    let shown = 0;
+    for (let i = 0; i < (this.umbrellas || []).length; i++) if (this.umbrellas[i].visible) shown++;
+    return { total: total, shown: shown, rain: (typeof EFFECTS !== 'undefined') ? Math.round((EFFECTS.rainAmt || 0) * 100) / 100 : -1 };
+  },
+
   admireStats: function () {
     let active = 0;
     const list = [];
@@ -576,6 +616,15 @@ const NPC = {
     this.updateSparrows(dt);
     this.time += dt;
     this.updateCeremony(dt);
+    /* 雨伞随雨量显隐 */
+    if (this.umbrellas && this.umbrellas.length) {
+      const rainAmt = (typeof EFFECTS !== 'undefined') ? (EFFECTS.rainAmt || 0) : 0;
+      const showUmb = rainAmt > 0.35;
+      for (let ui = 0; ui < this.umbrellas.length; ui++) {
+        this.umbrellas[ui].visible = showUmb;
+      }
+      this._umbrellaShown = showUmb;
+    }
     const pl = this._player();
 
     /* ---- 宫女：靠近驻足转身目送 ---- */
