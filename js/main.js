@@ -853,6 +853,82 @@
   }
   function toggleCinema() { setCinema(!settings.cinema); }
 
+  /* =========================================================
+   *  宫城探索（游戏化目标：发现 10 处地标）
+   * ======================================================= */
+  const DISCOVERIES = [
+    { x: 0, z: 452, r: 46, name: '午门', desc: '紫禁城正门 · 五凤楼与雁翅楼' },
+    { x: 0, z: 300, r: 34, name: '太和门', desc: '外朝正门 · 门前铜狮与金水桥' },
+    { x: 0, z: 95, r: 60, name: '太和殿', desc: '金銮宝殿 · 重檐庑殿、脊兽十只' },
+    { x: 0, z: 5, r: 30, name: '中和殿', desc: '方形攒尖顶 · 大典前休憩之所' },
+    { x: 0, z: -50, r: 34, name: '保和殿', desc: '重檐歇山 · 殿试之地' },
+    { x: 0, z: -196, r: 42, name: '乾清宫', desc: '内廷正殿 · 正大光明匾' },
+    { x: 0, z: -244, r: 34, name: '坤宁宫', desc: '皇后中宫 · 位正坤元' },
+    { x: 34, z: -338, r: 28, name: '万春亭', desc: '御花园东 · 重檐圆攒尖亭' },
+    { x: -34, z: -338, r: 28, name: '千秋亭', desc: '御花园西 · 与万春亭对称' },
+    { x: 0, z: -470, r: 40, name: '神武门', desc: '紫禁城北门 · 宫城终点' }
+  ];
+  const DISC_KEY = 'forbidden-city-discoveries-v1';
+  let discSet = {};
+  try {
+    const saved = JSON.parse(localStorage.getItem(DISC_KEY) || '[]');
+    if (Array.isArray(saved)) saved.forEach(function (i) { if (i >= 0 && i < DISCOVERIES.length) discSet[i] = true; });
+  } catch (e) {}
+  function discCount() { return Object.keys(discSet).length; }
+  function saveDisc() {
+    try { localStorage.setItem(DISC_KEY, JSON.stringify(Object.keys(discSet).map(Number))); } catch (e) {}
+  }
+  function bearingArrow(d, yaw) {
+    const dx = d.x - WALK.pos.x, dz = d.z - WALK.pos.z;
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    const rel = Math.atan2(dx * fz - dz * fx, dx * fx + dz * fz);
+    const a = Math.abs(rel);
+    if (a > Math.PI * 0.875) return '↓';
+    if (a > Math.PI * 0.625) return rel > 0 ? '↙' : '↘';
+    if (a > Math.PI * 0.375) return rel > 0 ? '←' : '→';
+    if (a > Math.PI * 0.125) return rel > 0 ? '↖' : '↗';
+    return '↑';
+  }
+  function refreshWalkGame() {
+    const n = discCount();
+    const c = $('wgCount'); if (c) c.textContent = String(n);
+    const bar = $('wgBar'); if (bar) bar.style.width = (n / DISCOVERIES.length * 100).toFixed(1) + '%';
+    updateWalkGameHint();
+  }
+  function updateWalkGameHint() {
+    const hint = $('wgHint');
+    if (!hint) return;
+    const n = discCount();
+    if (n >= DISCOVERIES.length) { hint.innerHTML = '全部 ' + DISCOVERIES.length + ' 处已发现 · <b>宫城探索完成</b>'; return; }
+    let best = null, bestD = 1e9;
+    for (let i = 0; i < DISCOVERIES.length; i++) {
+      if (discSet[i]) continue;
+      const d = DISCOVERIES[i];
+      const dist = Math.hypot(d.x - WALK.pos.x, d.z - WALK.pos.z);
+      if (dist < bestD) { bestD = dist; best = d; }
+    }
+    if (best) hint.innerHTML = '下一处 <b>' + best.name + '</b> ' + bearingArrow(best, WALK.yaw) + ' ' + Math.round(bestD) + ' m · 已发现 ' + n + '/' + DISCOVERIES.length;
+  }
+  function updateWalkGame() {
+    if (!WALK.active) return;
+    for (let i = 0; i < DISCOVERIES.length; i++) {
+      if (discSet[i]) continue;
+      const d = DISCOVERIES[i];
+      if (Math.hypot(d.x - WALK.pos.x, d.z - WALK.pos.z) < d.r) {
+        discSet[i] = true;
+        saveDisc();
+        refreshWalkGame();
+        const n = discCount();
+        showToast('发现 · ' + d.name + '（' + n + '/' + DISCOVERIES.length + '）' + (d.desc ? ' — ' + d.desc : ''), 3400);
+        if (n === DISCOVERIES.length) {
+          setTimeout(function () { showToast('宫城探索完成：10 处全部发现！', 5200); }, 3600);
+        }
+        break;
+      }
+    }
+    updateWalkGameHint();
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -861,7 +937,8 @@
       document.body.classList.add('walking');
       $('walkhint').classList.add('show');
       $('btnWalk').classList.add('on');
-      showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · Esc 退出', 3600);
+      refreshWalkGame();
+      showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · 拖拽环视 · Esc 退出', 3600);
     } else {
       WALK.exit();
       document.body.classList.remove('walking');
@@ -1079,6 +1156,11 @@
       if (e.key === 'Shift') { WALK.keys['shift'] = true; return; }
       if (e.code === 'Space' || k2 === ' ') { WALK.jump(); e.preventDefault(); return; }
       if (k2 === 'x') { WALK.toggleView(); return; }
+      if (k2 === 'r') {
+        discSet = {}; saveDisc(); refreshWalkGame();
+        showToast('探索进度已重置', 2200);
+        return;
+      }
       if (k2 === 'v' || e.key === 'Escape') { toggleWalk(false); return; }
     }
     const key = e.key;
@@ -1142,6 +1224,7 @@
     const k2 = (e.key || '').toLowerCase();
     WALK.keys[k2] = false;
     if (e.key === 'Shift') WALK.keys['shift'] = false;
+    if (e.code === 'Space' || k2 === ' ') WALK.releaseJump();
   });
 
   window.addEventListener('resize', function () {
@@ -1355,6 +1438,7 @@
       AVATAR.place(WALK.pos, WALK.avatarYaw);
       AVATAR.setVisible(WALK.thirdPerson);
       AVATAR.update(dt, { moving: WALK.moving, speed: WALK.speed, onGround: WALK.onGround });
+      updateWalkGame();
       $('crosshair').style.display = WALK.thirdPerson ? 'none' : 'block';
     } else {
       AVATAR.setVisible(false);

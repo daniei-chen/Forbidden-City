@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.0.0.20261019.0536">
-<meta name="build-time" content="2026-10-19T05:36:32.160Z">
+<meta name="generator" content="forbidden-city-build 6.1.0.20261019.0807">
+<meta name="build-time" content="2026-10-19T08:07:25.177Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T05:36:32.160Z
-  version: 6.0.0.20261019.0536
+  build: 2026-10-19T08:07:25.177Z
+  version: 6.1.0.20261019.0807
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -196,6 +196,25 @@
     background:rgba(216,180,95,.8);box-shadow:0 0 8px rgba(0,0,0,.7);z-index:7;display:none;pointer-events:none;
   }
   body.walking .crosshair{display:block}
+  /* ---------------- 漫游 · 宫城探索 HUD ---------------- */
+  .walkgame{
+    position:fixed;right:26px;top:292px;z-index:6;display:none;width:196px;
+    padding:12px 14px;background:rgba(9,11,15,.66);border:1px solid rgba(216,180,95,.32);
+    backdrop-filter:blur(8px);color:var(--text);pointer-events:none;
+  }
+  body.walking .walkgame{display:block}
+  .walkgame .wg-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .walkgame .wg-label{font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.55)}
+  .walkgame .wg-count{font-size:20px;color:var(--gold);letter-spacing:1px;font-weight:400}
+  .walkgame .wg-count span{font-size:11px;color:rgba(230,224,208,.5);letter-spacing:0}
+  .walkgame .wg-bar{height:2px;background:rgba(216,180,95,.18);margin:8px 0 9px}
+  .walkgame .wg-bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .45s ease}
+  .walkgame .wg-hint{font-size:11px;letter-spacing:.5px;color:rgba(230,224,208,.72);line-height:1.55;min-height:17px}
+  .walkgame .wg-hint b{color:var(--gold);font-weight:500}
+  body.photo .walkgame{display:none !important}
+  @media (max-width:820px){
+    .walkgame{right:12px;top:auto;bottom:96px;width:160px;padding:10px 12px}
+  }
   @media (max-width:900px){
     .walkhint{font-size:10.5px;padding:8px 12px;letter-spacing:.5px;bottom:14px;white-space:normal;text-align:center;max-width:92vw}
   }
@@ -293,9 +312,18 @@
 </div>
 
 <div class="walkhint" id="walkhint">
-  <b>漫游模式</b> · <b>W A S D</b> 移动 · <b>空格</b> 跳跃 · <b>Shift</b> 疾行 · <b>X</b> 视角 · 拖拽环视 · <b>Esc</b> 退出
+  <b>漫游模式</b> · <b>W A S D</b> 移动 · <b>空格</b> 跳跃 · <b>Shift</b> 疾行 · <b>X</b> 视角 · <b>R</b> 重置探索 · 拖拽环视 · <b>Esc</b> 退出
 </div>
 <div class="crosshair" id="crosshair"></div>
+
+<div class="walkgame" id="walkgame">
+  <div class="wg-top">
+    <span class="wg-label">宫城探索</span>
+    <span class="wg-count"><b id="wgCount">0</b><span> / 10</span></span>
+  </div>
+  <div class="wg-bar"><i id="wgBar"></i></div>
+  <div class="wg-hint" id="wgHint">走近各处建筑即可发现</div>
+</div>
 
 <div class="tourbar" id="tourbar">
   <span>中轴巡礼</span>
@@ -394,7 +422,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.0.0',
+  version: '6.1.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -7049,6 +7077,8 @@ if (typeof window !== 'undefined') window.__INTERIOR = INTERIOR;
 /* =============================================================
  *  紫禁城 · 数字复原  —  第三人称漫游（小人）
  *  WASD 移动 / Space 跳跃 / Shift 疾行 / 拖拽环视 / X 切换视角
+ *  游戏化手感：加速度/惯性、土狼时间、跳跃缓冲、可变跳高、
+ *            落地缓冲、头部摆动、疾行 FOV、相机碰撞收缩
  * ============================================================= */
 const WALK = {
   active: false,
@@ -7077,6 +7107,20 @@ const WALK = {
   moving: false,
   speed: 0,
   stepSound: 0,
+
+  /* 手感状态 */
+  vx: 0,
+  vz: 0,
+  coyote: 0,
+  jumpBuffer: 0,
+  landDip: 0,
+  bobPhase: 0,
+  baseFov: 60,
+  fovNow: 60,
+  jumpHeld: false,
+  walkSpeed: 5.2,
+  runSpeed: 11.5,
+
   _camPos: new THREE.Vector3(),
   _tmp: new THREE.Vector3(),
   _smoothInit: false,
@@ -7084,6 +7128,8 @@ const WALK = {
   init: function (canvasEl, cameraEl) {
     this.canvas = canvasEl;
     this.camera = cameraEl;
+    this.baseFov = cameraEl.fov || 60;
+    this.fovNow = this.baseFov;
   },
 
   setColliders: function (list) { this.colliders = list || []; },
@@ -7153,6 +7199,16 @@ const WALK = {
     this.moving = false;
     this._smoothInit = false;
     this.stepSound = 0;
+    this.stepDist = 0;
+    this.vx = 0;
+    this.vz = 0;
+    this.coyote = 0;
+    this.jumpBuffer = 0;
+    this.landDip = 0;
+    this.bobPhase = 0;
+    this.jumpHeld = false;
+    this.baseFov = this.camera ? this.camera.fov : 60;
+    this.fovNow = this.baseFov;
     this.canvas.style.cursor = 'crosshair';
     if (this.onEnter) this.onEnter();
   },
@@ -7163,7 +7219,14 @@ const WALK = {
     this.dragging = false;
     this.keys = {};
     this.vy = 0;
+    this.vx = 0;
+    this.vz = 0;
     this.canvas.style.cursor = 'grab';
+    /* 恢复视角 FOV */
+    if (this.camera) {
+      this.camera.fov = this.baseFov;
+      this.camera.updateProjectionMatrix();
+    }
     if (this.onExit) this.onExit();
   },
 
@@ -7174,11 +7237,28 @@ const WALK = {
     this.pitch = Math.max(lo, Math.min(hi, this.pitch - dy * 0.0028));
   },
 
-  jump: function () {
-    if (!this.active || !this.onGround) return;
-    this.vy = 7.3;
+  /* 跳跃：土狼时间 + 缓冲 + 可变跳高 */
+  _tryJump: function () {
+    if (!this.active) return false;
+    const canJump = this.onGround || this.coyote > 0;
+    if (!canJump) { this.jumpBuffer = 0.16; return false; }
+    this.vy = 7.6;
     this.onGround = false;
+    this.coyote = 0;
+    this.jumpBuffer = 0;
+    this.jumpHeld = true;
     if (typeof AUDIO !== 'undefined') AUDIO.jump();
+    return true;
+  },
+
+  jump: function () {
+    this._tryJump();
+  },
+
+  /* 松开空格：可变跳高（短按小跳） */
+  releaseJump: function () {
+    this.jumpHeld = false;
+    if (!this.onGround && this.vy > 2.2) this.vy *= 0.55;
   },
 
   toggleView: function () {
@@ -7188,27 +7268,31 @@ const WALK = {
     }
   },
 
-  /* ---------------- 第三人称相机（简单遮挡收缩） ---------------- */
+  /* ---------------- 相机：碰撞收缩 + 摆动 + 落地缓冲 + FOV ---------------- */
   updateCamera: function (dt) {
     const cam = this.camera;
+    const bobAmp = this.thirdPerson ? 0.018 : 0.042;
+    const speedK = Math.min(1, Math.abs(this.speed) / this.runSpeed);
+    const bob = this.onGround ? Math.sin(this.bobPhase * 2) * bobAmp * speedK : 0;
+    const dip = this.landDip;
+    this.landDip *= Math.exp(-9 * (dt || 0.016));
+
     if (this.thirdPerson) {
       const tx = this.pos.x, ty = this.pos.y + 1.2, tz = this.pos.z;
       const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+      const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
       let dist = this.camDist;
-      for (let k = 0; k < 6; k++) {
-        const cx = tx + Math.sin(this.yaw) * cp * dist;
-        const cz = tz + Math.cos(this.yaw) * cp * dist;
-        if (!this.insideCollider(cx, cz, 0.35)) break;
-        dist *= 0.72;
+      /* 相机碰撞：逐步收缩，避免穿墙 */
+      for (let k = 0; k < 8; k++) {
+        const cxx = tx + sy * cp * dist;
+        const czz = tz + cy * cp * dist;
+        if (!this.insideCollider(cxx, czz, 0.4)) break;
+        dist *= 0.75;
       }
-      let cy = ty + sp * dist + 0.15;
-      const gy = this.groundAt(tx + Math.sin(this.yaw) * cp * dist, tz + Math.cos(this.yaw) * cp * dist);
-      if (cy < gy + 0.5) cy = gy + 0.5;
-      const desired = this._tmp.set(
-        tx + Math.sin(this.yaw) * cp * dist,
-        cy,
-        tz + Math.cos(this.yaw) * cp * dist
-      );
+      let targetY = ty + sp * dist + 0.15 + bob - dip;
+      const gy = this.groundAt(tx + sy * cp * dist, tz + cy * cp * dist);
+      if (targetY < gy + 0.55) targetY = gy + 0.55;
+      const desired = this._tmp.set(tx + sy * cp * dist, targetY, tz + cy * cp * dist);
       if (!this._smoothInit) {
         this._camPos.copy(desired);
         this._smoothInit = true;
@@ -7218,15 +7302,27 @@ const WALK = {
       }
       cam.position.copy(this._camPos);
       cam.lookAt(tx, ty + 0.05, tz);
+      cam.rotateZ(Math.sin(this.bobPhase) * 0.0022 * speedK);
     } else {
-      cam.position.set(this.pos.x, this.pos.y + this.eye, this.pos.z);
+      const px = this.pos.x + Math.cos(this.bobPhase) * 0.012 * speedK;
+      cam.position.set(px, this.pos.y + this.eye + bob - dip, this.pos.z);
       const cp = Math.cos(this.pitch);
-      const dir = new THREE.Vector3(
+      const dir = this._tmp.set(
         -Math.sin(this.yaw) * cp,
         Math.sin(this.pitch),
         -Math.cos(this.yaw) * cp
       );
-      cam.lookAt(cam.position.clone().add(dir));
+      cam.lookAt(cam.position.x + dir.x, cam.position.y + dir.y, cam.position.z + dir.z);
+      cam.rotateZ(Math.sin(this.bobPhase) * 0.0045 * speedK);
+    }
+
+    /* 疾行 FOV 推进 */
+    const runFov = (this.moving && this.onGround && this.keys['shift']) ? 5.0 : 0;
+    const targetFov = this.baseFov + runFov;
+    this.fovNow += (targetFov - this.fovNow) * Math.min(1, (dt || 0.016) * 7);
+    if (Math.abs(this.fovNow - cam.fov) > 0.01) {
+      cam.fov = this.fovNow;
+      cam.updateProjectionMatrix();
     }
   },
 
@@ -7236,68 +7332,100 @@ const WALK = {
     const k = this.keys;
 
     /* 移动输入（相对相机朝向） */
-    const fwd = (k['w'] ? 1 : 0) - (k['s'] ? 1 : 0);
-    const strafe = (k['d'] ? 1 : 0) - (k['a'] ? 1 : 0);
+    const fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
+    const strafe = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
     const run = !!k['shift'];
-    this.speed = run ? 11.5 : 5.2;
-    if (fwd !== 0 || strafe !== 0) {
+    const hasInput = fwd !== 0 || strafe !== 0;
+
+    let dirX = 0, dirZ = 0;
+    if (hasInput) {
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
       const fx = -sin, fz = -cos;
       const rx = cos, rz = -sin;
       let dx = fx * fwd + rx * strafe;
       let dz = fz * fwd + rz * strafe;
       const len = Math.hypot(dx, dz) || 1;
-      dx = dx / len * this.speed * dt;
-      dz = dz / len * this.speed * dt;
-      const px = this.pos.x, pz = this.pos.z;
-      if (!this.blocked(px + dx, pz)) this.pos.x += dx;
-      if (!this.blocked(this.pos.x, pz + dz)) this.pos.z += dz;
-      const moved = Math.hypot(this.pos.x - px, this.pos.z - pz);
-      this.stepDist += moved;
-      this.stepSound += moved;
-      if (this.stepSound > 0.66 && this.onGround && typeof AUDIO !== 'undefined') {
-        this.stepSound = 0;
-        AUDIO.step(this.speed > 8);
-      }
-      this.moving = moved > 1e-4;
-      if (this.moving) {
-        const targetYaw = Math.atan2(this.pos.x - px, this.pos.z - pz);
-        let d = targetYaw - this.avatarYaw;
-        d = Math.atan2(Math.sin(d), Math.cos(d));
-        this.avatarYaw += d * Math.min(1, dt * 12);
-      }
-      if (this.stepDist > 0.78 && typeof EFFECTS !== 'undefined' && EFFECTS.snowAmount > 0.5 && this.onGround) {
-        EFFECTS.spawnFootprint(this.pos.x, this.groundAt(this.pos.x, this.pos.z) + 0.05, this.pos.z, this.avatarYaw);
-        this.stepDist = 0;
-      }
-    } else {
-      this.moving = false;
+      dirX = dx / len;
+      dirZ = dz / len;
     }
+
+    /* 加速度 / 惯性 */
+    const targetSpeed = hasInput ? (run ? this.runSpeed : this.walkSpeed) : 0;
+    const targetVX = dirX * targetSpeed;
+    const targetVZ = dirZ * targetSpeed;
+    const accel = this.onGround ? (hasInput ? 36 : 28) : (hasInput ? 12 : 6);
+    const blend = 1 - Math.exp(-accel * dt);
+    this.vx += (targetVX - this.vx) * blend;
+    this.vz += (targetVZ - this.vz) * blend;
+    if (Math.abs(this.vx) < 0.02) this.vx = 0;
+    if (Math.abs(this.vz) < 0.02) this.vz = 0;
+    this.speed = Math.hypot(this.vx, this.vz);
+
+    /* 位移：分步 + 轴分离滑墙 */
+    const moveX = this.vx * dt, moveZ = this.vz * dt;
+    const total = Math.hypot(moveX, moveZ);
+    const steps = total > 0.16 ? Math.ceil(total / 0.16) : 1;
+    let moved = 0;
+    for (let s = 0; s < steps; s++) {
+      const sx = moveX / steps, sz = moveZ / steps;
+      const px = this.pos.x, pz = this.pos.z;
+      if (!this.blocked(px + sx, pz)) this.pos.x += sx; else this.vx = 0;
+      if (!this.blocked(this.pos.x, pz + sz)) this.pos.z += sz; else this.vz = 0;
+      moved += Math.hypot(this.pos.x - px, this.pos.z - pz);
+    }
+    this.stepDist += moved;
+    this.stepSound += moved;
+    this.bobPhase += moved * 2.2;
+    if (this.stepSound > 0.66 && this.onGround && typeof AUDIO !== 'undefined') {
+      this.stepSound = 0;
+      AUDIO.step(this.speed > 8);
+    }
+    this.moving = moved > 1e-4;
+    if (this.moving) {
+      const targetYaw = Math.atan2(this.vx, this.vz);
+      let d = targetYaw - this.avatarYaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.avatarYaw += d * Math.min(1, dt * 12);
+    }
+    if (this.stepDist > 0.78 && typeof EFFECTS !== 'undefined' && EFFECTS.snowAmount > 0.5 && this.onGround) {
+      EFFECTS.spawnFootprint(this.pos.x, this.groundAt(this.pos.x, this.pos.z) + 0.05, this.pos.z, this.avatarYaw);
+      this.stepDist = 0;
+    }
+
+    /* 土狼时间 / 跳跃缓冲 */
+    this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    if (this.jumpBuffer > 0 && (this.onGround || this.coyote > 0)) this._tryJump();
 
     /* 垂直物理 */
     const gy = this.groundAt(this.pos.x, this.pos.z);
     if (!this.onGround) {
-      this.vy -= 22 * dt;
+      this.vy -= 24 * dt;
       this.pos.y += this.vy * dt;
       if (this.pos.y <= gy) {
+        const landSpeed = -this.vy;
         this.pos.y = gy;
         this.vy = 0;
         this.onGround = true;
+        this.landDip = Math.min(0.24, Math.max(0, (landSpeed - 5) * 0.022));
         if (typeof AUDIO !== 'undefined') AUDIO.land();
       }
     } else {
+      this.coyote = Math.max(0, this.coyote - dt);
       if (this.pos.y > gy + 0.06) {
-        /* 走出台沿，转为下落 */
         this.onGround = false;
+        this.coyote = 0.14;
         this.vy = 0;
       } else {
         this.pos.y += (gy - this.pos.y) * Math.min(1, dt * 12);
+        this.coyote = 0.14;
       }
     }
 
     this.updateCamera(dt);
   }
 };
+
+if (typeof window !== 'undefined') window.WALK = WALK;
 
 </script>
 <script data-src="js/effects.js">
@@ -9427,6 +9555,82 @@ const ASSETS = {
   }
   function toggleCinema() { setCinema(!settings.cinema); }
 
+  /* =========================================================
+   *  宫城探索（游戏化目标：发现 10 处地标）
+   * ======================================================= */
+  const DISCOVERIES = [
+    { x: 0, z: 452, r: 46, name: '午门', desc: '紫禁城正门 · 五凤楼与雁翅楼' },
+    { x: 0, z: 300, r: 34, name: '太和门', desc: '外朝正门 · 门前铜狮与金水桥' },
+    { x: 0, z: 95, r: 60, name: '太和殿', desc: '金銮宝殿 · 重檐庑殿、脊兽十只' },
+    { x: 0, z: 5, r: 30, name: '中和殿', desc: '方形攒尖顶 · 大典前休憩之所' },
+    { x: 0, z: -50, r: 34, name: '保和殿', desc: '重檐歇山 · 殿试之地' },
+    { x: 0, z: -196, r: 42, name: '乾清宫', desc: '内廷正殿 · 正大光明匾' },
+    { x: 0, z: -244, r: 34, name: '坤宁宫', desc: '皇后中宫 · 位正坤元' },
+    { x: 34, z: -338, r: 28, name: '万春亭', desc: '御花园东 · 重檐圆攒尖亭' },
+    { x: -34, z: -338, r: 28, name: '千秋亭', desc: '御花园西 · 与万春亭对称' },
+    { x: 0, z: -470, r: 40, name: '神武门', desc: '紫禁城北门 · 宫城终点' }
+  ];
+  const DISC_KEY = 'forbidden-city-discoveries-v1';
+  let discSet = {};
+  try {
+    const saved = JSON.parse(localStorage.getItem(DISC_KEY) || '[]');
+    if (Array.isArray(saved)) saved.forEach(function (i) { if (i >= 0 && i < DISCOVERIES.length) discSet[i] = true; });
+  } catch (e) {}
+  function discCount() { return Object.keys(discSet).length; }
+  function saveDisc() {
+    try { localStorage.setItem(DISC_KEY, JSON.stringify(Object.keys(discSet).map(Number))); } catch (e) {}
+  }
+  function bearingArrow(d, yaw) {
+    const dx = d.x - WALK.pos.x, dz = d.z - WALK.pos.z;
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    const rel = Math.atan2(dx * fz - dz * fx, dx * fx + dz * fz);
+    const a = Math.abs(rel);
+    if (a > Math.PI * 0.875) return '↓';
+    if (a > Math.PI * 0.625) return rel > 0 ? '↙' : '↘';
+    if (a > Math.PI * 0.375) return rel > 0 ? '←' : '→';
+    if (a > Math.PI * 0.125) return rel > 0 ? '↖' : '↗';
+    return '↑';
+  }
+  function refreshWalkGame() {
+    const n = discCount();
+    const c = $('wgCount'); if (c) c.textContent = String(n);
+    const bar = $('wgBar'); if (bar) bar.style.width = (n / DISCOVERIES.length * 100).toFixed(1) + '%';
+    updateWalkGameHint();
+  }
+  function updateWalkGameHint() {
+    const hint = $('wgHint');
+    if (!hint) return;
+    const n = discCount();
+    if (n >= DISCOVERIES.length) { hint.innerHTML = '全部 ' + DISCOVERIES.length + ' 处已发现 · <b>宫城探索完成</b>'; return; }
+    let best = null, bestD = 1e9;
+    for (let i = 0; i < DISCOVERIES.length; i++) {
+      if (discSet[i]) continue;
+      const d = DISCOVERIES[i];
+      const dist = Math.hypot(d.x - WALK.pos.x, d.z - WALK.pos.z);
+      if (dist < bestD) { bestD = dist; best = d; }
+    }
+    if (best) hint.innerHTML = '下一处 <b>' + best.name + '</b> ' + bearingArrow(best, WALK.yaw) + ' ' + Math.round(bestD) + ' m · 已发现 ' + n + '/' + DISCOVERIES.length;
+  }
+  function updateWalkGame() {
+    if (!WALK.active) return;
+    for (let i = 0; i < DISCOVERIES.length; i++) {
+      if (discSet[i]) continue;
+      const d = DISCOVERIES[i];
+      if (Math.hypot(d.x - WALK.pos.x, d.z - WALK.pos.z) < d.r) {
+        discSet[i] = true;
+        saveDisc();
+        refreshWalkGame();
+        const n = discCount();
+        showToast('发现 · ' + d.name + '（' + n + '/' + DISCOVERIES.length + '）' + (d.desc ? ' — ' + d.desc : ''), 3400);
+        if (n === DISCOVERIES.length) {
+          setTimeout(function () { showToast('宫城探索完成：10 处全部发现！', 5200); }, 3600);
+        }
+        break;
+      }
+    }
+    updateWalkGameHint();
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -9435,7 +9639,8 @@ const ASSETS = {
       document.body.classList.add('walking');
       $('walkhint').classList.add('show');
       $('btnWalk').classList.add('on');
-      showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · Esc 退出', 3600);
+      refreshWalkGame();
+      showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · 拖拽环视 · Esc 退出', 3600);
     } else {
       WALK.exit();
       document.body.classList.remove('walking');
@@ -9653,6 +9858,11 @@ const ASSETS = {
       if (e.key === 'Shift') { WALK.keys['shift'] = true; return; }
       if (e.code === 'Space' || k2 === ' ') { WALK.jump(); e.preventDefault(); return; }
       if (k2 === 'x') { WALK.toggleView(); return; }
+      if (k2 === 'r') {
+        discSet = {}; saveDisc(); refreshWalkGame();
+        showToast('探索进度已重置', 2200);
+        return;
+      }
       if (k2 === 'v' || e.key === 'Escape') { toggleWalk(false); return; }
     }
     const key = e.key;
@@ -9716,6 +9926,7 @@ const ASSETS = {
     const k2 = (e.key || '').toLowerCase();
     WALK.keys[k2] = false;
     if (e.key === 'Shift') WALK.keys['shift'] = false;
+    if (e.code === 'Space' || k2 === ' ') WALK.releaseJump();
   });
 
   window.addEventListener('resize', function () {
@@ -9929,6 +10140,7 @@ const ASSETS = {
       AVATAR.place(WALK.pos, WALK.avatarYaw);
       AVATAR.setVisible(WALK.thirdPerson);
       AVATAR.update(dt, { moving: WALK.moving, speed: WALK.speed, onGround: WALK.onGround });
+      updateWalkGame();
       $('crosshair').style.display = WALK.thirdPerson ? 'none' : 'block';
     } else {
       AVATAR.setVisible(false);
@@ -10187,6 +10399,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.0.0.20261019.0536","time":"2026-10-19T05:36:32.160Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.1.0.20261019.0807","time":"2026-10-19T08:07:25.177Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

@@ -1,6 +1,8 @@
 /* =============================================================
  *  紫禁城 · 数字复原  —  第三人称漫游（小人）
  *  WASD 移动 / Space 跳跃 / Shift 疾行 / 拖拽环视 / X 切换视角
+ *  游戏化手感：加速度/惯性、土狼时间、跳跃缓冲、可变跳高、
+ *            落地缓冲、头部摆动、疾行 FOV、相机碰撞收缩
  * ============================================================= */
 const WALK = {
   active: false,
@@ -29,6 +31,20 @@ const WALK = {
   moving: false,
   speed: 0,
   stepSound: 0,
+
+  /* 手感状态 */
+  vx: 0,
+  vz: 0,
+  coyote: 0,
+  jumpBuffer: 0,
+  landDip: 0,
+  bobPhase: 0,
+  baseFov: 60,
+  fovNow: 60,
+  jumpHeld: false,
+  walkSpeed: 5.2,
+  runSpeed: 11.5,
+
   _camPos: new THREE.Vector3(),
   _tmp: new THREE.Vector3(),
   _smoothInit: false,
@@ -36,6 +52,8 @@ const WALK = {
   init: function (canvasEl, cameraEl) {
     this.canvas = canvasEl;
     this.camera = cameraEl;
+    this.baseFov = cameraEl.fov || 60;
+    this.fovNow = this.baseFov;
   },
 
   setColliders: function (list) { this.colliders = list || []; },
@@ -105,6 +123,16 @@ const WALK = {
     this.moving = false;
     this._smoothInit = false;
     this.stepSound = 0;
+    this.stepDist = 0;
+    this.vx = 0;
+    this.vz = 0;
+    this.coyote = 0;
+    this.jumpBuffer = 0;
+    this.landDip = 0;
+    this.bobPhase = 0;
+    this.jumpHeld = false;
+    this.baseFov = this.camera ? this.camera.fov : 60;
+    this.fovNow = this.baseFov;
     this.canvas.style.cursor = 'crosshair';
     if (this.onEnter) this.onEnter();
   },
@@ -115,7 +143,14 @@ const WALK = {
     this.dragging = false;
     this.keys = {};
     this.vy = 0;
+    this.vx = 0;
+    this.vz = 0;
     this.canvas.style.cursor = 'grab';
+    /* 恢复视角 FOV */
+    if (this.camera) {
+      this.camera.fov = this.baseFov;
+      this.camera.updateProjectionMatrix();
+    }
     if (this.onExit) this.onExit();
   },
 
@@ -126,11 +161,28 @@ const WALK = {
     this.pitch = Math.max(lo, Math.min(hi, this.pitch - dy * 0.0028));
   },
 
-  jump: function () {
-    if (!this.active || !this.onGround) return;
-    this.vy = 7.3;
+  /* 跳跃：土狼时间 + 缓冲 + 可变跳高 */
+  _tryJump: function () {
+    if (!this.active) return false;
+    const canJump = this.onGround || this.coyote > 0;
+    if (!canJump) { this.jumpBuffer = 0.16; return false; }
+    this.vy = 7.6;
     this.onGround = false;
+    this.coyote = 0;
+    this.jumpBuffer = 0;
+    this.jumpHeld = true;
     if (typeof AUDIO !== 'undefined') AUDIO.jump();
+    return true;
+  },
+
+  jump: function () {
+    this._tryJump();
+  },
+
+  /* 松开空格：可变跳高（短按小跳） */
+  releaseJump: function () {
+    this.jumpHeld = false;
+    if (!this.onGround && this.vy > 2.2) this.vy *= 0.55;
   },
 
   toggleView: function () {
@@ -140,27 +192,31 @@ const WALK = {
     }
   },
 
-  /* ---------------- 第三人称相机（简单遮挡收缩） ---------------- */
+  /* ---------------- 相机：碰撞收缩 + 摆动 + 落地缓冲 + FOV ---------------- */
   updateCamera: function (dt) {
     const cam = this.camera;
+    const bobAmp = this.thirdPerson ? 0.018 : 0.042;
+    const speedK = Math.min(1, Math.abs(this.speed) / this.runSpeed);
+    const bob = this.onGround ? Math.sin(this.bobPhase * 2) * bobAmp * speedK : 0;
+    const dip = this.landDip;
+    this.landDip *= Math.exp(-9 * (dt || 0.016));
+
     if (this.thirdPerson) {
       const tx = this.pos.x, ty = this.pos.y + 1.2, tz = this.pos.z;
       const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+      const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
       let dist = this.camDist;
-      for (let k = 0; k < 6; k++) {
-        const cx = tx + Math.sin(this.yaw) * cp * dist;
-        const cz = tz + Math.cos(this.yaw) * cp * dist;
-        if (!this.insideCollider(cx, cz, 0.35)) break;
-        dist *= 0.72;
+      /* 相机碰撞：逐步收缩，避免穿墙 */
+      for (let k = 0; k < 8; k++) {
+        const cxx = tx + sy * cp * dist;
+        const czz = tz + cy * cp * dist;
+        if (!this.insideCollider(cxx, czz, 0.4)) break;
+        dist *= 0.75;
       }
-      let cy = ty + sp * dist + 0.15;
-      const gy = this.groundAt(tx + Math.sin(this.yaw) * cp * dist, tz + Math.cos(this.yaw) * cp * dist);
-      if (cy < gy + 0.5) cy = gy + 0.5;
-      const desired = this._tmp.set(
-        tx + Math.sin(this.yaw) * cp * dist,
-        cy,
-        tz + Math.cos(this.yaw) * cp * dist
-      );
+      let targetY = ty + sp * dist + 0.15 + bob - dip;
+      const gy = this.groundAt(tx + sy * cp * dist, tz + cy * cp * dist);
+      if (targetY < gy + 0.55) targetY = gy + 0.55;
+      const desired = this._tmp.set(tx + sy * cp * dist, targetY, tz + cy * cp * dist);
       if (!this._smoothInit) {
         this._camPos.copy(desired);
         this._smoothInit = true;
@@ -170,15 +226,27 @@ const WALK = {
       }
       cam.position.copy(this._camPos);
       cam.lookAt(tx, ty + 0.05, tz);
+      cam.rotateZ(Math.sin(this.bobPhase) * 0.0022 * speedK);
     } else {
-      cam.position.set(this.pos.x, this.pos.y + this.eye, this.pos.z);
+      const px = this.pos.x + Math.cos(this.bobPhase) * 0.012 * speedK;
+      cam.position.set(px, this.pos.y + this.eye + bob - dip, this.pos.z);
       const cp = Math.cos(this.pitch);
-      const dir = new THREE.Vector3(
+      const dir = this._tmp.set(
         -Math.sin(this.yaw) * cp,
         Math.sin(this.pitch),
         -Math.cos(this.yaw) * cp
       );
-      cam.lookAt(cam.position.clone().add(dir));
+      cam.lookAt(cam.position.x + dir.x, cam.position.y + dir.y, cam.position.z + dir.z);
+      cam.rotateZ(Math.sin(this.bobPhase) * 0.0045 * speedK);
+    }
+
+    /* 疾行 FOV 推进 */
+    const runFov = (this.moving && this.onGround && this.keys['shift']) ? 5.0 : 0;
+    const targetFov = this.baseFov + runFov;
+    this.fovNow += (targetFov - this.fovNow) * Math.min(1, (dt || 0.016) * 7);
+    if (Math.abs(this.fovNow - cam.fov) > 0.01) {
+      cam.fov = this.fovNow;
+      cam.updateProjectionMatrix();
     }
   },
 
@@ -188,65 +256,97 @@ const WALK = {
     const k = this.keys;
 
     /* 移动输入（相对相机朝向） */
-    const fwd = (k['w'] ? 1 : 0) - (k['s'] ? 1 : 0);
-    const strafe = (k['d'] ? 1 : 0) - (k['a'] ? 1 : 0);
+    const fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
+    const strafe = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
     const run = !!k['shift'];
-    this.speed = run ? 11.5 : 5.2;
-    if (fwd !== 0 || strafe !== 0) {
+    const hasInput = fwd !== 0 || strafe !== 0;
+
+    let dirX = 0, dirZ = 0;
+    if (hasInput) {
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
       const fx = -sin, fz = -cos;
       const rx = cos, rz = -sin;
       let dx = fx * fwd + rx * strafe;
       let dz = fz * fwd + rz * strafe;
       const len = Math.hypot(dx, dz) || 1;
-      dx = dx / len * this.speed * dt;
-      dz = dz / len * this.speed * dt;
-      const px = this.pos.x, pz = this.pos.z;
-      if (!this.blocked(px + dx, pz)) this.pos.x += dx;
-      if (!this.blocked(this.pos.x, pz + dz)) this.pos.z += dz;
-      const moved = Math.hypot(this.pos.x - px, this.pos.z - pz);
-      this.stepDist += moved;
-      this.stepSound += moved;
-      if (this.stepSound > 0.66 && this.onGround && typeof AUDIO !== 'undefined') {
-        this.stepSound = 0;
-        AUDIO.step(this.speed > 8);
-      }
-      this.moving = moved > 1e-4;
-      if (this.moving) {
-        const targetYaw = Math.atan2(this.pos.x - px, this.pos.z - pz);
-        let d = targetYaw - this.avatarYaw;
-        d = Math.atan2(Math.sin(d), Math.cos(d));
-        this.avatarYaw += d * Math.min(1, dt * 12);
-      }
-      if (this.stepDist > 0.78 && typeof EFFECTS !== 'undefined' && EFFECTS.snowAmount > 0.5 && this.onGround) {
-        EFFECTS.spawnFootprint(this.pos.x, this.groundAt(this.pos.x, this.pos.z) + 0.05, this.pos.z, this.avatarYaw);
-        this.stepDist = 0;
-      }
-    } else {
-      this.moving = false;
+      dirX = dx / len;
+      dirZ = dz / len;
     }
+
+    /* 加速度 / 惯性 */
+    const targetSpeed = hasInput ? (run ? this.runSpeed : this.walkSpeed) : 0;
+    const targetVX = dirX * targetSpeed;
+    const targetVZ = dirZ * targetSpeed;
+    const accel = this.onGround ? (hasInput ? 36 : 28) : (hasInput ? 12 : 6);
+    const blend = 1 - Math.exp(-accel * dt);
+    this.vx += (targetVX - this.vx) * blend;
+    this.vz += (targetVZ - this.vz) * blend;
+    if (Math.abs(this.vx) < 0.02) this.vx = 0;
+    if (Math.abs(this.vz) < 0.02) this.vz = 0;
+    this.speed = Math.hypot(this.vx, this.vz);
+
+    /* 位移：分步 + 轴分离滑墙 */
+    const moveX = this.vx * dt, moveZ = this.vz * dt;
+    const total = Math.hypot(moveX, moveZ);
+    const steps = total > 0.16 ? Math.ceil(total / 0.16) : 1;
+    let moved = 0;
+    for (let s = 0; s < steps; s++) {
+      const sx = moveX / steps, sz = moveZ / steps;
+      const px = this.pos.x, pz = this.pos.z;
+      if (!this.blocked(px + sx, pz)) this.pos.x += sx; else this.vx = 0;
+      if (!this.blocked(this.pos.x, pz + sz)) this.pos.z += sz; else this.vz = 0;
+      moved += Math.hypot(this.pos.x - px, this.pos.z - pz);
+    }
+    this.stepDist += moved;
+    this.stepSound += moved;
+    this.bobPhase += moved * 2.2;
+    if (this.stepSound > 0.66 && this.onGround && typeof AUDIO !== 'undefined') {
+      this.stepSound = 0;
+      AUDIO.step(this.speed > 8);
+    }
+    this.moving = moved > 1e-4;
+    if (this.moving) {
+      const targetYaw = Math.atan2(this.vx, this.vz);
+      let d = targetYaw - this.avatarYaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.avatarYaw += d * Math.min(1, dt * 12);
+    }
+    if (this.stepDist > 0.78 && typeof EFFECTS !== 'undefined' && EFFECTS.snowAmount > 0.5 && this.onGround) {
+      EFFECTS.spawnFootprint(this.pos.x, this.groundAt(this.pos.x, this.pos.z) + 0.05, this.pos.z, this.avatarYaw);
+      this.stepDist = 0;
+    }
+
+    /* 土狼时间 / 跳跃缓冲 */
+    this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    if (this.jumpBuffer > 0 && (this.onGround || this.coyote > 0)) this._tryJump();
 
     /* 垂直物理 */
     const gy = this.groundAt(this.pos.x, this.pos.z);
     if (!this.onGround) {
-      this.vy -= 22 * dt;
+      this.vy -= 24 * dt;
       this.pos.y += this.vy * dt;
       if (this.pos.y <= gy) {
+        const landSpeed = -this.vy;
         this.pos.y = gy;
         this.vy = 0;
         this.onGround = true;
+        this.landDip = Math.min(0.24, Math.max(0, (landSpeed - 5) * 0.022));
         if (typeof AUDIO !== 'undefined') AUDIO.land();
       }
     } else {
+      this.coyote = Math.max(0, this.coyote - dt);
       if (this.pos.y > gy + 0.06) {
-        /* 走出台沿，转为下落 */
         this.onGround = false;
+        this.coyote = 0.14;
         this.vy = 0;
       } else {
         this.pos.y += (gy - this.pos.y) * Math.min(1, dt * 12);
+        this.coyote = 0.14;
       }
     }
 
     this.updateCamera(dt);
   }
 };
+
+if (typeof window !== 'undefined') window.WALK = WALK;

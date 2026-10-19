@@ -187,6 +187,25 @@
     background:rgba(216,180,95,.8);box-shadow:0 0 8px rgba(0,0,0,.7);z-index:7;display:none;pointer-events:none;
   }
   body.walking .crosshair{display:block}
+  /* ---------------- 漫游 · 宫城探索 HUD ---------------- */
+  .walkgame{
+    position:fixed;right:26px;top:292px;z-index:6;display:none;width:196px;
+    padding:12px 14px;background:rgba(9,11,15,.66);border:1px solid rgba(216,180,95,.32);
+    backdrop-filter:blur(8px);color:var(--text);pointer-events:none;
+  }
+  body.walking .walkgame{display:block}
+  .walkgame .wg-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .walkgame .wg-label{font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.55)}
+  .walkgame .wg-count{font-size:20px;color:var(--gold);letter-spacing:1px;font-weight:400}
+  .walkgame .wg-count span{font-size:11px;color:rgba(230,224,208,.5);letter-spacing:0}
+  .walkgame .wg-bar{height:2px;background:rgba(216,180,95,.18);margin:8px 0 9px}
+  .walkgame .wg-bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .45s ease}
+  .walkgame .wg-hint{font-size:11px;letter-spacing:.5px;color:rgba(230,224,208,.72);line-height:1.55;min-height:17px}
+  .walkgame .wg-hint b{color:var(--gold);font-weight:500}
+  body.photo .walkgame{display:none !important}
+  @media (max-width:820px){
+    .walkgame{right:12px;top:auto;bottom:96px;width:160px;padding:10px 12px}
+  }
   @media (max-width:900px){
     .walkhint{font-size:10.5px;padding:8px 12px;letter-spacing:.5px;bottom:14px;white-space:normal;text-align:center;max-width:92vw}
   }
@@ -283,9 +302,18 @@
 </div>
 
 <div class="walkhint" id="walkhint">
-  <b>漫游模式</b> · <b>W A S D</b> 移动 · <b>空格</b> 跳跃 · <b>Shift</b> 疾行 · <b>X</b> 视角 · 拖拽环视 · <b>Esc</b> 退出
+  <b>漫游模式</b> · <b>W A S D</b> 移动 · <b>空格</b> 跳跃 · <b>Shift</b> 疾行 · <b>X</b> 视角 · <b>R</b> 重置探索 · 拖拽环视 · <b>Esc</b> 退出
 </div>
 <div class="crosshair" id="crosshair"></div>
+
+<div class="walkgame" id="walkgame">
+  <div class="wg-top">
+    <span class="wg-label">宫城探索</span>
+    <span class="wg-count"><b id="wgCount">0</b><span> / 10</span></span>
+  </div>
+  <div class="wg-bar"><i id="wgBar"></i></div>
+  <div class="wg-hint" id="wgHint">走近各处建筑即可发现</div>
+</div>
 
 <div class="tourbar" id="tourbar">
   <span>中轴巡礼</span>
