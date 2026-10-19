@@ -1099,6 +1099,7 @@
       achievements.wishes = savedA.wishes || 0;
       achievements.incense = savedA.incense || 0;
       achievements.log = Array.isArray(savedA.log) ? savedA.log : [];
+      achievements.codex = Array.isArray(savedA.codex) ? savedA.codex : [];
     }
   } catch (e) {}
   function achievementsSave() {
@@ -1589,6 +1590,88 @@
   /* =========================================================
    *  行程总览（H）：探索 / 任务 / 收藏 / 称号
    * ======================================================= */
+  /* =========================================================
+   *  宫中物件图鉴
+   * ======================================================= */
+  const CODEX_DATA = [
+    { id: 'vat', name: '太平缸', how: 'interact', title: '太平缸' },
+    { id: 'sundial', name: '日晷', how: 'interact', title: '日晷' },
+    { id: 'jialiang', name: '嘉量', how: 'interact', title: '嘉量' },
+    { id: 'lion', name: '铜狮', how: 'interact', title: '铜狮' },
+    { id: 'huabiao', name: '华表', how: 'interact', title: '华表' },
+    { id: 'table', name: '石桌石凳', how: 'interact', title: '石桌石凳' },
+    { id: 'rank', name: '品级山', how: 'interact', title: '品级山' },
+    { id: 'ding', name: '月台铜鼎', how: 'interact', title: '月台铜鼎' },
+    { id: 'wanchun', name: '万春亭', how: 'zone', x: 34, z: -338, r: 22 },
+    { id: 'qianqiu', name: '千秋亭', how: 'zone', x: -34, z: -338, r: 22 },
+    { id: 'duixiu', name: '堆秀山', how: 'zone', x: 64, z: -352, r: 24 },
+    { id: 'corner', name: '角楼', how: 'zone', x: 376, z: 480, r: 46 },
+    { id: 'cat', name: '御猫', how: 'cat', r: 6 },
+    { id: 'sparrow', name: '麻雀', how: 'sparrow', r: 9 },
+    { id: 'censer', name: '铜鼎香炉', how: 'zone', x: 0, z: 58, r: 40 },
+    { id: 'pavement', name: '金砖御道', how: 'zone', x: 0, z: 300, r: 60 }
+  ];
+  function codexHas(id) {
+    if (!Array.isArray(achievements.codex)) achievements.codex = [];
+    return achievements.codex.indexOf(id) >= 0;
+  }
+  function codexUnlock(id) {
+    if (!Array.isArray(achievements.codex)) achievements.codex = [];
+    if (achievements.codex.indexOf(id) >= 0) return false;
+    const item = CODEX_DATA.filter(function (c) { return c.id === id; })[0];
+    if (!item) return false;
+    achievements.codex.push(id);
+    achievementsSave();
+    if (item) {
+      showToast('图鉴收录 · ' + item.name + '（' + achievements.codex.length + '/' + CODEX_DATA.length + '）', 3000);
+      if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    }
+    return true;
+  }
+  let codexT = 0;
+  function updateCodex(dt) {
+    if (!WALK.active) return;
+    codexT += dt;
+    if (codexT < 0.8) return;
+    codexT = 0;
+    /* 互动类：靠近陈设即可收录（与互动提示一致） */
+    const it = nearestInteractive();
+    if (it) {
+      for (let i = 0; i < CODEX_DATA.length; i++) {
+        const c = CODEX_DATA[i];
+        if (c.how === 'interact' && c.title === it.title && !codexHas(c.id)) codexUnlock(c.id);
+      }
+    }
+    /* 区域类 */
+    for (let i = 0; i < CODEX_DATA.length; i++) {
+      const c = CODEX_DATA[i];
+      if (c.how !== 'zone' || codexHas(c.id)) continue;
+      if (Math.hypot(WALK.pos.x - c.x, WALK.pos.z - c.z) < c.r) codexUnlock(c.id);
+    }
+    /* 御猫 */
+    if (!codexHas('cat') && typeof NPC !== 'undefined' && NPC.cats) {
+      for (let ci = 0; ci < NPC.cats.length; ci++) {
+        const cp = NPC.cats[ci].obj.group.position;
+        if (Math.hypot(cp.x - WALK.pos.x, cp.z - WALK.pos.z) < 6) { codexUnlock('cat'); break; }
+      }
+    }
+    /* 麻雀 */
+    if (!codexHas('sparrow') && typeof NPC !== 'undefined' && NPC.sparrowData) {
+      for (let si = 0; si < NPC.sparrowData.length; si++) {
+        const sp = NPC.sparrowData[si];
+        if (Math.hypot(sp.x - WALK.pos.x, sp.z - WALK.pos.z) < 9) { codexUnlock('sparrow'); break; }
+      }
+    }
+  }
+  function codexInfo() {
+    const got = Array.isArray(achievements.codex) ? achievements.codex.slice() : [];
+    return {
+      total: CODEX_DATA.length, got: got.length,
+      names: CODEX_DATA.filter(function (c) { return got.indexOf(c.id) >= 0; }).map(function (c) { return c.name; }),
+      missing: CODEX_DATA.filter(function (c) { return got.indexOf(c.id) < 0; }).map(function (c) { return c.name; })
+    };
+  }
+
   function syncAchievementLog(notify) {
     if (!Array.isArray(achievements.log)) achievements.log = [];
     let changed = false;
@@ -1603,6 +1686,7 @@
       { name: '御猫团宠', ok: (achievements.catPlays || 0) >= 3 },
       { name: '心愿达成', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', ok: (achievements.incense || 0) >= 3 },
+      { name: '图鉴收藏家', ok: (achievements.codex || []).length >= 16 },
       { name: '千里之行', ok: travel.dist >= 1000 },
       { name: '宫城常客', ok: travel.dist >= 5000 },
       { name: '身轻如燕', ok: travel.jumps >= 50 },
@@ -1648,6 +1732,7 @@
       { name: '御猫团宠', cat: '趣味', ok: plays >= 3 },
       { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', cat: '趣味', ok: (achievements.incense || 0) >= 3 },
+      { name: '图鉴收藏家', cat: '综合', ok: (achievements.codex || []).length >= 16 },
       { name: '千里之行', cat: '里程碑', ok: travel.dist >= 1000 },
       { name: '宫城常客', cat: '里程碑', ok: travel.dist >= 5000 },
       { name: '身轻如燕', cat: '里程碑', ok: travel.jumps >= 50 },
@@ -1702,6 +1787,15 @@
           html += '<span class="tt' + (it.ok ? '' : ' off') + '">' + (it.ok ? '★ ' : '☆ ') + it.name + '</span>';
         }
       }
+      /* 图鉴 */
+      html += '<div class="loglist" style="width:100%"><div class="lbl">宫中图鉴 · ' + ((achievements.codex || []).length) + ' / ' + CODEX_DATA.length + '</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
+      for (let ci = 0; ci < CODEX_DATA.length; ci++) {
+        const c = CODEX_DATA[ci];
+        const got = (achievements.codex || []).indexOf(c.id) >= 0;
+        html += '<span class="tt' + (got ? '' : ' off') + '">' + (got ? '★ ' + c.name : '☆ ？？？') + '</span>';
+      }
+      html += '</div></div>';
+
       /* 最近解锁 */
       const recent = (d.log || []).slice(-8).reverse();
       if (recent.length) {
@@ -3328,6 +3422,7 @@
     updateAmbientAudio(dt);
     updateTravel(dt);
     updateTutorial(dt);
+    updateCodex(dt);
     if (!window.__achvSyncT) window.__achvSyncT = 0;
     window.__achvSyncT += dt;
     if (window.__achvSyncT > 3) { window.__achvSyncT = 0; syncAchievementLog(true); }
@@ -3606,6 +3701,8 @@
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
     syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
+    codexInfo: codexInfo,
+    unlockCodex: function (id) { return codexUnlock(id); },
     achievementLog: function () { return (achievements.log || []).slice(-20); },
     tutorialInfo: function () { return { active: tutorial.active, step: tutorial.step, done: tutorial.done, total: TUTORIAL_STEPS.length }; },
     tutorialReset: tutorialReset,
