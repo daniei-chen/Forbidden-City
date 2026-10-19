@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.22.0.20261019.1711">
-<meta name="build-time" content="2026-10-19T17:11:28.130Z">
+<meta name="generator" content="forbidden-city-build 6.23.0.20261019.1729">
+<meta name="build-time" content="2026-10-19T17:29:41.022Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T17:11:28.130Z
-  version: 6.22.0.20261019.1711
+  build: 2026-10-19T17:29:41.022Z
+  version: 6.23.0.20261019.1729
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -644,7 +644,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.22.0',
+  version: '6.23.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -12457,6 +12457,43 @@ const ASSETS = {
         mmCtx.beginPath(); mmCtx.arc(px(d.x), pz(d.z), 8.5, 0, 6.283); mmCtx.stroke();
       }
     })();
+    /* 小地图：NPC 与任务目标 */
+    if (typeof NPC !== 'undefined' && NPC.patrols) {
+      mmCtx.fillStyle = 'rgba(216,180,95,0.85)';
+      for (let pi = 0; pi < NPC.patrols.length; pi++) {
+        const pp = NPC.patrols[pi].obj.group.position;
+        mmCtx.beginPath(); mmCtx.arc(px(pp.x), pz(pp.z), 1.8, 0, 6.283); mmCtx.fill();
+      }
+      mmCtx.fillStyle = 'rgba(192,113,124,0.9)';
+      for (let mi2 = 0; mi2 < NPC.maids.length; mi2++) {
+        const mp2 = NPC.maids[mi2].obj.group.position;
+        mmCtx.beginPath(); mmCtx.arc(px(mp2.x), pz(mp2.z), 1.8, 0, 6.283); mmCtx.fill();
+      }
+      mmCtx.fillStyle = 'rgba(255,154,90,0.95)';
+      for (let ci2 = 0; ci2 < NPC.cats.length; ci2++) {
+        const cp2 = NPC.cats[ci2].obj.group.position;
+        mmCtx.beginPath(); mmCtx.arc(px(cp2.x), pz(cp2.z), 1.5, 0, 6.283); mmCtx.fill();
+      }
+    }
+    /* 任务目标：呼吸光环 + 标签 */
+    if (WALK.active && typeof getObjectiveTarget === 'function') {
+      const tgObj = getObjectiveTarget();
+      if (tgObj) {
+        const tpx = px(tgObj.x), tpz = pz(tgObj.z);
+        const pulse = 0.6 + 0.4 * Math.sin(performance.now() * 0.004);
+        mmCtx.strokeStyle = 'rgba(255,240,200,' + (0.55 + pulse * 0.4) + ')';
+        mmCtx.lineWidth = 1.6;
+        mmCtx.beginPath(); mmCtx.arc(tpx, tpz, 7 + pulse * 2.5, 0, 6.283); mmCtx.stroke();
+        mmCtx.fillStyle = 'rgba(255,240,200,0.95)';
+        mmCtx.beginPath(); mmCtx.arc(tpx, tpz, 2.2, 0, 6.283); mmCtx.fill();
+        mmCtx.fillStyle = 'rgba(255,240,200,0.85)';
+        mmCtx.font = '9px sans-serif';
+        mmCtx.textAlign = 'center';
+        const lbl = tgObj.label || '目标';
+        mmCtx.fillText(lbl.replace(/^.*·\s*/, ''), tpx, tpz - 12);
+      }
+    }
+
     /* 当前位置与朝向 */
     let ax, az, ayaw;
     if (WALK.active) { ax = WALK.pos.x; az = WALK.pos.z; ayaw = WALK.yaw; }
@@ -12892,6 +12929,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.22.0.20261019.1711","time":"2026-10-19T17:11:28.130Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.23.0.20261019.1729","time":"2026-10-19T17:29:41.022Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

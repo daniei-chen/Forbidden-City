@@ -2675,6 +2675,43 @@
         mmCtx.beginPath(); mmCtx.arc(px(d.x), pz(d.z), 8.5, 0, 6.283); mmCtx.stroke();
       }
     })();
+    /* 小地图：NPC 与任务目标 */
+    if (typeof NPC !== 'undefined' && NPC.patrols) {
+      mmCtx.fillStyle = 'rgba(216,180,95,0.85)';
+      for (let pi = 0; pi < NPC.patrols.length; pi++) {
+        const pp = NPC.patrols[pi].obj.group.position;
+        mmCtx.beginPath(); mmCtx.arc(px(pp.x), pz(pp.z), 1.8, 0, 6.283); mmCtx.fill();
+      }
+      mmCtx.fillStyle = 'rgba(192,113,124,0.9)';
+      for (let mi2 = 0; mi2 < NPC.maids.length; mi2++) {
+        const mp2 = NPC.maids[mi2].obj.group.position;
+        mmCtx.beginPath(); mmCtx.arc(px(mp2.x), pz(mp2.z), 1.8, 0, 6.283); mmCtx.fill();
+      }
+      mmCtx.fillStyle = 'rgba(255,154,90,0.95)';
+      for (let ci2 = 0; ci2 < NPC.cats.length; ci2++) {
+        const cp2 = NPC.cats[ci2].obj.group.position;
+        mmCtx.beginPath(); mmCtx.arc(px(cp2.x), pz(cp2.z), 1.5, 0, 6.283); mmCtx.fill();
+      }
+    }
+    /* 任务目标：呼吸光环 + 标签 */
+    if (WALK.active && typeof getObjectiveTarget === 'function') {
+      const tgObj = getObjectiveTarget();
+      if (tgObj) {
+        const tpx = px(tgObj.x), tpz = pz(tgObj.z);
+        const pulse = 0.6 + 0.4 * Math.sin(performance.now() * 0.004);
+        mmCtx.strokeStyle = 'rgba(255,240,200,' + (0.55 + pulse * 0.4) + ')';
+        mmCtx.lineWidth = 1.6;
+        mmCtx.beginPath(); mmCtx.arc(tpx, tpz, 7 + pulse * 2.5, 0, 6.283); mmCtx.stroke();
+        mmCtx.fillStyle = 'rgba(255,240,200,0.95)';
+        mmCtx.beginPath(); mmCtx.arc(tpx, tpz, 2.2, 0, 6.283); mmCtx.fill();
+        mmCtx.fillStyle = 'rgba(255,240,200,0.85)';
+        mmCtx.font = '9px sans-serif';
+        mmCtx.textAlign = 'center';
+        const lbl = tgObj.label || '目标';
+        mmCtx.fillText(lbl.replace(/^.*·\s*/, ''), tpx, tpz - 12);
+      }
+    }
+
     /* 当前位置与朝向 */
     let ax, az, ayaw;
     if (WALK.active) { ax = WALK.pos.x; az = WALK.pos.z; ayaw = WALK.yaw; }

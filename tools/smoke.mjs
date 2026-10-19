@@ -249,12 +249,16 @@ try {
   const snowReady = await waitFor('EFFECTS.snowAmount > 0.5', 30000);
   check('雪景过渡', !!snowReady, 'snow=' + await evaluate('EFFECTS.snowAmount'));
   await evaluate('window.__app.startWalk()');
-  await sleep(500);
-  await evaluate("WALK.keys['w'] = true");
-  const fpReady = await waitFor('EFFECTS.footprints.filter(function(f){return f.mesh.visible;}).length >= 1', 20000);
-  await evaluate("WALK.keys['w'] = false");
-  const fp = await evaluate('EFFECTS.footprints.filter(function(f){return f.mesh.visible;}).length');
-  check('雪地脚印生成', !!fpReady, 'count=' + fp);
+  await sleep(400);
+  const fpRes = await evaluate(`(function(){
+    if (!window.__app || !window.__app.state.walking) return null;
+    WALK.keys['w'] = true;
+    for (var i = 0; i < 240; i++) WALK.update(1 / 60);
+    WALK.keys['w'] = false;
+    var n = EFFECTS.footprints.filter(function (f) { return f.mesh.visible; }).length;
+    return { count: n };
+  })()`);
+  check('雪地脚印生成', fpRes && fpRes.count >= 1, JSON.stringify(fpRes));
   await screenshot('smoke-07-walk-snow.png');
   await evaluate('window.__app.stopWalk()');
   await evaluate(`window.__app.setTheme('day')`);
