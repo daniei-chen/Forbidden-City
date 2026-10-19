@@ -108,6 +108,7 @@ const EFFECTS = {
     this.initCloudShadows(scene);
     this.initRain(scene);
     this.initSplashes(scene);
+    this.initRipples(scene);
     this.initDripDrops(scene);
     this.initCoins(scene);
     this.initIncense(scene);
@@ -167,6 +168,71 @@ const EFFECTS = {
       arr[o + 3] = px + 0.03; arr[o + 4] = d.y - d.len * 6; arr[o + 5] = pz;
     }
     lines.geometry.attributes.position.needsUpdate = true;
+  },
+
+  /* ---------------- 地面雨滴涟漪 ---------------- */
+  ripplePool: null,
+  rippleSpawns: 0,
+  initRipples: function (scene) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const g2 = cv.getContext('2d');
+    g2.clearRect(0, 0, 64, 64);
+    g2.strokeStyle = 'rgba(220,235,245,0.95)';
+    g2.lineWidth = 3;
+    g2.beginPath(); g2.arc(32, 32, 26, 0, 6.283); g2.stroke();
+    g2.strokeStyle = 'rgba(220,235,245,0.45)';
+    g2.lineWidth = 2;
+    g2.beginPath(); g2.arc(32, 32, 16, 0, 6.283); g2.stroke();
+    const tex = new THREE.CanvasTexture(cv);
+    tex.needsUpdate = true;
+    const geo = new THREE.PlaneGeometry(1, 1);
+    geo.rotateX(-Math.PI / 2);
+    const pool = [];
+    for (let i = 0; i < 14; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        map: tex, transparent: true, opacity: 0, depthWrite: false
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.visible = false;
+      mesh.renderOrder = 2;
+      scene.add(mesh);
+      pool.push({ mesh: mesh, life: 0, ttl: 0.7 });
+    }
+    this.ripplePool = pool;
+  },
+  spawnRipple: function (x, z, scale) {
+    if (!this.ripplePool) {
+      if (!this.scene) return;
+      this.initRipples(this.scene);
+    }
+    const pool = this.ripplePool;
+    for (let i = 0; i < pool.length; i++) {
+      const r = pool[i];
+      if (r.life > 0) continue;
+      r.life = r.ttl = 0.55 + Math.random() * 0.3;
+      r.mesh.position.set(x, 0.055, z);
+      const s = (scale || 0.45) * (0.7 + Math.random() * 0.5);
+      r.mesh.scale.set(s, 1, s);
+      r.mesh.material.opacity = 0.55;
+      r.mesh.visible = true;
+      this.rippleSpawns = (this.rippleSpawns || 0) + 1;
+      return;
+    }
+  },
+  updateRipples: function (dt) {
+    const pool = this.ripplePool;
+    if (!pool) return;
+    for (let i = 0; i < pool.length; i++) {
+      const r = pool[i];
+      if (r.life <= 0) continue;
+      r.life -= dt;
+      if (r.life <= 0) { r.mesh.visible = false; r.mesh.material.opacity = 0; continue; }
+      const k = 1 - r.life / r.ttl;
+      const sc = r.mesh.scale.x * (1 + dt * 2.6);
+      r.mesh.scale.set(sc, 1, sc);
+      r.mesh.material.opacity = (1 - k) * 0.5;
+    }
   },
 
   /* ---------------- 雨点溅落水花 ---------------- */
@@ -951,6 +1017,19 @@ const EFFECTS = {
     var camRef = (window.__app && window.__app.camera) ? window.__app.camera : null;
     this.updateRain(dt, camRef);
     this.updateSplashes(dt, camRef);
+    this.updateRipples(dt);
+    if (this.rainAmt > 0.18 && camRef) {
+      if (!this._rippleSpawnT) this._rippleSpawnT = 0;
+      this._rippleSpawnT += dt * (6 + this.rainAmt * 14);
+      while (this._rippleSpawnT >= 1) {
+        this._rippleSpawnT -= 1;
+        this.spawnRipple(
+          camRef.position.x + (Math.random() - 0.5) * 26,
+          camRef.position.z + (Math.random() - 0.5) * 26,
+          0.4 + Math.random() * 0.5
+        );
+      }
+    }
     this.updateDripDrops(dt);
     if (this.rainAmt > 0.02 && this.rainAmt < 0.45 && camRef) {
       if (!this._dripSpawnT) this._dripSpawnT = 0;

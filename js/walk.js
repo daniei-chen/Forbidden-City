@@ -349,8 +349,9 @@ const WALK = {
       const wet = (typeof EFFECTS !== 'undefined' && EFFECTS.rainAmt > 0.25 && surf !== 'grass' && surf !== 'snow');
       if (typeof AUDIO !== 'undefined') AUDIO.step(this.speed > 8, wet ? 'wet' : surf);
       if (wet && typeof EFFECTS !== 'undefined' && EFFECTS.spawnSplash) {
-        /* 踩水花：每步 2 个 */
+        /* 踩水花：每步 2 个 + 地面涟漪 */
         EFFECTS.spawnSplash(this.pos.x + (Math.random() - 0.5) * 0.5, this.pos.z + (Math.random() - 0.5) * 0.5, 0.8);
+        if (EFFECTS.spawnRipple) EFFECTS.spawnRipple(this.pos.x + (Math.random() - 0.5) * 0.6, this.pos.z + (Math.random() - 0.5) * 0.6, 0.6);
       }
     }
     this.moving = moved > 1e-4;
