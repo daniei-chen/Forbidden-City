@@ -19,6 +19,7 @@ const build = readJson(path.join(root, 'dist', 'build-info.json'), {});
 const metrics = readJson(path.join(root, 'harness', 'baselines', 'metrics.json'), {});
 const scores = readJson(path.join(root, 'harness', 'out', 'scores.json'), {});
 const matrix = readJson(path.join(root, 'harness', 'matrix.json'), {});
+const gpu = readJson(path.join(root, 'GPU_BENCH.json'), {});
 const baselinesDir = path.join(root, 'harness', 'baselines');
 const files = fs.existsSync(baselinesDir) ? fs.readdirSync(baselinesDir).filter(f => /\.(jpg|png)$/.test(f)) : [];
 const perf = metrics.perf || {};
@@ -44,7 +45,8 @@ const metricsRows = [
   ['软件渲染 ms/帧', perf.benchMs != null ? perf.benchMs + ' ms' : '（软件渲染，仅供参考）'],
   ['感知对比 SSIM 均值', sum.ssimMean != null ? sum.ssimMean.toFixed(4) : '—'],
   ['感知对比最低 SSIM', sum.minSsim != null ? sum.minSsim.toFixed(4) : '—'],
-  ['感知对比 MAE', sum.maeMean != null ? sum.maeMean.toFixed(2) + ' %' : '—']
+  ['感知对比 MAE', sum.maeMean != null ? sum.maeMean.toFixed(2) + ' %' : '—'],
+  ['真实 GPU', gpu.high ? (gpu.high.renderer || '?') + ' / high ' + gpu.high.fps + ' FPS @DPR1.0' + (gpu['high@1.5x'] ? ' / ' + gpu['high@1.5x'].fps + ' FPS @DPR1.5' : '') : '未实测']
 ];
 
 const matrixRows = [];

@@ -1,0 +1,41 @@
+{
+  "high": {
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "vendor": "Google Inc. (NVIDIA)",
+    "fps": 220,
+    "msPerFrame": 4.54,
+    "draws": 1255,
+    "tris": 3590842,
+    "quality": "high",
+    "dpr": 1
+  },
+  "medium": {
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "vendor": "Google Inc. (NVIDIA)",
+    "fps": 112.7,
+    "msPerFrame": 8.87,
+    "draws": 1172,
+    "tris": 3059708,
+    "quality": "medium",
+    "dpr": 1
+  },
+  "low": {
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "vendor": "Google Inc. (NVIDIA)",
+    "fps": 117.1,
+    "msPerFrame": 8.54,
+    "draws": 1251,
+    "tris": 3590834,
+    "quality": "low",
+    "dpr": 1
+  },
+  "high@1.5x": {
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "fps": 114,
+    "msPerFrame": 8.77,
+    "draws": 1175,
+    "tris": 3059714,
+    "quality": "high",
+    "dpr": 1.5
+  }
+}

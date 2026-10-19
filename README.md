@@ -257,7 +257,20 @@ npm run shots     # 批量渲染机位截图
 - 性能未在真实 GPU 实测（无头环境为软件渲染），已内置 FPS 监控与自动降级
 ## 版本
 
-见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.31.0**。
+见 [CHANGELOG.md](CHANGELOG.md)。当前 **v5.32.0**。
+
+## 真实 GPU 帧率（v5.32.0 实测）
+
+在 **NVIDIA GeForce RTX 5060 Ti（D3D11）** 上通过 headless Chrome 硬件加速实测（1600×900）：
+
+| 画质 | FPS | ms/帧 | draw calls |
+| --- | --- | --- | --- |
+| high（DPR 1.0） | **90–220**（多次采样波动，取保守 90） | 4.5–11.1 | 1255 |
+| high（DPR 1.5） | **114** | 8.8 | ~1175 |
+| medium | 113–127 | 7.9–8.9 | 1172 |
+
+完整数据与复现脚本：[`GPU_BENCH.md`](GPU_BENCH.md) / `npm run bench:gpu`。
+注：headless 计时存在波动，真实浏览器 FPS 以页面右上角显示为准。
 
 ## 验收报告与画廊\n\n- [REALISM.md](REALISM.md)：自动生成的 REALISM 验收报告（构建指标 / 24 机位截图矩阵 / 16 项验收 / 差距清单）\n- [docs/gallery.html](docs/gallery.html)：四时段截图矩阵可视化画廊\n- 重新生成：`npm run report`\n\n## 自动化评测（harness）
 

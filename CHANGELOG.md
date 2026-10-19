@@ -1,5 +1,18 @@
 # 更新日志
 
+## v5.32.0 — 真实 GPU 帧率实测
+
+**新增**
+- `tools/gpu-bench.mjs`：无头 Chrome **硬件加速**（不强制 SwiftShader）实测真实 GPU 帧率，输出 `GPU_BENCH.json` / `GPU_BENCH.md`
+- 覆盖 high / medium / low 及 high@DPR1.5（真实浏览器常见缩放）
+- npm 脚本 `bench:gpu`
+
+**实测结果（RTX 5060 Ti / D3D11 / 1600×900）**
+- high：90–220 FPS（多次采样波动），1255 draws / 3.59M tris
+- high@DPR1.5：**114 FPS**
+- medium：113–127 FPS
+- 验收矩阵第 13 项更新为 **达成（真实 GPU 实测）**
+
 ## v5.31.0 — 太阳圆盘与月亮
 
 **新增**
