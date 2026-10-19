@@ -920,6 +920,7 @@
         refreshWalkGame();
         const n = discCount();
         showToast('发现 · ' + d.name + '（' + n + '/' + DISCOVERIES.length + '）' + (d.desc ? ' — ' + d.desc : ''), 3400);
+        if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
         if (n === DISCOVERIES.length) {
           setTimeout(function () { showToast('宫城探索完成：10 处全部发现！', 5200); }, 3600);
         }
@@ -927,6 +928,62 @@
       }
     }
     updateWalkGameHint();
+  }
+
+  /* =========================================================
+   *  场景互动（E 键查看：铜缸/日晷/嘉量/铜狮/华表/石桌等）
+   * ======================================================= */
+  const INTERACTIVES = [
+    { x: 13.8, z: 172, r: 3.4, title: '太平缸', text: '铜缸储水以防火，冬日缸下燃炭防冻，故称"太平缸"。' },
+    { x: -13.8, z: 172, r: 3.4, title: '太平缸', text: '铜缸储水以防火，冬日缸下燃炭防冻，故称"太平缸"。' },
+    { x: 20, z: -120, r: 3.2, title: '太平缸', text: '内廷同样陈设太平缸，取"天一生水"之意。' },
+    { x: -20, z: -120, r: 3.2, title: '太平缸', text: '内廷同样陈设太平缸，取"天一生水"之意。' },
+    { x: 34, z: 98, r: 4.2, title: '日晷', text: '以日影计时的石盘，明清宫廷重要陈设，象征皇权授时。' },
+    { x: -34, z: 98, r: 4.2, title: '嘉量', text: '石亭式铜量器，象征国家统一与量衡标准。' },
+    { x: 13, z: 304, r: 3.6, title: '铜狮', text: '太和门前镇守铜狮，雄狮踏绣球、雌狮抚幼狮。' },
+    { x: -13, z: 304, r: 3.6, title: '铜狮', text: '太和门前镇守铜狮，雄狮踏绣球、雌狮抚幼狮。' },
+    { x: 26, z: 438, r: 4.0, title: '华表', text: '宫门前的望柱，柱顶承露盘与蹲兽，兼具礼制与标识。' },
+    { x: -26, z: 438, r: 4.0, title: '华表', text: '宫门前的望柱，柱顶承露盘与蹲兽，兼具礼制与标识。' },
+    { x: 26, z: -372, r: 2.8, title: '石桌石凳', text: '御花园中的石桌石凳，供帝王后妃游憩小坐。' },
+    { x: -26, z: -372, r: 2.8, title: '石桌石凳', text: '御花园中的石桌石凳，供帝王后妃游憩小坐。' },
+    { x: 7.5, z: 176, r: 2.6, title: '品级山', text: '大朝时文武百官按品级立于山形石标之后，故称品级山。' },
+    { x: 20, z: 100, r: 3.2, title: '月台铜鼎', text: '太和殿月台陈设铜鼎，象征江山永固。' }
+  ];
+  let nearInteractive = null;
+  let lastInteractT = 0;
+  function nearestInteractive() {
+    if (!WALK.active) return null;
+    let best = null, bestD = 1e9;
+    for (let i = 0; i < INTERACTIVES.length; i++) {
+      const it = INTERACTIVES[i];
+      const d = Math.hypot(it.x - WALK.pos.x, it.z - WALK.pos.z);
+      if (d < it.r + 2.6 && d < bestD) { bestD = d; best = it; }
+    }
+    return best;
+  }
+  function updateInteractPrompt() {
+    const el = $('interact');
+    const lab = $('interactLabel');
+    if (!el) return;
+    if (!WALK.active) { el.classList.remove('show'); nearInteractive = null; return; }
+    const it = nearestInteractive();
+    nearInteractive = it;
+    if (it) {
+      el.classList.add('show');
+      if (lab) lab.textContent = '查看 · ' + it.title;
+    } else {
+      el.classList.remove('show');
+    }
+  }
+  function doInteract() {
+    if (!WALK.active) return;
+    const it = nearestInteractive();
+    if (!it) return;
+    const now = performance.now();
+    if (now - lastInteractT < 700) return;
+    lastInteractT = now;
+    showToast(it.title + ' — ' + it.text, 4600);
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
   }
 
   function toggleWalk(force) {
@@ -1155,6 +1212,7 @@
       }
       if (e.key === 'Shift') { WALK.keys['shift'] = true; return; }
       if (e.code === 'Space' || k2 === ' ') { WALK.jump(); e.preventDefault(); return; }
+      if (k2 === 'e') { if (!e.repeat) doInteract(); return; }
       if (k2 === 'x') { WALK.toggleView(); return; }
       if (k2 === 'r') {
         discSet = {}; saveDisc(); refreshWalkGame();
@@ -1331,6 +1389,37 @@
       mmCtx.fillRect(px(b.x - b.w / 2), pz(b.z - b.d / 2), b.w * sx, Math.max(2, b.d * sz));
       mmCtx.globalAlpha = 1;
     }
+    /* 已发现地标 + 下一目标 */
+    for (let di = 0; di < DISCOVERIES.length; di++) {
+      const d = DISCOVERIES[di];
+      const dx = px(d.x), dz = pz(d.z);
+      if (discSet[di]) {
+        mmCtx.fillStyle = 'rgba(216,180,95,0.95)';
+        mmCtx.beginPath(); mmCtx.arc(dx, dz, 4.2, 0, 6.283); mmCtx.fill();
+        mmCtx.strokeStyle = 'rgba(216,180,95,0.4)';
+        mmCtx.lineWidth = 1.4;
+        mmCtx.beginPath(); mmCtx.arc(dx, dz, 7.5, 0, 6.283); mmCtx.stroke();
+      } else {
+        mmCtx.strokeStyle = 'rgba(216,180,95,0.28)';
+        mmCtx.lineWidth = 1;
+        mmCtx.beginPath(); mmCtx.arc(dx, dz, 3.2, 0, 6.283); mmCtx.stroke();
+      }
+    }
+    /* 下一目标高亮 */
+    (function () {
+      let best = -1, bestD = 1e9;
+      for (let i = 0; i < DISCOVERIES.length; i++) {
+        if (discSet[i]) continue;
+        const dd = Math.hypot(DISCOVERIES[i].x - WALK.pos.x, DISCOVERIES[i].z - WALK.pos.z);
+        if (dd < bestD) { bestD = dd; best = i; }
+      }
+      if (best >= 0) {
+        const d = DISCOVERIES[best];
+        mmCtx.strokeStyle = 'rgba(255,240,200,0.95)';
+        mmCtx.lineWidth = 1.6;
+        mmCtx.beginPath(); mmCtx.arc(px(d.x), pz(d.z), 8.5, 0, 6.283); mmCtx.stroke();
+      }
+    })();
     /* 当前位置与朝向 */
     let ax, az, ayaw;
     if (WALK.active) { ax = WALK.pos.x; az = WALK.pos.z; ayaw = WALK.yaw; }
@@ -1439,6 +1528,7 @@
       AVATAR.setVisible(WALK.thirdPerson);
       AVATAR.update(dt, { moving: WALK.moving, speed: WALK.speed, onGround: WALK.onGround });
       updateWalkGame();
+      updateInteractPrompt();
       $('crosshair').style.display = WALK.thirdPerson ? 'none' : 'block';
     } else {
       AVATAR.setVisible(false);
@@ -1672,6 +1762,8 @@
         setCinema: setCinema,
         toggleLabels: function () { toggleLabels(); },
         startWalk: function () { toggleWalk(true); },
+    interact: doInteract,
+    interactInfo: function () { const it = nearestInteractive(); return it ? { title: it.title, text: it.text } : null; },
         stopWalk: function () { toggleWalk(false); }
       };
     } catch (err) {

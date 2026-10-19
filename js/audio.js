@@ -120,6 +120,46 @@ const AUDIO = {
     this._noiseBurst(0.14, 200, 0.07, 'lowpass');
   },
 
+  /* 互动提示音：柔和双音（磬） */
+  chime: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    const notes = [880, 1174.7];
+    for (let i = 0; i < notes.length; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      o.frequency.value = notes[i];
+      const s = t0 + i * 0.09;
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.05, s + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.55);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 0.6);
+    }
+  },
+
+  /* 发现地标：上行三音 */
+  discover: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    const notes = [659.3, 880, 1318.5];
+    for (let i = 0; i < notes.length; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'triangle';
+      o.frequency.value = notes[i];
+      const s = t0 + i * 0.1;
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.045, s + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.7);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 0.75);
+    }
+  },
+
   setMuted: function (m) {
     this.muted = !!m;
     if (this.master) this.master.gain.value = this.muted ? 0 : 0.5;

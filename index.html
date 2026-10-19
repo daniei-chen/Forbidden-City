@@ -202,6 +202,16 @@
   .walkgame .wg-bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .45s ease}
   .walkgame .wg-hint{font-size:11px;letter-spacing:.5px;color:rgba(230,224,208,.72);line-height:1.55;min-height:17px}
   .walkgame .wg-hint b{color:var(--gold);font-weight:500}
+  /* 互动提示 */
+  .interact{
+    position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:7;display:none;
+    padding:8px 16px;background:rgba(9,11,15,.74);border:1px solid rgba(216,180,95,.45);
+    font-size:12px;letter-spacing:1.2px;color:var(--text);backdrop-filter:blur(8px);white-space:nowrap;
+  }
+  .interact.show{display:block}
+  .interact b{color:var(--gold);font-weight:500;border:1px solid rgba(216,180,95,.6);border-radius:2px;padding:1px 6px;margin-right:7px}
+  body.photo .interact{display:none !important}
+  @media (max-width:820px){ .interact{bottom:150px;font-size:11px;padding:7px 12px} }
   body.photo .walkgame{display:none !important}
   @media (max-width:820px){
     .walkgame{right:12px;top:auto;bottom:96px;width:160px;padding:10px 12px}
@@ -305,6 +315,7 @@
   <b>漫游模式</b> · <b>W A S D</b> 移动 · <b>空格</b> 跳跃 · <b>Shift</b> 疾行 · <b>X</b> 视角 · <b>R</b> 重置探索 · 拖拽环视 · <b>Esc</b> 退出
 </div>
 <div class="crosshair" id="crosshair"></div>
+<div class="interact" id="interact"><b>E</b><span id="interactLabel">查看</span></div>
 
 <div class="walkgame" id="walkgame">
   <div class="wg-top">
