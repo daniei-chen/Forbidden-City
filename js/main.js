@@ -40,7 +40,7 @@
   const DEFAULTS = {
     quality: 'auto', fps: false, shadows: true, clouds: true,
     cinema: false, labels: false, theme: 'day', photoFilter: 0, ssao: true,
-    minimap: true, autoCycle: false
+    minimap: true, autoCycle: false, objective: true
   };
   function loadSettings() {
     try {
@@ -747,6 +747,9 @@
       const nb = $('npcBubble'); if (nb) nb.classList.remove('show');
       stopMinigame(true);
       closeRiddle();
+      const om = $('objMarker'), oa = $('objArrow');
+      if (om) om.classList.remove('show');
+      if (oa) oa.classList.remove('show');
       ctrl.syncFromCamera();
       if (restore !== false) ctrl.setView(VIEWS[currentView], false);
     },
@@ -2031,6 +2034,81 @@
     ];
   }
 
+  /* =========================================================
+   *  世界任务指引（目标标记 + 屏幕边缘箭头）
+   * ======================================================= */
+  function getObjectiveTarget() {
+    /* 优先：未完成任务线的下一步 → 其次：未发现地标 */
+    for (let qi = 0; qi < QUESTS.length; qi++) {
+      const q = QUESTS[qi];
+      if (q.done || q.progress >= q.steps.length) continue;
+      const st = q.steps[q.progress];
+      if (st.t === 'lm') {
+        const d = DISCOVERIES[st.i];
+        if (d) return { x: d.x, z: d.z, label: q.name + ' · ' + d.name };
+      } else if (st.t === 'pos') {
+        return { x: st.x, z: st.z, label: q.name + ' · ' + st.label };
+      } else if (st.t === 'cat') {
+        if (typeof NPC !== 'undefined' && NPC.cats && NPC.cats[st.i]) {
+          const cp = NPC.cats[st.i].obj.group.position;
+          return { x: cp.x, z: cp.z, label: q.name + ' · 找到御猫' };
+        }
+      }
+    }
+    let best = null, bestD = 1e9;
+    for (let i = 0; i < DISCOVERIES.length; i++) {
+      if (discSet[i]) continue;
+      const d = DISCOVERIES[i];
+      const dd = Math.hypot(d.x - WALK.pos.x, d.z - WALK.pos.z);
+      if (dd < bestD) { bestD = dd; best = d; }
+    }
+    if (best) return { x: best.x, z: best.z, label: '探索 · ' + best.name };
+    return null;
+  }
+  function updateObjectiveGuide() {
+    const mk = $('objMarker'), ar = $('objArrow'), lb = $('objLabel');
+    if (!mk || !ar) return;
+    if (!WALK.active || settings.objective === false) {
+      mk.classList.remove('show'); ar.classList.remove('show');
+      return;
+    }
+    const target = getObjectiveTarget();
+    if (!target) { mk.classList.remove('show'); ar.classList.remove('show'); return; }
+    const dx = target.x - camera.position.x;
+    const dz = target.z - camera.position.z;
+    const dist = Math.hypot(target.x - WALK.pos.x, target.z - WALK.pos.z);
+    const v = new THREE.Vector3(target.x, 2.2, target.z).project(camera);
+    const W2 = window.innerWidth, H2 = window.innerHeight;
+    const behind = (v.z > 1) || (v.z < -1);
+    const sx = (v.x * 0.5 + 0.5) * W2;
+    const sy = (-v.y * 0.5 + 0.5) * H2;
+    const margin = 60;
+    const onScreen = !behind && sx > margin && sx < W2 - margin && sy > margin && sy < H2 - margin;
+    if (onScreen) {
+      ar.classList.remove('show');
+      mk.classList.add('show');
+      mk.style.left = sx.toFixed(1) + 'px';
+      mk.style.top = sy.toFixed(1) + 'px';
+      if (lb) lb.textContent = target.label + ' · ' + Math.round(dist) + 'm';
+    } else {
+      mk.classList.remove('show');
+      ar.classList.add('show');
+      /* 计算屏幕中心指向目标的方向（处理在身后时翻转） */
+      let ax = sx - W2 / 2;
+      let ay = sy - H2 / 2;
+      if (behind) { ax = -ax; ay = -ay; }
+      const ang = Math.atan2(ay, ax);
+      const R = Math.min(W2, H2) * 0.36;
+      const ex = W2 / 2 + Math.cos(ang) * R;
+      const ey = H2 / 2 + Math.sin(ang) * R;
+      ar.style.left = (ex - 17).toFixed(1) + 'px';
+      ar.style.top = (ey - 17).toFixed(1) + 'px';
+      ar.style.transform = 'rotate(' + ang + 'rad)';
+      ar.title = target.label;
+      ar.setAttribute('aria-label', target.label + ' ' + Math.round(dist) + 'm');
+    }
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -2292,6 +2370,7 @@
       if (k2 === 'p') { if (!e.repeat) takePhoto(); return; }
       if (k2 === 'g') { if (!e.repeat) openAlbum(); return; }
       if (k2 === 'h') { if (!e.repeat) openAchievements(); return; }
+      if (k2 === 'o') { if (!e.repeat) { settings.objective = settings.objective === false ? true : false; saveSettings(); showToast(settings.objective === false ? '任务指引：关' : '任务指引：开', 1800); } return; }
       if (k2 === 'x') { WALK.toggleView(); return; }
       if (k2 === 'r') {
         discSet = {}; saveDisc(); refreshWalkGame();
@@ -2613,6 +2692,7 @@
       updateQuests();
       updateNpcBubble(dt);
       updateMinigame(dt);
+      updateObjectiveGuide();
       $('crosshair').style.display = WALK.thirdPerson ? 'none' : 'block';
     } else {
       AVATAR.setVisible(false);
@@ -2879,6 +2959,8 @@
     setWeather: function (m) { setWeather(m); return weather; },
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
+    objectiveInfo: function () { const tg = getObjectiveTarget(); const mk = $('objMarker'), ar = $('objArrow'); return { target: tg, markerShown: !!(mk && mk.classList.contains('show')), arrowShown: !!(ar && ar.classList.contains('show')), label: ($('objLabel') || {}).textContent, arrowTransform: ar ? ar.style.transform : null, enabled: settings.objective !== false }; },
+    objectiveTick: function () { updateObjectiveGuide(); },
     setTravel: function (d, t2, j) { travel.dist = d; travel.time = t2; travel.jumps = j == null ? travel.jumps : j; checkTravelMilestones(); },
     travelTick: function (dt) { updateTravel(dt || 0.016); },
     ambientTick: function (dt) { updateAmbientAudio(dt || 0.016); },

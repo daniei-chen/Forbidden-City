@@ -285,6 +285,26 @@
   .minigame .mg-hint b{color:var(--gold);font-weight:500}
   body.photo .minigame{display:none !important}
 
+  /* ---------------- 任务指引 ---------------- */
+  .objmark{
+    position:fixed;z-index:9;display:none;transform:translate(-50%,-50%);
+    pointer-events:none;text-align:center;color:var(--gold);
+  }
+  .objmark.show{display:block}
+  .objmark .dia{
+    width:13px;height:13px;margin:0 auto 4px;transform:rotate(45deg);
+    border:1.5px solid rgba(216,180,95,.95);background:rgba(216,180,95,.18);
+    box-shadow:0 0 10px rgba(216,180,95,.5);
+  }
+  .objmark .lbl{font-size:10px;letter-spacing:1px;color:rgba(240,230,205,.9);text-shadow:0 1px 4px #000;white-space:nowrap}
+  .objarrow{
+    position:fixed;z-index:9;display:none;width:34px;height:34px;pointer-events:none;
+    color:var(--gold);font-size:22px;line-height:34px;text-align:center;
+    text-shadow:0 0 10px rgba(216,180,95,.6);
+  }
+  .objarrow.show{display:block}
+  body.photo .objmark, body.photo .objarrow{display:none !important}
+
   /* ---------------- 灯谜 ---------------- */
   .riddle{
     position:fixed;left:50%;top:112px;transform:translateX(-50%);z-index:11;display:none;
@@ -488,6 +508,9 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="objmark" id="objMarker"><div class="dia"></div><div class="lbl" id="objLabel"></div></div>
+<div class="objarrow" id="objArrow">➤</div>
+
 <div class="riddle" id="riddle">
   <div class="rd-head" id="rdHead">宫灯 · 灯谜</div>
   <div class="rd-q" id="rdQ"></div>
