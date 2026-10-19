@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.30.0.20261019.1936">
-<meta name="build-time" content="2026-10-19T19:36:52.270Z">
+<meta name="generator" content="forbidden-city-build 6.31.0.20261019.1958">
+<meta name="build-time" content="2026-10-19T19:58:56.472Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T19:36:52.270Z
-  version: 6.30.0.20261019.1936
+  build: 2026-10-19T19:58:56.472Z
+  version: 6.31.0.20261019.1958
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -681,7 +681,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.30.0',
+  version: '6.31.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -8566,6 +8566,7 @@ const EFFECTS = {
     this.initRain(scene);
     this.initSplashes(scene);
     this.initDripDrops(scene);
+    this.initCoins(scene);
   },
 
   /* ---------------- 雨（雨丝线段） ---------------- */
@@ -9183,6 +9184,70 @@ const EFFECTS = {
     }
   },
 
+  /* ---------------- 许愿金币（抛物线落入铜缸） ---------------- */
+  coinPool: null,
+  initCoins: function (scene) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 32;
+    const g2 = cv.getContext('2d');
+    g2.clearRect(0, 0, 32, 32);
+    g2.fillStyle = '#ffd76a';
+    g2.beginPath(); g2.arc(16, 16, 12, 0, 6.283); g2.fill();
+    g2.fillStyle = '#b8862e';
+    g2.beginPath(); g2.arc(16, 16, 7, 0, 6.283); g2.fill();
+    const coinTex = new THREE.CanvasTexture(cv);
+    coinTex.needsUpdate = true;
+    const pool = [];
+    for (let i = 0; i < 6; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: coinTex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false
+      });
+      const sp = new THREE.Sprite(mat);
+      sp.scale.set(0.16, 0.16, 1);
+      sp.visible = false;
+      scene.add(sp);
+      pool.push({ sp: sp, life: 0, ttl: 0.9, sx: 0, sy: 0, sz: 0, ex: 0, ez: 0, h: 0 });
+    }
+    this.coinPool = pool;
+  },
+  spawnCoin: function (sx, sy, sz, ex, ez) {
+    if (!this.coinPool) {
+      if (!this.scene) return;
+      this.initCoins(this.scene);
+    }
+    const pool = this.coinPool;
+    for (let i = 0; i < pool.length; i++) {
+      const c = pool[i];
+      if (c.life > 0) continue;
+      c.life = c.ttl = 0.9;
+      c.sx = sx; c.sy = sy; c.sz = sz;
+      c.ex = ex; c.ez = ez;
+      c.h = 1.4;
+      c.sp.position.set(sx, sy, sz);
+      c.sp.scale.set(0.16, 0.16, 1);
+      c.sp.material.opacity = 0.95;
+      c.sp.visible = true;
+      return;
+    }
+  },
+  updateCoins: function (dt) {
+    const pool = this.coinPool;
+    if (!pool) return;
+    for (let i = 0; i < pool.length; i++) {
+      const c = pool[i];
+      if (c.life <= 0) continue;
+      c.life -= dt;
+      const k = 1 - c.life / c.ttl;
+      const x = c.sx + (c.ex - c.sx) * k;
+      const z = c.sz + (c.ez - c.sz) * k;
+      const y = c.sy + (0.6 - c.sy) * k * 0.5 + Math.sin(k * Math.PI) * c.h;
+      c.sp.position.set(x, y, z);
+      c.sp.scale.setScalar(0.16 + Math.sin(k * Math.PI) * 0.05);
+      if (k > 0.82) c.sp.material.opacity = Math.max(0, 1 - (k - 0.82) / 0.18);
+      if (c.life <= 0) { c.sp.visible = false; c.sp.material.opacity = 0; }
+    }
+  },
+
   /* ---------------- 爱心粒子（投喂御猫） ---------------- */
   _heartTex: null,
   _hearts: null,
@@ -9274,6 +9339,7 @@ const EFFECTS = {
     }
     this.snowAmount = st.snow;
     this.updateHearts(dt);
+    this.updateCoins(dt);
     var camRef = (window.__app && window.__app.camera) ? window.__app.camera : null;
     this.updateRain(dt, camRef);
     this.updateSplashes(dt, camRef);
@@ -11044,10 +11110,10 @@ const ASSETS = {
    *  场景互动（E 键查看：铜缸/日晷/嘉量/铜狮/华表/石桌等）
    * ======================================================= */
   const INTERACTIVES = [
-    { x: 13.8, z: 172, r: 3.4, title: '太平缸', text: '铜缸储水以防火，冬日缸下燃炭防冻，故称"太平缸"。' },
-    { x: -13.8, z: 172, r: 3.4, title: '太平缸', text: '铜缸储水以防火，冬日缸下燃炭防冻，故称"太平缸"。' },
-    { x: 20, z: -120, r: 3.2, title: '太平缸', text: '内廷同样陈设太平缸，取"天一生水"之意。' },
-    { x: -20, z: -120, r: 3.2, title: '太平缸', text: '内廷同样陈设太平缸，取"天一生水"之意。' },
+    { x: 13.8, z: 172, r: 3.4, title: '太平缸', wish: true, text: '铜缸储水以防火，冬日缸下燃炭防冻，故称"太平缸"。' },
+    { x: -13.8, z: 172, r: 3.4, title: '太平缸', wish: true, text: '铜缸储水以防火，冬日缸下燃炭防冻，故称"太平缸"。' },
+    { x: 20, z: -120, r: 3.2, title: '太平缸', wish: true, text: '内廷同样陈设太平缸，取"天一生水"之意。' },
+    { x: -20, z: -120, r: 3.2, title: '太平缸', wish: true, text: '内廷同样陈设太平缸，取"天一生水"之意。' },
     { x: 34, z: 98, r: 4.2, title: '日晷', text: '以日影计时的石盘，明清宫廷重要陈设，象征皇权授时。' },
     { x: -34, z: 98, r: 4.2, title: '嘉量', text: '石亭式铜量器，象征国家统一与量衡标准。' },
     { x: 13, z: 304, r: 3.6, title: '铜狮', text: '太和门前镇守铜狮，雄狮踏绣球、雌狮抚幼狮。' },
@@ -11106,7 +11172,7 @@ const ASSETS = {
     nearInteractive = it;
     if (it) {
       el.classList.add('show');
-      if (lab) lab.textContent = '查看 · ' + it.title;
+      if (lab) lab.textContent = (it.wish ? '投币许愿 · ' : '查看 · ') + it.title;
     } else {
       el.classList.remove('show');
     }
@@ -11122,6 +11188,7 @@ const ASSETS = {
       achievements.potGames = savedA.potGames || 0;
       achievements.riddles = Array.isArray(savedA.riddles) ? savedA.riddles : [];
       achievements.catPlays = savedA.catPlays || 0;
+      achievements.wishes = savedA.wishes || 0;
     }
   } catch (e) {}
   function achievementsSave() {
@@ -11137,6 +11204,23 @@ const ASSETS = {
     }
     return best;
   }
+  const WISHES = ['愿风调雨顺', '愿家国安泰', '愿岁岁平安', '愿所求皆如愿', '愿山河无恙'];
+  function tossWish(it) {
+    const px = WALK.pos.x, pz = WALK.pos.z;
+    const y = WALK.pos.y + 1.35;
+    const ex = it.x, ez = it.z;
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.spawnCoin) EFFECTS.spawnCoin(px, y, pz, ex, ez);
+    achievements.wishes = (achievements.wishes || 0) + 1;
+    achievementsSave();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    const wish = WISHES[Math.floor(Math.random() * WISHES.length)];
+    showToast('投币许愿 · ' + wish + '（许愿 ' + achievements.wishes + ' 次）', 3800);
+    if (achievements.wishes >= 3) {
+      setTimeout(function () { showToast('称号达成 · 心愿达成（许愿 3 次）', 4600); }, 3900);
+    }
+    return achievements.wishes;
+  }
+
   function doInteract() {
     if (!WALK.active) return;
     if (nearCatNest()) { playWithCats(); return; }
@@ -11155,6 +11239,13 @@ const ASSETS = {
     }
     const it = nearestInteractive();
     if (!it) return;
+    if (it.wish) {
+      const nowW = performance.now();
+      if (nowW - lastInteractT < 800) return;
+      lastInteractT = nowW;
+      tossWish(it);
+      return;
+    }
     const now = performance.now();
     if (now - lastInteractT < 700) return;
     lastInteractT = now;
@@ -11496,6 +11587,7 @@ const ASSETS = {
       { name: '投壶高手', cat: '趣味', ok: potBest >= 5 },
       { name: '灯谜雅士', cat: '趣味', ok: riddleN >= 3 },
       { name: '御猫团宠', cat: '趣味', ok: plays >= 3 },
+      { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
       { name: '千里之行', cat: '里程碑', ok: travel.dist >= 1000 },
       { name: '宫城常客', cat: '里程碑', ok: travel.dist >= 5000 },
       { name: '身轻如燕', cat: '里程碑', ok: travel.jumps >= 50 },
@@ -13274,6 +13366,7 @@ const ASSETS = {
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
+    wishInfo: function () { return { wishes: achievements.wishes || 0, coinsActive: (typeof EFFECTS !== 'undefined' && EFFECTS.coinPool) ? EFFECTS.coinPool.filter(function (c) { return c.life > 0; }).length : -1 }; },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
     settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle }; },
     togglePerfHud: togglePerfHud,
@@ -13340,6 +13433,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.30.0.20261019.1936","time":"2026-10-19T19:36:52.270Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.31.0.20261019.1958","time":"2026-10-19T19:58:56.472Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

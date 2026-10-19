@@ -109,6 +109,7 @@ const EFFECTS = {
     this.initRain(scene);
     this.initSplashes(scene);
     this.initDripDrops(scene);
+    this.initCoins(scene);
   },
 
   /* ---------------- 雨（雨丝线段） ---------------- */
@@ -726,6 +727,70 @@ const EFFECTS = {
     }
   },
 
+  /* ---------------- 许愿金币（抛物线落入铜缸） ---------------- */
+  coinPool: null,
+  initCoins: function (scene) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 32;
+    const g2 = cv.getContext('2d');
+    g2.clearRect(0, 0, 32, 32);
+    g2.fillStyle = '#ffd76a';
+    g2.beginPath(); g2.arc(16, 16, 12, 0, 6.283); g2.fill();
+    g2.fillStyle = '#b8862e';
+    g2.beginPath(); g2.arc(16, 16, 7, 0, 6.283); g2.fill();
+    const coinTex = new THREE.CanvasTexture(cv);
+    coinTex.needsUpdate = true;
+    const pool = [];
+    for (let i = 0; i < 6; i++) {
+      const mat = new THREE.SpriteMaterial({
+        map: coinTex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false
+      });
+      const sp = new THREE.Sprite(mat);
+      sp.scale.set(0.16, 0.16, 1);
+      sp.visible = false;
+      scene.add(sp);
+      pool.push({ sp: sp, life: 0, ttl: 0.9, sx: 0, sy: 0, sz: 0, ex: 0, ez: 0, h: 0 });
+    }
+    this.coinPool = pool;
+  },
+  spawnCoin: function (sx, sy, sz, ex, ez) {
+    if (!this.coinPool) {
+      if (!this.scene) return;
+      this.initCoins(this.scene);
+    }
+    const pool = this.coinPool;
+    for (let i = 0; i < pool.length; i++) {
+      const c = pool[i];
+      if (c.life > 0) continue;
+      c.life = c.ttl = 0.9;
+      c.sx = sx; c.sy = sy; c.sz = sz;
+      c.ex = ex; c.ez = ez;
+      c.h = 1.4;
+      c.sp.position.set(sx, sy, sz);
+      c.sp.scale.set(0.16, 0.16, 1);
+      c.sp.material.opacity = 0.95;
+      c.sp.visible = true;
+      return;
+    }
+  },
+  updateCoins: function (dt) {
+    const pool = this.coinPool;
+    if (!pool) return;
+    for (let i = 0; i < pool.length; i++) {
+      const c = pool[i];
+      if (c.life <= 0) continue;
+      c.life -= dt;
+      const k = 1 - c.life / c.ttl;
+      const x = c.sx + (c.ex - c.sx) * k;
+      const z = c.sz + (c.ez - c.sz) * k;
+      const y = c.sy + (0.6 - c.sy) * k * 0.5 + Math.sin(k * Math.PI) * c.h;
+      c.sp.position.set(x, y, z);
+      c.sp.scale.setScalar(0.16 + Math.sin(k * Math.PI) * 0.05);
+      if (k > 0.82) c.sp.material.opacity = Math.max(0, 1 - (k - 0.82) / 0.18);
+      if (c.life <= 0) { c.sp.visible = false; c.sp.material.opacity = 0; }
+    }
+  },
+
   /* ---------------- 爱心粒子（投喂御猫） ---------------- */
   _heartTex: null,
   _hearts: null,
@@ -817,6 +882,7 @@ const EFFECTS = {
     }
     this.snowAmount = st.snow;
     this.updateHearts(dt);
+    this.updateCoins(dt);
     var camRef = (window.__app && window.__app.camera) ? window.__app.camera : null;
     this.updateRain(dt, camRef);
     this.updateSplashes(dt, camRef);

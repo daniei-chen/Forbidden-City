@@ -1018,10 +1018,10 @@
    *  场景互动（E 键查看：铜缸/日晷/嘉量/铜狮/华表/石桌等）
    * ======================================================= */
   const INTERACTIVES = [
-    { x: 13.8, z: 172, r: 3.4, title: '太平缸', text: '铜缸储水以防火，冬日缸下燃炭防冻，故称"太平缸"。' },
-    { x: -13.8, z: 172, r: 3.4, title: '太平缸', text: '铜缸储水以防火，冬日缸下燃炭防冻，故称"太平缸"。' },
-    { x: 20, z: -120, r: 3.2, title: '太平缸', text: '内廷同样陈设太平缸，取"天一生水"之意。' },
-    { x: -20, z: -120, r: 3.2, title: '太平缸', text: '内廷同样陈设太平缸，取"天一生水"之意。' },
+    { x: 13.8, z: 172, r: 3.4, title: '太平缸', wish: true, text: '铜缸储水以防火，冬日缸下燃炭防冻，故称"太平缸"。' },
+    { x: -13.8, z: 172, r: 3.4, title: '太平缸', wish: true, text: '铜缸储水以防火，冬日缸下燃炭防冻，故称"太平缸"。' },
+    { x: 20, z: -120, r: 3.2, title: '太平缸', wish: true, text: '内廷同样陈设太平缸，取"天一生水"之意。' },
+    { x: -20, z: -120, r: 3.2, title: '太平缸', wish: true, text: '内廷同样陈设太平缸，取"天一生水"之意。' },
     { x: 34, z: 98, r: 4.2, title: '日晷', text: '以日影计时的石盘，明清宫廷重要陈设，象征皇权授时。' },
     { x: -34, z: 98, r: 4.2, title: '嘉量', text: '石亭式铜量器，象征国家统一与量衡标准。' },
     { x: 13, z: 304, r: 3.6, title: '铜狮', text: '太和门前镇守铜狮，雄狮踏绣球、雌狮抚幼狮。' },
@@ -1080,7 +1080,7 @@
     nearInteractive = it;
     if (it) {
       el.classList.add('show');
-      if (lab) lab.textContent = '查看 · ' + it.title;
+      if (lab) lab.textContent = (it.wish ? '投币许愿 · ' : '查看 · ') + it.title;
     } else {
       el.classList.remove('show');
     }
@@ -1096,6 +1096,7 @@
       achievements.potGames = savedA.potGames || 0;
       achievements.riddles = Array.isArray(savedA.riddles) ? savedA.riddles : [];
       achievements.catPlays = savedA.catPlays || 0;
+      achievements.wishes = savedA.wishes || 0;
     }
   } catch (e) {}
   function achievementsSave() {
@@ -1111,6 +1112,23 @@
     }
     return best;
   }
+  const WISHES = ['愿风调雨顺', '愿家国安泰', '愿岁岁平安', '愿所求皆如愿', '愿山河无恙'];
+  function tossWish(it) {
+    const px = WALK.pos.x, pz = WALK.pos.z;
+    const y = WALK.pos.y + 1.35;
+    const ex = it.x, ez = it.z;
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.spawnCoin) EFFECTS.spawnCoin(px, y, pz, ex, ez);
+    achievements.wishes = (achievements.wishes || 0) + 1;
+    achievementsSave();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    const wish = WISHES[Math.floor(Math.random() * WISHES.length)];
+    showToast('投币许愿 · ' + wish + '（许愿 ' + achievements.wishes + ' 次）', 3800);
+    if (achievements.wishes >= 3) {
+      setTimeout(function () { showToast('称号达成 · 心愿达成（许愿 3 次）', 4600); }, 3900);
+    }
+    return achievements.wishes;
+  }
+
   function doInteract() {
     if (!WALK.active) return;
     if (nearCatNest()) { playWithCats(); return; }
@@ -1129,6 +1147,13 @@
     }
     const it = nearestInteractive();
     if (!it) return;
+    if (it.wish) {
+      const nowW = performance.now();
+      if (nowW - lastInteractT < 800) return;
+      lastInteractT = nowW;
+      tossWish(it);
+      return;
+    }
     const now = performance.now();
     if (now - lastInteractT < 700) return;
     lastInteractT = now;
@@ -1470,6 +1495,7 @@
       { name: '投壶高手', cat: '趣味', ok: potBest >= 5 },
       { name: '灯谜雅士', cat: '趣味', ok: riddleN >= 3 },
       { name: '御猫团宠', cat: '趣味', ok: plays >= 3 },
+      { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
       { name: '千里之行', cat: '里程碑', ok: travel.dist >= 1000 },
       { name: '宫城常客', cat: '里程碑', ok: travel.dist >= 5000 },
       { name: '身轻如燕', cat: '里程碑', ok: travel.jumps >= 50 },
@@ -3248,6 +3274,7 @@
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
+    wishInfo: function () { return { wishes: achievements.wishes || 0, coinsActive: (typeof EFFECTS !== 'undefined' && EFFECTS.coinPool) ? EFFECTS.coinPool.filter(function (c) { return c.life > 0; }).length : -1 }; },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
     settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle }; },
     togglePerfHud: togglePerfHud,
