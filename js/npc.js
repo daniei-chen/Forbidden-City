@@ -162,6 +162,34 @@ const NPC = {
     return g;
   },
 
+  /* 传旨太监的圣旨卷轴 / 清扫宫人的扫帚 */
+  makeScroll: function () {
+    const g = new THREE.Group();
+    const gold = MATS.goldDark || MATS.gold;
+    const red = new THREE.MeshStandardMaterial({ color: 0xa8312a, roughness: 0.8 });
+    const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8), red);
+    roll.rotation.z = Math.PI / 2;
+    const capL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.08, 8), gold);
+    capL.rotation.z = Math.PI / 2; capL.position.x = -0.24;
+    const capR = capL.clone(); capR.position.x = 0.24;
+    g.add(roll, capL, capR);
+    g.position.set(0, 1.05, 0.34);
+    return g;
+  },
+  makeBroom: function () {
+    const g = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.9 });
+    const straw = new THREE.MeshStandardMaterial({ color: 0xc9a45a, roughness: 0.95 });
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 1.5, 6), wood);
+    pole.position.y = 0.85;
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.22, 0.32, 8), straw);
+    head.position.y = 0.16;
+    g.add(pole, head);
+    g.position.set(0.42, 0, 0.18);
+    g.rotation.z = 0.28;
+    return g;
+  },
+
   build: function (scene) {
     if (this.group) return this.group;
     const g = new THREE.Group();
@@ -274,6 +302,25 @@ const NPC = {
     }
     this.ceremony = { active: false, t: 0, phase: 0, cooldown: 30, cycles: 0 };
 
+    /* ---- 传旨太监（内廷巡行，抱旨定时驻足） ---- */
+    const eun = this.makeGuard({ robeColor: 0x334a63, trimColor: 0xd8b45f, spear: false });
+    eun.group.position.set(-26, 0, -145);
+    eun.group.rotation.y = Math.PI;
+    const scroll = this.makeScroll();
+    eun.group.add(scroll);
+    g.add(eun.group);
+    this.eunuch = { obj: eun, t: 0, len: 120, speed: 0.95, pauseT: 0, pauseCd: 8 + Math.random() * 10, pauses: 0 };
+
+    /* ---- 清扫宫人（太和门广场，挥帚扫地） ---- */
+    const swp = this.makeGuard({ robeColor: 0x5a6470, trimColor: 0x9aa4a8, spear: false });
+    swp.group.position.set(26, 0, 288);
+    swp.group.rotation.y = -Math.PI * 0.5;
+    const broom = this.makeBroom();
+    swp.group.add(broom);
+    g.add(swp.group);
+    this.sweeper = { obj: swp, broom: broom, phase: Math.random() * 6.28, dir: 1 };
+    this.sweeps = 0;
+
     this._pendingSparrows = true;
     for (const r of catRoutes) {
       const cat = this.makeCat();
@@ -376,6 +423,14 @@ const NPC = {
       });
     }
   },
+  lifeNpcInfo: function () {
+    const eu = this.eunuch, sw = this.sweeper;
+    return {
+      eunuch: eu ? { z: Math.round(eu.obj.group.position.z), pauseT: Math.round(eu.pauseT * 100) / 100, pauses: eu.pauses || 0 } : null,
+      sweeper: sw ? { x: Math.round(sw.obj.group.position.x), z: Math.round(sw.obj.group.position.z), armR: Math.round(sw.obj.parts.armR.rotation.x * 100) / 100, sweeps: sw.sweeps || 0 } : null
+    };
+  },
+
   umbrellaInfo: function () {
     const total = (this.umbrellas || []).length;
     let shown = 0;
@@ -1024,6 +1079,51 @@ const NPC = {
       p.obj.parts.armL.rotation.x = -s * 0.42;
       p.obj.parts.armR.rotation.x = s * 0.3;
       p.obj.parts.body.position.y = 0.52 + (paused ? Math.sin(this.time * 1.6 + i) * 0.008 : Math.abs(Math.sin(p.legPhase)) * 0.025);
+    }
+
+    /* ---- 传旨太监 ---- */
+    if (this.eunuch) {
+      const eu = this.eunuch;
+      if (eu.pauseCd > 0) eu.pauseCd -= dt;
+      if (eu.pauseT > 0) {
+        eu.pauseT -= dt;
+        eu.obj.parts.legL.rotation.x *= 0.9;
+        eu.obj.parts.legR.rotation.x *= 0.9;
+        eu.obj.parts.armL.rotation.x = -0.55 + Math.sin(this.time * 2) * 0.06;
+        eu.obj.parts.armR.rotation.x = -0.55 - Math.sin(this.time * 2) * 0.06;
+        eu.obj.parts.body.position.y = 0.52 - Math.abs(Math.sin(this.time * 2.2)) * 0.035;
+        if (eu.pauseT <= 0) { eu.pauseCd = 16 + Math.random() * 14; }
+      } else {
+        eu.t += eu.speed * dt;
+        if (eu.t > eu.len) eu.t -= eu.len;
+        eu.obj.group.position.set(-26, 0, -145 - eu.t);
+        eu.obj.group.rotation.y = Math.PI;
+        eu.legPhase = (eu.legPhase || 0) + dt * eu.speed * 5.5;
+        const se = Math.sin(eu.legPhase);
+        eu.obj.parts.legL.rotation.x = se * 0.5;
+        eu.obj.parts.legR.rotation.x = -se * 0.5;
+        eu.obj.parts.armL.rotation.x = -0.35;
+        eu.obj.parts.armR.rotation.x = -0.25;
+        eu.obj.parts.body.position.y = 0.52 + Math.abs(se) * 0.02;
+        if (eu.pauseCd <= 0 && Math.abs(Math.sin(this.time * 0.12)) > 0.6) {
+          eu.pauseT = 2.2;
+          eu.pauses = (eu.pauses || 0) + 1;
+        }
+      }
+    }
+
+    /* ---- 清扫宫人 ---- */
+    if (this.sweeper) {
+      const sw = this.sweeper;
+      sw.phase += dt * 3.1;
+      const sp = Math.sin(sw.phase);
+      sw.obj.parts.armR.rotation.x = -0.45 + sp * 0.45;
+      sw.obj.parts.armL.rotation.x = -0.3 - sp * 0.25;
+      sw.obj.parts.body.position.y = 0.52 - (0.01 + Math.abs(sp) * 0.012);
+      sw.obj.group.rotation.y = -Math.PI * 0.5 + Math.sin(sw.phase * 0.5) * 0.25;
+      sw.broom.rotation.z = 0.28 + sp * 0.22;
+      sw.broom.rotation.x = sp * 0.12;
+      sw.sweeps = (sw.sweeps || 0) + (Math.abs(sp) > 0.98 ? 1 : 0);
     }
 
     /* ---- 相遇寒暄：两名行走 NPC 靠近时停步对视 2.8 秒 ---- */
