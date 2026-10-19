@@ -456,7 +456,7 @@ INTERIOR.hall = function (o) {
 
   /* 匾额 */
   if (o.plaque) {
-    const plaqueMat = new THREE.MeshStandardMaterial({ map: TEX.plaque(o.plaque), roughness: 0.7, metalness: 0.12 });
+    const plaqueMat = new THREE.MeshStandardMaterial({ map: TEX.plaque(o.inscription || o.plaque), roughness: 0.7, metalness: 0.12 });
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.1), plaqueMat);
     pl.position.set(cx, fy + wallH - 1.1, cz - hd + 0.17);
     g.add(pl);
@@ -479,12 +479,12 @@ INTERIOR.hall = function (o) {
 
 INTERIOR.buildAll = function (root) {
   const list = [
-    { x: 0, z: -2, floorY: 9.33, bw: 24, bd: 24, bodyH: 8.4, name: '中和殿', plaque: '中和殿', rank: 2 },
-    { x: 0, z: -56.5, floorY: 9.43, bw: 49.7, bd: 25, bodyH: 8.8, name: '保和殿', plaque: '保和殿', rank: 3 },
-    { x: 0, z: 280, floorY: 1.8, bw: 34, bd: 14, bodyH: 8.6, name: '太和门', plaque: '太和门', rank: 2 },
-    { x: 0, z: -140, floorY: 1.7, bw: 22, bd: 10, bodyH: 6.4, name: '乾清门', plaque: '乾清门', rank: 1 },
-    { x: 0, z: -196, floorY: 1.5, bw: 38, bd: 18, bodyH: 7.6, name: '乾清宫', plaque: '乾清宫', rank: 3 },
-    { x: 0, z: -244, floorY: 1.3, bw: 30, bd: 14, bodyH: 6.8, name: '坤宁宫', plaque: '坤宁宫', rank: 2 }
+    { x: 0, z: -2, floorY: 9.33, bw: 24, bd: 24, bodyH: 8.4, name: '中和殿', plaque: '中和殿', inscription: '允执厥中', rank: 2 },
+    { x: 0, z: -56.5, floorY: 9.43, bw: 49.7, bd: 25, bodyH: 8.8, name: '保和殿', plaque: '保和殿', inscription: '皇建有极', rank: 3 },
+    { x: 0, z: 280, floorY: 1.8, bw: 34, bd: 14, bodyH: 8.6, name: '太和门', plaque: '太和门', inscription: '太和门', rank: 2 },
+    { x: 0, z: -140, floorY: 1.7, bw: 22, bd: 10, bodyH: 6.4, name: '乾清门', plaque: '乾清门', inscription: '乾清门', rank: 1 },
+    { x: 0, z: -196, floorY: 1.5, bw: 38, bd: 18, bodyH: 7.6, name: '乾清宫', plaque: '乾清宫', inscription: '正大光明', rank: 3 },
+    { x: 0, z: -244, floorY: 1.3, bw: 30, bd: 14, bodyH: 6.8, name: '坤宁宫', plaque: '坤宁宫', inscription: '位正坤元', rank: 2 }
   ];
   for (let i = 0; i < list.length; i++) INTERIOR.hall(list[i]);
 };

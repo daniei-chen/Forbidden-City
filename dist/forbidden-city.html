@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.34.0.20261019.0229">
-<meta name="build-time" content="2026-10-19T02:29:52.608Z">
+<meta name="generator" content="forbidden-city-build 5.35.0.20261019.0248">
+<meta name="build-time" content="2026-10-19T02:48:12.204Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T02:29:52.608Z
-  version: 5.34.0.20261019.0229
+  build: 2026-10-19T02:48:12.204Z
+  version: 5.35.0.20261019.0248
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.34.0',
+  version: '5.35.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -6991,7 +6991,7 @@ INTERIOR.hall = function (o) {
 
   /* 匾额 */
   if (o.plaque) {
-    const plaqueMat = new THREE.MeshStandardMaterial({ map: TEX.plaque(o.plaque), roughness: 0.7, metalness: 0.12 });
+    const plaqueMat = new THREE.MeshStandardMaterial({ map: TEX.plaque(o.inscription || o.plaque), roughness: 0.7, metalness: 0.12 });
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.1), plaqueMat);
     pl.position.set(cx, fy + wallH - 1.1, cz - hd + 0.17);
     g.add(pl);
@@ -7014,12 +7014,12 @@ INTERIOR.hall = function (o) {
 
 INTERIOR.buildAll = function (root) {
   const list = [
-    { x: 0, z: -2, floorY: 9.33, bw: 24, bd: 24, bodyH: 8.4, name: '中和殿', plaque: '中和殿', rank: 2 },
-    { x: 0, z: -56.5, floorY: 9.43, bw: 49.7, bd: 25, bodyH: 8.8, name: '保和殿', plaque: '保和殿', rank: 3 },
-    { x: 0, z: 280, floorY: 1.8, bw: 34, bd: 14, bodyH: 8.6, name: '太和门', plaque: '太和门', rank: 2 },
-    { x: 0, z: -140, floorY: 1.7, bw: 22, bd: 10, bodyH: 6.4, name: '乾清门', plaque: '乾清门', rank: 1 },
-    { x: 0, z: -196, floorY: 1.5, bw: 38, bd: 18, bodyH: 7.6, name: '乾清宫', plaque: '乾清宫', rank: 3 },
-    { x: 0, z: -244, floorY: 1.3, bw: 30, bd: 14, bodyH: 6.8, name: '坤宁宫', plaque: '坤宁宫', rank: 2 }
+    { x: 0, z: -2, floorY: 9.33, bw: 24, bd: 24, bodyH: 8.4, name: '中和殿', plaque: '中和殿', inscription: '允执厥中', rank: 2 },
+    { x: 0, z: -56.5, floorY: 9.43, bw: 49.7, bd: 25, bodyH: 8.8, name: '保和殿', plaque: '保和殿', inscription: '皇建有极', rank: 3 },
+    { x: 0, z: 280, floorY: 1.8, bw: 34, bd: 14, bodyH: 8.6, name: '太和门', plaque: '太和门', inscription: '太和门', rank: 2 },
+    { x: 0, z: -140, floorY: 1.7, bw: 22, bd: 10, bodyH: 6.4, name: '乾清门', plaque: '乾清门', inscription: '乾清门', rank: 1 },
+    { x: 0, z: -196, floorY: 1.5, bw: 38, bd: 18, bodyH: 7.6, name: '乾清宫', plaque: '乾清宫', inscription: '正大光明', rank: 3 },
+    { x: 0, z: -244, floorY: 1.3, bw: 30, bd: 14, bodyH: 6.8, name: '坤宁宫', plaque: '坤宁宫', inscription: '位正坤元', rank: 2 }
   ];
   for (let i = 0; i < list.length; i++) INTERIOR.hall(list[i]);
 };
@@ -10170,6 +10170,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.34.0.20261019.0229","time":"2026-10-19T02:29:52.608Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.35.0.20261019.0248","time":"2026-10-19T02:48:12.204Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
