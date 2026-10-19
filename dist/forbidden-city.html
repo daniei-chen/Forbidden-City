@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.35.0.20261019.0248">
-<meta name="build-time" content="2026-10-19T02:48:12.204Z">
+<meta name="generator" content="forbidden-city-build 5.36.0.20261019.0322">
+<meta name="build-time" content="2026-10-19T03:22:08.553Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T02:48:12.204Z
-  version: 5.35.0.20261019.0248
+  build: 2026-10-19T03:22:08.553Z
+  version: 5.36.0.20261019.0322
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.35.0',
+  version: '5.36.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -2423,10 +2423,9 @@ GEOM.gableRoof = function (o) {
       const len = Math.hypot(dz, dy);
       const ang = Math.atan2(dy, dz);
       const cx = x + sgn * 0.12, cy = (yA + yB) / 2, cz = (z0 + z1) / 2;
-      BATCH.add(GEOM.boxGeo, MATS.goldDark, GEOM.mat4(cx, cy, cz, ang, 0, 0, 0.22, 0.34, len));
+      /* 歇山山花被屋面遮住时，博风板会悬空；此处不绘制博风板（由撒山瓦带表现山面边缘） */
     }
-    /* 悬鱼（脊端小金饰） */
-    BATCH.add(new THREE.SphereGeometry(0.26, 8, 6), MATS.gold, GEOM.mat4(x + sgn * 0.2, y1 - 0.15, 0));
+    /* 悬鱼：歇山山花不可见时不绘制，避免悬空 */
   }
 
   /* ---------- 正脊 + 鸱吻 ---------- */
@@ -10170,6 +10169,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.35.0.20261019.0248","time":"2026-10-19T02:48:12.204Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.36.0.20261019.0322","time":"2026-10-19T03:22:08.553Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

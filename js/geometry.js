@@ -676,10 +676,9 @@ GEOM.gableRoof = function (o) {
       const len = Math.hypot(dz, dy);
       const ang = Math.atan2(dy, dz);
       const cx = x + sgn * 0.12, cy = (yA + yB) / 2, cz = (z0 + z1) / 2;
-      BATCH.add(GEOM.boxGeo, MATS.goldDark, GEOM.mat4(cx, cy, cz, ang, 0, 0, 0.22, 0.34, len));
+      /* 歇山山花被屋面遮住时，博风板会悬空；此处不绘制博风板（由撒山瓦带表现山面边缘） */
     }
-    /* 悬鱼（脊端小金饰） */
-    BATCH.add(new THREE.SphereGeometry(0.26, 8, 6), MATS.gold, GEOM.mat4(x + sgn * 0.2, y1 - 0.15, 0));
+    /* 悬鱼：歇山山花不可见时不绘制，避免悬空 */
   }
 
   /* ---------- 正脊 + 鸱吻 ---------- */
