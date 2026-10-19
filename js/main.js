@@ -1093,6 +1093,101 @@
     if (changed) { questsSave(); buildQuestHud(); }
   }
 
+  /* =========================================================
+   *  手柄输入（Gamepad API）
+   * ======================================================= */
+  const PAD = { jumpHeld: false, bHeld: false, b3Held: false, b8Held: false, connected: false };
+  function pollGamepad(dt) {
+    if (!navigator.getGamepads) { WALK.pad = null; return; }
+    let gp = null;
+    const pads = navigator.getGamepads();
+    for (let i = 0; i < pads.length; i++) { if (pads[i] && pads[i].connected) { gp = pads[i]; break; } }
+    if (!gp) { WALK.pad = null; PAD.connected = false; return; }
+    if (!PAD.connected) { PAD.connected = true; showToast('手柄已连接：左摇杆移动 · A 跳跃 · RB 疾行 · B 视角 · Y 互动', 4200); }
+    const dz = function (v) { return Math.abs(v) < 0.18 ? 0 : (v - Math.sign(v) * 0.18) / 0.82; };
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+    const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
+    WALK.pad = {
+      x: dz(ax), y: -dz(ay),
+      lookX: dz(rx), lookY: dz(ry),
+      sprint: !!(gp.buttons[5] && gp.buttons[5].pressed),
+      jump: !!(gp.buttons[0] && gp.buttons[0].pressed)
+    };
+    if (!WALK.active) return;
+    if (Math.abs(WALK.pad.lookX) > 0.01 || Math.abs(WALK.pad.lookY) > 0.01) {
+      WALK.look(WALK.pad.lookX * 260 * (dt || 0.016), WALK.pad.lookY * 200 * (dt || 0.016));
+    }
+    if (WALK.pad.jump && !PAD.jumpHeld) WALK.jump();
+    if (!WALK.pad.jump && PAD.jumpHeld) WALK.releaseJump();
+    PAD.jumpHeld = WALK.pad.jump;
+    WALK.keys['shift'] = !!WALK.pad.sprint;
+    const bB = gp.buttons[1] && gp.buttons[1].pressed;
+    if (bB && !PAD.bHeld) WALK.toggleView();
+    PAD.bHeld = bB;
+    const bY = gp.buttons[3] && gp.buttons[3].pressed;
+    if (bY && !PAD.b3Held) doInteract();
+    PAD.b3Held = bY;
+    const bStart = gp.buttons[8] && gp.buttons[8].pressed;
+    if (bStart && !PAD.b8Held) toggleWalk(false);
+    PAD.b8Held = bStart;
+  }
+
+  /* =========================================================
+   *  触屏控制（移动端）
+   * ======================================================= */
+  const touchEnabled = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) ||
+    new URLSearchParams(location.search).get('touch') === '1';
+  if (touchEnabled) document.body.classList.add('touch');
+  function initTouch() {
+    const stick = $('stick'), knob = $('knob');
+    if (!stick) return;
+    let padId = null;
+    const setKnob = function (dx, dy) { if (knob) knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; };
+    const endStick = function () {
+      padId = null;
+      WALK.touchMove = null;
+      setKnob(0, 0);
+    };
+    stick.addEventListener('pointerdown', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      padId = e.pointerId;
+      try { stick.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    stick.addEventListener('pointermove', function (e) {
+      if (padId !== e.pointerId) return;
+      e.preventDefault(); e.stopPropagation();
+      const r = stick.getBoundingClientRect();
+      let dx = e.clientX - (r.left + r.width / 2);
+      let dy = e.clientY - (r.top + r.height / 2);
+      const lim = r.width * 0.34;
+      const len = Math.hypot(dx, dy);
+      if (len > lim) { dx = dx / len * lim; dy = dy / len * lim; }
+      setKnob(dx, dy);
+      WALK.touchMove = { x: dx / lim, y: -dy / lim };
+    });
+    stick.addEventListener('pointerup', endStick);
+    stick.addEventListener('pointercancel', endStick);
+    stick.addEventListener('lostpointercapture', endStick);
+
+    const bindBtn = function (id, onDown, onUp) {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener('pointerdown', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        el.classList.add('on');
+        if (onDown) onDown();
+      });
+      const up = function (e) { e.preventDefault(); el.classList.remove('on'); if (onUp) onUp(); };
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+      el.addEventListener('lostpointercapture', up);
+    };
+    bindBtn('tbJump', function () { WALK.jump(); });
+    bindBtn('tbRun', function () { WALK.keys['shift'] = true; }, function () { WALK.keys['shift'] = false; });
+    bindBtn('tbView', function () { WALK.toggleView(); });
+    bindBtn('tbInteract', function () { doInteract(); });
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -1622,6 +1717,7 @@
     requestAnimationFrame(animate);
     if (document.hidden) return;
     const dt = Math.min(clock.getDelta(), 0.05);
+    pollGamepad(dt);
     if (settings.autoCycle) {
       autoCycleT += dt;
       if (autoCycleT > 150) {
@@ -1763,6 +1859,7 @@
         if (!isNaN(n) && n >= 0 && n < VIEWS.length) idx = n;
       }
       bindUI();
+  initTouch();
       if (params.get('labels') === '1') toggleLabels(true);
       if (params.get('cinema') === '1') setCinema(true);
       const camParam = params.get('cam');
@@ -1872,6 +1969,8 @@
         setCinema: setCinema,
         toggleLabels: function () { toggleLabels(); },
         startWalk: function () { toggleWalk(true); },
+    pollGamepad: pollGamepad,
+    touchEnabled: function () { return touchEnabled; },
     interact: doInteract,
     interactInfo: function () { const it = nearestInteractive(); return it ? { title: it.title, text: it.text } : null; },
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },

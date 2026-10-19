@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.5.0.20261019.0952">
-<meta name="build-time" content="2026-10-19T09:52:00.054Z">
+<meta name="generator" content="forbidden-city-build 6.6.0.20261019.1009">
+<meta name="build-time" content="2026-10-19T10:09:34.475Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T09:52:00.054Z
-  version: 6.5.0.20261019.0952
+  build: 2026-10-19T10:09:34.475Z
+  version: 6.6.0.20261019.1009
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -225,6 +225,36 @@
   .interact.show{display:block}
   .interact b{color:var(--gold);font-weight:500;border:1px solid rgba(216,180,95,.6);border-radius:2px;padding:1px 6px;margin-right:7px}
   body.photo .interact{display:none !important}
+  /* ---------------- 触屏控制 ---------------- */
+  .touchui{position:fixed;inset:0;z-index:8;display:none;pointer-events:none}
+  body.walking.touch .touchui{display:block}
+  .touchui .stick{
+    position:absolute;left:20px;bottom:24px;width:132px;height:132px;border-radius:50%;
+    border:1px solid rgba(216,180,95,.4);
+    background:radial-gradient(circle,rgba(9,11,15,.45),rgba(9,11,15,.16));
+    pointer-events:auto;touch-action:none;backdrop-filter:blur(4px);
+  }
+  .touchui .knob{
+    position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;
+    background:rgba(216,180,95,.55);box-shadow:0 0 18px rgba(0,0,0,.5);
+  }
+  .touchui .tbtn{
+    position:absolute;width:58px;height:58px;border-radius:50%;
+    border:1px solid rgba(216,180,95,.45);background:rgba(9,11,15,.55);color:var(--gold);
+    font-size:13px;letter-spacing:1px;display:flex;align-items:center;justify-content:center;
+    pointer-events:auto;touch-action:none;backdrop-filter:blur(6px);user-select:none;
+  }
+  .touchui .tbtn:active,.touchui .tbtn.on{background:rgba(216,180,95,.4);color:#20150a}
+  #tbJump{right:92px;bottom:128px}
+  #tbRun{right:20px;bottom:198px}
+  #tbView{right:20px;bottom:128px}
+  #tbInteract{right:20px;bottom:58px}
+  .touchui .ttip{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);
+    font-size:9.5px;color:rgba(230,224,208,.38);letter-spacing:1.2px;white-space:nowrap}
+  @media (max-height:520px){
+    .touchui .stick{width:108px;height:108px}
+    #tbJump{right:80px;bottom:110px}
+  }
   @media (max-width:820px){ .interact{bottom:150px;font-size:11px;padding:7px 12px} }
   body.photo .walkgame{display:none !important}
   @media (max-width:820px){
@@ -331,6 +361,15 @@
 </div>
 <div class="crosshair" id="crosshair"></div>
 <div class="interact" id="interact"><b>E</b><span id="interactLabel">查看</span></div>
+
+<div class="touchui" id="touchui">
+  <div class="stick" id="stick"><i class="knob" id="knob"></i></div>
+  <div class="tbtn" id="tbJump">跳</div>
+  <div class="tbtn" id="tbRun">疾</div>
+  <div class="tbtn" id="tbView">视</div>
+  <div class="tbtn" id="tbInteract">互动</div>
+  <div class="ttip">左侧摇杆移动 · 右侧滑动环视 · 点按按钮操作</div>
+</div>
 
 <div class="walkgame" id="walkgame">
   <div class="wg-top">
@@ -439,7 +478,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.5.0',
+  version: '6.6.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -7319,6 +7358,8 @@ const WALK = {
   baseFov: 60,
   fovNow: 60,
   jumpHeld: false,
+  pad: null,
+  touchMove: null,
   walkSpeed: 5.2,
   runSpeed: 11.5,
 
@@ -7556,10 +7597,14 @@ const WALK = {
     const k = this.keys;
 
     /* 移动输入（相对相机朝向） */
-    const fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
-    const strafe = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
+    let fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
+    let strafe = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
+    if (this.pad) { fwd += this.pad.y; strafe += this.pad.x; }
+    if (this.touchMove) { fwd += this.touchMove.y; strafe += this.touchMove.x; }
+    fwd = Math.max(-1, Math.min(1, fwd));
+    strafe = Math.max(-1, Math.min(1, strafe));
     const run = !!k['shift'];
-    const hasInput = fwd !== 0 || strafe !== 0;
+    const hasInput = Math.abs(fwd) > 0.01 || Math.abs(strafe) > 0.01;
 
     let dirX = 0, dirZ = 0;
     if (hasInput) {
@@ -10030,6 +10075,101 @@ const ASSETS = {
     if (changed) { questsSave(); buildQuestHud(); }
   }
 
+  /* =========================================================
+   *  手柄输入（Gamepad API）
+   * ======================================================= */
+  const PAD = { jumpHeld: false, bHeld: false, b3Held: false, b8Held: false, connected: false };
+  function pollGamepad(dt) {
+    if (!navigator.getGamepads) { WALK.pad = null; return; }
+    let gp = null;
+    const pads = navigator.getGamepads();
+    for (let i = 0; i < pads.length; i++) { if (pads[i] && pads[i].connected) { gp = pads[i]; break; } }
+    if (!gp) { WALK.pad = null; PAD.connected = false; return; }
+    if (!PAD.connected) { PAD.connected = true; showToast('手柄已连接：左摇杆移动 · A 跳跃 · RB 疾行 · B 视角 · Y 互动', 4200); }
+    const dz = function (v) { return Math.abs(v) < 0.18 ? 0 : (v - Math.sign(v) * 0.18) / 0.82; };
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+    const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
+    WALK.pad = {
+      x: dz(ax), y: -dz(ay),
+      lookX: dz(rx), lookY: dz(ry),
+      sprint: !!(gp.buttons[5] && gp.buttons[5].pressed),
+      jump: !!(gp.buttons[0] && gp.buttons[0].pressed)
+    };
+    if (!WALK.active) return;
+    if (Math.abs(WALK.pad.lookX) > 0.01 || Math.abs(WALK.pad.lookY) > 0.01) {
+      WALK.look(WALK.pad.lookX * 260 * (dt || 0.016), WALK.pad.lookY * 200 * (dt || 0.016));
+    }
+    if (WALK.pad.jump && !PAD.jumpHeld) WALK.jump();
+    if (!WALK.pad.jump && PAD.jumpHeld) WALK.releaseJump();
+    PAD.jumpHeld = WALK.pad.jump;
+    WALK.keys['shift'] = !!WALK.pad.sprint;
+    const bB = gp.buttons[1] && gp.buttons[1].pressed;
+    if (bB && !PAD.bHeld) WALK.toggleView();
+    PAD.bHeld = bB;
+    const bY = gp.buttons[3] && gp.buttons[3].pressed;
+    if (bY && !PAD.b3Held) doInteract();
+    PAD.b3Held = bY;
+    const bStart = gp.buttons[8] && gp.buttons[8].pressed;
+    if (bStart && !PAD.b8Held) toggleWalk(false);
+    PAD.b8Held = bStart;
+  }
+
+  /* =========================================================
+   *  触屏控制（移动端）
+   * ======================================================= */
+  const touchEnabled = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) ||
+    new URLSearchParams(location.search).get('touch') === '1';
+  if (touchEnabled) document.body.classList.add('touch');
+  function initTouch() {
+    const stick = $('stick'), knob = $('knob');
+    if (!stick) return;
+    let padId = null;
+    const setKnob = function (dx, dy) { if (knob) knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'; };
+    const endStick = function () {
+      padId = null;
+      WALK.touchMove = null;
+      setKnob(0, 0);
+    };
+    stick.addEventListener('pointerdown', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      padId = e.pointerId;
+      try { stick.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    stick.addEventListener('pointermove', function (e) {
+      if (padId !== e.pointerId) return;
+      e.preventDefault(); e.stopPropagation();
+      const r = stick.getBoundingClientRect();
+      let dx = e.clientX - (r.left + r.width / 2);
+      let dy = e.clientY - (r.top + r.height / 2);
+      const lim = r.width * 0.34;
+      const len = Math.hypot(dx, dy);
+      if (len > lim) { dx = dx / len * lim; dy = dy / len * lim; }
+      setKnob(dx, dy);
+      WALK.touchMove = { x: dx / lim, y: -dy / lim };
+    });
+    stick.addEventListener('pointerup', endStick);
+    stick.addEventListener('pointercancel', endStick);
+    stick.addEventListener('lostpointercapture', endStick);
+
+    const bindBtn = function (id, onDown, onUp) {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener('pointerdown', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        el.classList.add('on');
+        if (onDown) onDown();
+      });
+      const up = function (e) { e.preventDefault(); el.classList.remove('on'); if (onUp) onUp(); };
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+      el.addEventListener('lostpointercapture', up);
+    };
+    bindBtn('tbJump', function () { WALK.jump(); });
+    bindBtn('tbRun', function () { WALK.keys['shift'] = true; }, function () { WALK.keys['shift'] = false; });
+    bindBtn('tbView', function () { WALK.toggleView(); });
+    bindBtn('tbInteract', function () { doInteract(); });
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -10559,6 +10699,7 @@ const ASSETS = {
     requestAnimationFrame(animate);
     if (document.hidden) return;
     const dt = Math.min(clock.getDelta(), 0.05);
+    pollGamepad(dt);
     if (settings.autoCycle) {
       autoCycleT += dt;
       if (autoCycleT > 150) {
@@ -10700,6 +10841,7 @@ const ASSETS = {
         if (!isNaN(n) && n >= 0 && n < VIEWS.length) idx = n;
       }
       bindUI();
+  initTouch();
       if (params.get('labels') === '1') toggleLabels(true);
       if (params.get('cinema') === '1') setCinema(true);
       const camParam = params.get('cam');
@@ -10809,6 +10951,8 @@ const ASSETS = {
         setCinema: setCinema,
         toggleLabels: function () { toggleLabels(); },
         startWalk: function () { toggleWalk(true); },
+    pollGamepad: pollGamepad,
+    touchEnabled: function () { return touchEnabled; },
     interact: doInteract,
     interactInfo: function () { const it = nearestInteractive(); return it ? { title: it.title, text: it.text } : null; },
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
@@ -10840,6 +10984,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.5.0.20261019.0952","time":"2026-10-19T09:52:00.054Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.6.0.20261019.1009","time":"2026-10-19T10:09:34.475Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

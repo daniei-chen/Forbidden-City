@@ -42,6 +42,8 @@ const WALK = {
   baseFov: 60,
   fovNow: 60,
   jumpHeld: false,
+  pad: null,
+  touchMove: null,
   walkSpeed: 5.2,
   runSpeed: 11.5,
 
@@ -279,10 +281,14 @@ const WALK = {
     const k = this.keys;
 
     /* 移动输入（相对相机朝向） */
-    const fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
-    const strafe = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
+    let fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
+    let strafe = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
+    if (this.pad) { fwd += this.pad.y; strafe += this.pad.x; }
+    if (this.touchMove) { fwd += this.touchMove.y; strafe += this.touchMove.x; }
+    fwd = Math.max(-1, Math.min(1, fwd));
+    strafe = Math.max(-1, Math.min(1, strafe));
     const run = !!k['shift'];
-    const hasInput = fwd !== 0 || strafe !== 0;
+    const hasInput = Math.abs(fwd) > 0.01 || Math.abs(strafe) > 0.01;
 
     let dirX = 0, dirZ = 0;
     if (hasInput) {
