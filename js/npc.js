@@ -196,7 +196,7 @@ const NPC = {
       }
       this.patrols.push({
         obj: guard, pts: r.pts, len: len, speed: r.speed,
-        t: r.phase * len, legPhase: Math.random() * 6.28
+        t: r.phase * len, legPhase: Math.random() * 6.28, alert: 0
       });
     }
 
@@ -213,7 +213,7 @@ const NPC = {
       g.add(maid.group);
       let len2 = 0;
       for (let i = 1; i < r.pts.length; i++) len2 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.maids.push({ obj: maid, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28 });
+      this.maids.push({ obj: maid, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0 });
     }
 
     /* 御猫三只 */
@@ -233,7 +233,7 @@ const NPC = {
       g.add(cat.group);
       let len3 = 0;
       for (let i = 1; i < r.pts.length; i++) len3 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28 });
+      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0 });
     }
 
     this.group = g;
@@ -342,45 +342,139 @@ const NPC = {
     inst.instanceMatrix.needsUpdate = true;
   },
 
+  /* 折线路径取点 */
+  pathPos: function (pts, dist) {
+    let d = dist, ax = pts[0][0], az = pts[0][1], bx = pts[1][0], bz = pts[1][1], fx = 0, fz = 1;
+    const total = this._pathLenCache || null;
+    let remain = d;
+    for (let k = 1; k < pts.length; k++) {
+      const sx = pts[k][0] - pts[k - 1][0], sz = pts[k][1] - pts[k - 1][1];
+      const sl = Math.hypot(sx, sz) || 1;
+      if (remain <= sl) {
+        ax = pts[k - 1][0]; az = pts[k - 1][1];
+        bx = pts[k][0]; bz = pts[k][1];
+        fx = sx / sl; fz = sz / sl;
+        return { x: ax + fx * remain, z: az + fz * remain, fx: fx, fz: fz };
+      }
+      remain -= sl;
+    }
+    return { x: bx, z: bz, fx: fx, fz: fz };
+  },
+
+  _player: function () {
+    if (typeof WALK !== 'undefined' && WALK.active) return { x: WALK.pos.x, z: WALK.pos.z, moving: WALK.moving };
+    return null;
+  },
+
   update: function (dt) {
     if (!this.group) return;
     this.updateSparrows(dt);
     this.time += dt;
+    const pl = this._player();
+
+    /* ---- 宫女：靠近驻足转身目送 ---- */
     for (let mi = 0; mi < (this.maids || []).length; mi++) {
       const mw = this.maids[mi];
-      mw.t += mw.speed * dt;
-      if (mw.t > mw.len) mw.t -= mw.len;
-      const p0 = mw.pts[0], p1 = mw.pts[1];
-      const sl = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1;
-      const fx = (p1[0] - p0[0]) / sl, fz = (p1[1] - p0[1]) / sl;
-      mw.obj.group.position.set(p0[0] + fx * mw.t, 0, p0[1] + fz * mw.t);
-      mw.obj.group.rotation.y = Math.atan2(fx, fz);
-      mw.legPhase += dt * mw.speed * 6.0;
-      const sm = Math.sin(mw.legPhase);
+      const cur0 = this.pathPos(mw.pts, mw.t);
+      let dist = 1e9;
+      if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
+      if (dist < 6.0) mw.alert = Math.min(1, mw.alert + dt * 4.5);
+      else if (dist > 8.5) mw.alert = Math.max(0, mw.alert - dt * 1.6);
+      const paused = mw.alert > 0.5;
+      if (!paused) {
+        mw.t += mw.speed * dt;
+        if (mw.t > mw.len) mw.t -= mw.len;
+      }
+      const cur = this.pathPos(mw.pts, mw.t);
+      mw.obj.group.position.set(cur.x, 0, cur.z);
+      const targetYaw = paused && pl ? Math.atan2(pl.x - cur.x, pl.z - cur.z) : Math.atan2(cur.fx, cur.fz);
+      let dy2 = targetYaw - mw.obj.group.rotation.y;
+      dy2 = Math.atan2(Math.sin(dy2), Math.cos(dy2));
+      mw.obj.group.rotation.y += dy2 * Math.min(1, dt * (paused ? 7 : 8));
+      const walkK = paused ? 0 : 1;
+      mw.legPhase += dt * mw.speed * 6.0 * walkK;
+      const sm = Math.sin(mw.legPhase) * walkK;
       mw.obj.parts.legL.rotation.x = sm * 0.5;
       mw.obj.parts.legR.rotation.x = -sm * 0.5;
       mw.obj.parts.armL.rotation.x = -sm * 0.35;
       mw.obj.parts.armR.rotation.x = sm * 0.35;
+      /* 驻足时的轻微呼吸 */
+      mw.obj.parts.body.position.y = 0.52 + (paused ? Math.sin(this.time * 1.8 + mi) * 0.008 : 0);
     }
+
+    /* ---- 御猫：受惊跑开 / 好奇靠近 / 停下看你 ---- */
     for (let ci = 0; ci < (this.cats || []).length; ci++) {
       const cat = this.cats[ci];
+      const cur0 = this.pathPos(cat.pts, cat.t);
+      let dist = 1e9;
+      if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
+
+      /* 受惊：快速跑开 */
+      if (pl && dist < 3.4 && cat.flee <= 0) {
+        cat.flee = 1.6;
+        cat.curious = 0;
+        cat.look = 0;
+        cat.tBack = cat.t;
+      }
+      if (cat.flee > 0) {
+        cat.flee -= dt;
+        const ax2 = cur0.x - pl.x, az2 = cur0.z - pl.z;
+        const al = Math.hypot(ax2, az2) || 1;
+        const nx = cur0.x + (ax2 / al) * 4.4 * dt;
+        const nz = cur0.z + (az2 / al) * 4.4 * dt;
+        /* 不跑出宫城范围 */
+        const limX = Math.abs(nx) < 360 ? nx : cur0.x;
+        const limZ = Math.abs(nz) < 460 ? nz : cur0.z;
+        cat.obj.group.position.set(limX, 0, limZ);
+        cat.obj.group.rotation.y = Math.atan2(ax2 / al, az2 / al);
+        cat.legPhase += dt * 14;
+        const sc2 = Math.sin(cat.legPhase);
+        cat.obj.parts.legs[0].rotation.x = sc2 * 0.9;
+        cat.obj.parts.legs[1].rotation.x = -sc2 * 0.9;
+        cat.obj.parts.legs[2].rotation.x = -sc2 * 0.9;
+        cat.obj.parts.legs[3].rotation.x = sc2 * 0.9;
+        cat.obj.parts.tail.rotation.z = 0.6 + Math.sin(this.time * 9) * 0.2;
+        cat.obj.parts.body.position.y = 0.32 + Math.abs(sc2) * 0.03;
+        /* 把路径进度吸附到跑开后的位置，避免瞬移 */
+        let bestT = 0, bestD = 1e9;
+        for (let k = 0; k <= 12; k++) {
+          const tt = (k / 12) * cat.len;
+          const pp = this.pathPos(cat.pts, tt);
+          const dd2 = Math.hypot(pp.x - limX, pp.z - limZ);
+          if (dd2 < bestD) { bestD = dd2; bestT = tt; }
+        }
+        cat.t = bestT;
+        continue;
+      }
+
+      /* 好奇：玩家在附近且静止，猫咪停下来看你 */
+      if (pl && dist < 7 && dist > 3.2) {
+        if (!pl.moving) cat.curious += dt;
+        else cat.curious = Math.max(0, cat.curious - dt * 2);
+        if (cat.curious > 1.1 && cat.look <= 0) cat.look = 2.2;
+      } else {
+        cat.curious = Math.max(0, cat.curious - dt);
+      }
+      if (cat.look > 0) {
+        cat.look -= dt;
+        const cur = this.pathPos(cat.pts, cat.t);
+        cat.obj.group.position.set(cur.x, 0, cur.z);
+        if (pl) cat.obj.group.rotation.y = Math.atan2(pl.x - cur.x, pl.z - cur.z);
+        cat.legPhase += dt * 2.0;
+        cat.obj.parts.legs[0].rotation.x *= 0.9;
+        cat.obj.parts.legs[1].rotation.x *= 0.9;
+        cat.obj.parts.legs[2].rotation.x *= 0.9;
+        cat.obj.parts.legs[3].rotation.x *= 0.9;
+        cat.obj.parts.tail.rotation.z = Math.sin(this.time * 3.4 + ci) * 0.35;
+        cat.obj.parts.body.position.y = 0.3 + Math.abs(Math.sin(this.time * 2.2)) * 0.012;
+        continue;
+      }
+
       cat.t += cat.speed * dt;
       if (cat.t > cat.len) cat.t -= cat.len;
-      let d2 = cat.t, ax2 = cat.pts[0][0], az2 = cat.pts[0][1], bx2 = cat.pts[1][0], bz2 = cat.pts[1][1], fxx = 0, fzz = 1;
-      for (let k = 1; k < cat.pts.length; k++) {
-        const sxx = cat.pts[k][0] - cat.pts[k - 1][0], szz = cat.pts[k][1] - cat.pts[k - 1][1];
-        const sll = Math.hypot(sxx, szz);
-        if (d2 <= sll) {
-          ax2 = cat.pts[k - 1][0]; az2 = cat.pts[k - 1][1];
-          bx2 = cat.pts[k][0]; bz2 = cat.pts[k][1];
-          fxx = sxx / sll; fzz = szz / sll;
-          break;
-        }
-        d2 -= sll;
-      }
-      const cx2 = ax2 + fxx * d2, cz2 = az2 + fzz * d2;
-      cat.obj.group.position.set(cx2, 0, cz2);
-      cat.obj.group.rotation.y = Math.atan2(fxx, fzz);
+      const cur = this.pathPos(cat.pts, cat.t);
+      cat.obj.group.position.set(cur.x, 0, cur.z);
+      cat.obj.group.rotation.y = Math.atan2(cur.fx, cur.fz);
       cat.legPhase += dt * cat.speed * 8.0;
       const sc = Math.sin(cat.legPhase);
       cat.obj.parts.legs[0].rotation.x = sc * 0.55;
@@ -390,42 +484,36 @@ const NPC = {
       cat.obj.parts.tail.rotation.z = Math.sin(this.time * 2.2 + ci) * 0.25;
       cat.obj.parts.body.position.y = 0.3 + Math.abs(sc) * 0.02;
     }
+
+    /* ---- 巡逻侍卫：靠近驻足、转身面向玩家 ---- */
     for (let i = 0; i < this.patrols.length; i++) {
       const p = this.patrols[i];
-      p.t += p.speed * dt;
-      if (p.t > p.len) p.t -= p.len;
-      /* 沿折线取位置 */
-      let d = p.t, ax = p.pts[0][0], az = p.pts[0][1], bx = p.pts[1][0], bz = p.pts[1][1];
-      const segLen = Math.hypot(bx - ax, bz - az);
-      let fx = 0, fz = 1;
-      if (p.pts.length > 2) {
-        for (let k = 1; k < p.pts.length; k++) {
-          const sx = p.pts[k][0] - p.pts[k - 1][0], sz = p.pts[k][1] - p.pts[k - 1][1];
-          const sl = Math.hypot(sx, sz);
-          if (d <= sl) {
-            ax = p.pts[k - 1][0]; az = p.pts[k - 1][1];
-            bx = p.pts[k][0]; bz = p.pts[k][1];
-            fx = sx / sl; fz = sz / sl;
-            break;
-          }
-          d -= sl;
-        }
-      } else {
-        fx = (bx - ax) / segLen; fz = (bz - az) / segLen;
+      const cur0 = this.pathPos(p.pts, p.t);
+      let dist = 1e9;
+      if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
+      if (dist < 6.5) p.alert = Math.min(1, p.alert + dt * 5);
+      else if (dist > 9.0) p.alert = Math.max(0, p.alert - dt * 1.8);
+      const paused = p.alert > 0.5;
+      if (!paused) {
+        p.t += p.speed * dt;
+        if (p.t > p.len) p.t -= p.len;
       }
-      const px = ax + fx * d, pz = az + fz * d;
-      p.obj.group.position.set(px, 0, pz);
-      const targetYaw = Math.atan2(fx, fz);
+      const cur = this.pathPos(p.pts, p.t);
+      p.obj.group.position.set(cur.x, 0, cur.z);
+      const targetYaw = (paused && pl)
+        ? Math.atan2(pl.x - cur.x, pl.z - cur.z)
+        : Math.atan2(cur.fx, cur.fz);
       let dyaw = targetYaw - p.obj.group.rotation.y;
       dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
-      p.obj.group.rotation.y += dyaw * Math.min(1, dt * 8);
-      p.legPhase += dt * p.speed * 5.2;
-      const s = Math.sin(p.legPhase);
+      p.obj.group.rotation.y += dyaw * Math.min(1, dt * (paused ? 6.5 : 8));
+      const walkK = paused ? 0 : 1;
+      p.legPhase += dt * p.speed * 5.2 * walkK;
+      const s = Math.sin(p.legPhase) * walkK;
       p.obj.parts.legL.rotation.x = s * 0.62;
       p.obj.parts.legR.rotation.x = -s * 0.62;
       p.obj.parts.armL.rotation.x = -s * 0.42;
       p.obj.parts.armR.rotation.x = s * 0.3;
-      p.obj.parts.body.position.y = 0.52 + Math.abs(Math.sin(p.legPhase)) * 0.025;
+      p.obj.parts.body.position.y = 0.52 + (paused ? Math.sin(this.time * 1.6 + i) * 0.008 : Math.abs(Math.sin(p.legPhase)) * 0.025);
     }
   }
 };
