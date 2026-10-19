@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.13.0.20261019.1425">
-<meta name="build-time" content="2026-10-19T14:25:11.315Z">
+<meta name="generator" content="forbidden-city-build 6.14.0.20261019.1443">
+<meta name="build-time" content="2026-10-19T14:43:39.777Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T14:25:11.315Z
-  version: 6.13.0.20261019.1425
+  build: 2026-10-19T14:43:39.777Z
+  version: 6.14.0.20261019.1443
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -276,6 +276,24 @@
   .album .spot{font-size:10.5px;letter-spacing:.5px;padding:3px 8px;border:1px solid rgba(216,180,95,.25);color:rgba(230,224,208,.5)}
   .album .spot.on{color:var(--gold);border-color:rgba(216,180,95,.7);background:rgba(216,180,95,.1)}
   #tbPhoto{right:92px;bottom:56px}
+  /* ---------------- 投壶小游戏 ---------------- */
+  .minigame{
+    position:fixed;left:50%;top:104px;transform:translateX(-50%);z-index:10;display:none;
+    width:min(420px,86vw);padding:16px 20px 14px;
+    background:rgba(9,11,15,.82);border:1px solid rgba(216,180,95,.5);
+    backdrop-filter:blur(10px);text-align:center;
+  }
+  .minigame.show{display:block}
+  .minigame .mg-title{font-size:15px;letter-spacing:6px;color:var(--gold)}
+  .minigame .mg-score{font-size:11px;letter-spacing:1px;color:rgba(230,224,208,.65);margin:6px 0 12px}
+  .minigame .mg-bar{position:relative;height:8px;background:rgba(216,180,95,.16);overflow:visible}
+  .minigame .mg-bar i{display:block;height:100%;width:0;background:var(--gold)}
+  .minigame .mg-bar b{position:absolute;left:50%;top:-4px;width:10%;height:16px;transform:translateX(-50%);
+    border-left:1px solid rgba(255,240,200,.7);border-right:1px solid rgba(255,240,200,.7);background:rgba(255,240,200,.12)}
+  .minigame .mg-hint{font-size:10.5px;letter-spacing:1px;color:rgba(230,224,208,.5);margin-top:11px}
+  .minigame .mg-hint b{color:var(--gold);font-weight:500}
+  body.photo .minigame{display:none !important}
+
   /* ---------------- NPC 对话气泡 ---------------- */
   .npcbubble{
     position:fixed;z-index:9;display:none;max-width:250px;
@@ -459,6 +477,13 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="minigame" id="minigame">
+  <div class="mg-title">投壶</div>
+  <div class="mg-score" id="mgScore">0 分 · 第 1 / 3 投</div>
+  <div class="mg-bar"><i id="mgPower"></i><b></b></div>
+  <div class="mg-hint">按 <b>空格</b>（或跳跃键）投出 · <b>Esc</b> 退出</div>
+</div>
+
 <div class="npcbubble" id="npcBubble"><span class="who" id="npcWho">侍卫</span><span id="npcLine"></span></div>
 <div class="achv" id="achv">
   <button class="close" id="achvClose">×</button>
@@ -567,7 +592,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.13.0',
+  version: '6.14.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -10106,6 +10131,7 @@ const ASSETS = {
       $('tourbar').classList.remove('show');
       $('btnTour').classList.remove('on');
       const nb = $('npcBubble'); if (nb) nb.classList.remove('show');
+      stopMinigame(true);
       ctrl.syncFromCamera();
       if (restore !== false) ctrl.setView(VIEWS[currentView], false);
     },
@@ -10406,6 +10432,12 @@ const ASSETS = {
     const lab = $('interactLabel');
     if (!el) return;
     if (!WALK.active) { el.classList.remove('show'); nearInteractive = null; return; }
+    if (nearPot()) {
+      el.classList.add('show');
+      if (lab) lab.textContent = '投壶 · 开始';
+      nearInteractive = null;
+      return;
+    }
     const catIdx = nearestCat();
     if (catIdx != null) {
       el.classList.add('show');
@@ -10429,6 +10461,8 @@ const ASSETS = {
     if (savedA && typeof savedA === 'object') {
       achievements.catFeeds = savedA.catFeeds || 0;
       achievements.photos = savedA.photos || 0;
+      achievements.potBest = savedA.potBest || 0;
+      achievements.potGames = savedA.potGames || 0;
     }
   } catch (e) {}
   function achievementsSave() {
@@ -10446,6 +10480,7 @@ const ASSETS = {
   }
   function doInteract() {
     if (!WALK.active) return;
+    if (nearPot()) { startMinigame(); return; }
     const ci = nearestCat();
     if (ci != null && typeof NPC !== 'undefined' && NPC.feedCatNear) {
       const fed = NPC.feedCatNear(WALK.pos.x, WALK.pos.z, 3.6);
@@ -10597,7 +10632,9 @@ const ASSETS = {
     if (Math.abs(WALK.pad.lookX) > 0.01 || Math.abs(WALK.pad.lookY) > 0.01) {
       WALK.look(WALK.pad.lookX * 260 * (dt || 0.016), WALK.pad.lookY * 200 * (dt || 0.016));
     }
-    if (WALK.pad.jump && !PAD.jumpHeld) WALK.jump();
+    if (WALK.pad.jump && !PAD.jumpHeld) {
+      if (minigame.active) throwArrow(); else WALK.jump();
+    }
     if (!WALK.pad.jump && PAD.jumpHeld) WALK.releaseJump();
     PAD.jumpHeld = WALK.pad.jump;
     WALK.keys['shift'] = !!WALK.pad.sprint;
@@ -10662,7 +10699,7 @@ const ASSETS = {
       el.addEventListener('pointercancel', up);
       el.addEventListener('lostpointercapture', up);
     };
-    bindBtn('tbJump', function () { WALK.jump(); });
+    bindBtn('tbJump', function () { if (minigame.active) throwArrow(); else WALK.jump(); });
     bindBtn('tbRun', function () { WALK.keys['shift'] = true; }, function () { WALK.keys['shift'] = false; });
     bindBtn('tbView', function () { WALK.toggleView(); });
     bindBtn('tbInteract', function () { doInteract(); });
@@ -10792,6 +10829,7 @@ const ASSETS = {
       { name: '御猫之友', ok: QUESTS[2].done },
       { name: '御用摄影师', ok: spots >= DISCOVERIES.length },
       { name: '猫薄荷', ok: feeds >= 5 },
+      { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
       { name: '紫禁城居民', ok: disc >= 10 && questsDone >= 3 && spots >= 10 }
     ];
     const rows = [
@@ -11002,6 +11040,112 @@ const ASSETS = {
       hemi.intensity *= 1 - overcast * 0.25;
       fill.intensity *= 1 - overcast * 0.2;
     }
+  }
+
+  /* =========================================================
+   *  投壶小游戏（御花园 · 3 投时机判定）
+   * ======================================================= */
+  const POT_POS = { x: 18, z: -382, r: 3.4 };
+  const minigame = { active: false, power: 0, dir: 1, throws: 0, score: 0, finished: false };
+  let potGroup = null;
+  function buildPot() {
+    if (potGroup) return;
+    const g = new THREE.Group();
+    const bronze = MATS.bronze || MATS.goldDark;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.3, 0.78, 14), bronze);
+    body.position.y = 0.4;
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.34, 12), bronze);
+    neck.position.y = 0.94;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.045, 6, 16), bronze);
+    rim.position.y = 1.11; rim.rotation.x = Math.PI / 2;
+    g.add(body, neck, rim);
+    const arrowMat = MATS.rafter || MATS.wood || bronze;
+    for (let i = 0; i < 3; i++) {
+      const arrow = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.95, 5), arrowMat);
+      arrow.position.set(-0.55 - i * 0.16, 0.32, 0.18 * (i - 1));
+      arrow.rotation.z = 0.5;
+      arrow.rotation.x = 0.25;
+      g.add(arrow);
+    }
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.72, 0.16, 16), MATS.marbleRail);
+    base.position.y = 0.07;
+    g.add(base);
+    g.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    g.position.set(POT_POS.x, 0, POT_POS.z);
+    scene.add(g);
+    potGroup = g;
+  }
+  function nearPot() {
+    if (!WALK.active) return false;
+    return Math.hypot(WALK.pos.x - POT_POS.x, WALK.pos.z - POT_POS.z) < POT_POS.r;
+  }
+  function minigameHud() {
+    const el = $('minigame');
+    const sc = $('mgScore');
+    const pw = $('mgPower');
+    if (el) el.classList.toggle('show', minigame.active);
+    if (sc && minigame.active) {
+      sc.textContent = '第 ' + Math.min(3, minigame.finished ? 3 : minigame.throws + 1) + ' / 3 投 · 当前 ' + minigame.score + ' 分';
+    }
+    if (pw) pw.style.width = (minigame.power * 100).toFixed(1) + '%';
+  }
+  function startMinigame() {
+    if (!WALK.active) return false;
+    if (minigame.active) return true;
+    minigame.active = true;
+    minigame.power = 0;
+    minigame.dir = 1;
+    minigame.throws = 0;
+    minigame.score = 0;
+    minigame.finished = false;
+    buildPot();
+    minigameHud();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    showToast('投壶开始：力度条来回摆动，在中间标记处按空格投出（3 投）', 4200);
+    return true;
+  }
+  function stopMinigame(silent) {
+    if (!minigame.active) return;
+    minigame.active = false;
+    minigameHud();
+    if (!silent) showToast('已退出投壶', 2000);
+  }
+  function throwArrow() {
+    if (!minigame.active || minigame.finished) return null;
+    const off = Math.abs(minigame.power - 0.5);
+    let pts = 0, msg = '';
+    if (off < 0.06) { pts = 2; msg = '投中！+2'; }
+    else if (off < 0.17) { pts = 1; msg = '擦壶而过 +1'; }
+    else { pts = 0; msg = '未中'; }
+    minigame.score += pts;
+    minigame.throws++;
+    if (typeof AUDIO !== 'undefined') {
+      if (pts > 0 && AUDIO.discover) AUDIO.discover();
+      else if (AUDIO.chime) AUDIO.chime();
+    }
+    showToast('第 ' + minigame.throws + ' 投：' + msg + '（总分 ' + minigame.score + '）', 2600);
+    if (minigame.throws >= 3) {
+      minigame.finished = true;
+      achievements.potGames = (achievements.potGames || 0) + 1;
+      if (!achievements.potBest || minigame.score > achievements.potBest) achievements.potBest = minigame.score;
+      achievementsSave();
+      setTimeout(function () {
+        minigame.active = false;
+        minigameHud();
+        showToast('投壶结束：' + minigame.score + ' 分' + (minigame.score >= 5 ? ' · 称号「投壶高手」' : ' · 再来一次？'), 5200);
+        if (minigame.score >= 5 && typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+      }, 1200);
+    }
+    minigameHud();
+    return { pts: pts, score: minigame.score, throws: minigame.throws };
+  }
+  function updateMinigame(dt) {
+    if (!minigame.active || minigame.finished) { minigameHud(); return; }
+    const speed = 0.85 + Math.min(0.7, minigame.throws * 0.22);
+    minigame.power += minigame.dir * speed * dt;
+    if (minigame.power >= 1) { minigame.power = 1; minigame.dir = -1; }
+    if (minigame.power <= 0) { minigame.power = 0; minigame.dir = 1; }
+    minigameHud();
   }
 
   function toggleWalk(force) {
@@ -11249,7 +11393,10 @@ const ASSETS = {
         return;
       }
       if (e.key === 'Shift') { WALK.keys['shift'] = true; return; }
-      if (e.code === 'Space' || k2 === ' ') { WALK.jump(); e.preventDefault(); return; }
+      if (e.code === 'Space' || k2 === ' ') {
+        if (minigame.active) { throwArrow(); e.preventDefault(); return; }
+        WALK.jump(); e.preventDefault(); return;
+      }
       if (k2 === 'e') { if (!e.repeat) doInteract(); return; }
       if (k2 === 'p') { if (!e.repeat) takePhoto(); return; }
       if (k2 === 'g') { if (!e.repeat) openAlbum(); return; }
@@ -11262,6 +11409,7 @@ const ASSETS = {
         return;
       }
       if (e.key === 'Escape') {
+        if (minigame.active) { stopMinigame(); return; }
         const ab = document.getElementById('album');
         if (ab && ab.classList.contains('show')) { openAlbum(false); return; }
         const av = document.getElementById('achv');
@@ -11573,6 +11721,7 @@ const ASSETS = {
       updateInteractPrompt();
       updateQuests();
       updateNpcBubble(dt);
+      updateMinigame(dt);
       $('crosshair').style.display = WALK.thirdPerson ? 'none' : 'block';
     } else {
       AVATAR.setVisible(false);
@@ -11700,6 +11849,7 @@ const ASSETS = {
       }
       bindUI();
   initTouch();
+  buildPot();
   (function bindAlbum() {
     const closeBtn = $('albumClose');
     if (closeBtn) closeBtn.addEventListener('click', function () { openAlbum(false); });
@@ -11834,6 +11984,10 @@ const ASSETS = {
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
+    minigameInfo: function () { return { active: minigame.active, power: Math.round(minigame.power * 100) / 100, throws: minigame.throws, score: minigame.score, finished: minigame.finished, best: achievements.potBest || 0 }; },
+    startMinigame: function () { return startMinigame(); },
+    setMinigamePower: function (v) { minigame.power = Math.max(0, Math.min(1, v)); },
+    minigameThrow: function () { return throwArrow(); },
     weatherInfo: function () { return { mode: weather.mode, rain: Math.round(weather.rain * 100) / 100, cloud: Math.round(weather.cloud * 100) / 100, auto: !!settings.weatherAuto }; },
     weatherTick: function (dt) { updateWeather(dt || 0.016); updateTheme(dt || 0.016); draw(); },
     dayCycleInfo: function () { return { on: !!settings.autoCycle, phase: Math.round(dayPhase * 1000) / 1000, theme: currentTheme }; },
@@ -11881,6 +12035,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.13.0.20261019.1425","time":"2026-10-19T14:25:11.315Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.14.0.20261019.1443","time":"2026-10-19T14:43:39.777Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

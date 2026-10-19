@@ -745,6 +745,7 @@
       $('tourbar').classList.remove('show');
       $('btnTour').classList.remove('on');
       const nb = $('npcBubble'); if (nb) nb.classList.remove('show');
+      stopMinigame(true);
       ctrl.syncFromCamera();
       if (restore !== false) ctrl.setView(VIEWS[currentView], false);
     },
@@ -1045,6 +1046,12 @@
     const lab = $('interactLabel');
     if (!el) return;
     if (!WALK.active) { el.classList.remove('show'); nearInteractive = null; return; }
+    if (nearPot()) {
+      el.classList.add('show');
+      if (lab) lab.textContent = '投壶 · 开始';
+      nearInteractive = null;
+      return;
+    }
     const catIdx = nearestCat();
     if (catIdx != null) {
       el.classList.add('show');
@@ -1068,6 +1075,8 @@
     if (savedA && typeof savedA === 'object') {
       achievements.catFeeds = savedA.catFeeds || 0;
       achievements.photos = savedA.photos || 0;
+      achievements.potBest = savedA.potBest || 0;
+      achievements.potGames = savedA.potGames || 0;
     }
   } catch (e) {}
   function achievementsSave() {
@@ -1085,6 +1094,7 @@
   }
   function doInteract() {
     if (!WALK.active) return;
+    if (nearPot()) { startMinigame(); return; }
     const ci = nearestCat();
     if (ci != null && typeof NPC !== 'undefined' && NPC.feedCatNear) {
       const fed = NPC.feedCatNear(WALK.pos.x, WALK.pos.z, 3.6);
@@ -1236,7 +1246,9 @@
     if (Math.abs(WALK.pad.lookX) > 0.01 || Math.abs(WALK.pad.lookY) > 0.01) {
       WALK.look(WALK.pad.lookX * 260 * (dt || 0.016), WALK.pad.lookY * 200 * (dt || 0.016));
     }
-    if (WALK.pad.jump && !PAD.jumpHeld) WALK.jump();
+    if (WALK.pad.jump && !PAD.jumpHeld) {
+      if (minigame.active) throwArrow(); else WALK.jump();
+    }
     if (!WALK.pad.jump && PAD.jumpHeld) WALK.releaseJump();
     PAD.jumpHeld = WALK.pad.jump;
     WALK.keys['shift'] = !!WALK.pad.sprint;
@@ -1301,7 +1313,7 @@
       el.addEventListener('pointercancel', up);
       el.addEventListener('lostpointercapture', up);
     };
-    bindBtn('tbJump', function () { WALK.jump(); });
+    bindBtn('tbJump', function () { if (minigame.active) throwArrow(); else WALK.jump(); });
     bindBtn('tbRun', function () { WALK.keys['shift'] = true; }, function () { WALK.keys['shift'] = false; });
     bindBtn('tbView', function () { WALK.toggleView(); });
     bindBtn('tbInteract', function () { doInteract(); });
@@ -1431,6 +1443,7 @@
       { name: '御猫之友', ok: QUESTS[2].done },
       { name: '御用摄影师', ok: spots >= DISCOVERIES.length },
       { name: '猫薄荷', ok: feeds >= 5 },
+      { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
       { name: '紫禁城居民', ok: disc >= 10 && questsDone >= 3 && spots >= 10 }
     ];
     const rows = [
@@ -1641,6 +1654,112 @@
       hemi.intensity *= 1 - overcast * 0.25;
       fill.intensity *= 1 - overcast * 0.2;
     }
+  }
+
+  /* =========================================================
+   *  投壶小游戏（御花园 · 3 投时机判定）
+   * ======================================================= */
+  const POT_POS = { x: 18, z: -382, r: 3.4 };
+  const minigame = { active: false, power: 0, dir: 1, throws: 0, score: 0, finished: false };
+  let potGroup = null;
+  function buildPot() {
+    if (potGroup) return;
+    const g = new THREE.Group();
+    const bronze = MATS.bronze || MATS.goldDark;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.3, 0.78, 14), bronze);
+    body.position.y = 0.4;
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.34, 12), bronze);
+    neck.position.y = 0.94;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.045, 6, 16), bronze);
+    rim.position.y = 1.11; rim.rotation.x = Math.PI / 2;
+    g.add(body, neck, rim);
+    const arrowMat = MATS.rafter || MATS.wood || bronze;
+    for (let i = 0; i < 3; i++) {
+      const arrow = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.95, 5), arrowMat);
+      arrow.position.set(-0.55 - i * 0.16, 0.32, 0.18 * (i - 1));
+      arrow.rotation.z = 0.5;
+      arrow.rotation.x = 0.25;
+      g.add(arrow);
+    }
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.72, 0.16, 16), MATS.marbleRail);
+    base.position.y = 0.07;
+    g.add(base);
+    g.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    g.position.set(POT_POS.x, 0, POT_POS.z);
+    scene.add(g);
+    potGroup = g;
+  }
+  function nearPot() {
+    if (!WALK.active) return false;
+    return Math.hypot(WALK.pos.x - POT_POS.x, WALK.pos.z - POT_POS.z) < POT_POS.r;
+  }
+  function minigameHud() {
+    const el = $('minigame');
+    const sc = $('mgScore');
+    const pw = $('mgPower');
+    if (el) el.classList.toggle('show', minigame.active);
+    if (sc && minigame.active) {
+      sc.textContent = '第 ' + Math.min(3, minigame.finished ? 3 : minigame.throws + 1) + ' / 3 投 · 当前 ' + minigame.score + ' 分';
+    }
+    if (pw) pw.style.width = (minigame.power * 100).toFixed(1) + '%';
+  }
+  function startMinigame() {
+    if (!WALK.active) return false;
+    if (minigame.active) return true;
+    minigame.active = true;
+    minigame.power = 0;
+    minigame.dir = 1;
+    minigame.throws = 0;
+    minigame.score = 0;
+    minigame.finished = false;
+    buildPot();
+    minigameHud();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    showToast('投壶开始：力度条来回摆动，在中间标记处按空格投出（3 投）', 4200);
+    return true;
+  }
+  function stopMinigame(silent) {
+    if (!minigame.active) return;
+    minigame.active = false;
+    minigameHud();
+    if (!silent) showToast('已退出投壶', 2000);
+  }
+  function throwArrow() {
+    if (!minigame.active || minigame.finished) return null;
+    const off = Math.abs(minigame.power - 0.5);
+    let pts = 0, msg = '';
+    if (off < 0.06) { pts = 2; msg = '投中！+2'; }
+    else if (off < 0.17) { pts = 1; msg = '擦壶而过 +1'; }
+    else { pts = 0; msg = '未中'; }
+    minigame.score += pts;
+    minigame.throws++;
+    if (typeof AUDIO !== 'undefined') {
+      if (pts > 0 && AUDIO.discover) AUDIO.discover();
+      else if (AUDIO.chime) AUDIO.chime();
+    }
+    showToast('第 ' + minigame.throws + ' 投：' + msg + '（总分 ' + minigame.score + '）', 2600);
+    if (minigame.throws >= 3) {
+      minigame.finished = true;
+      achievements.potGames = (achievements.potGames || 0) + 1;
+      if (!achievements.potBest || minigame.score > achievements.potBest) achievements.potBest = minigame.score;
+      achievementsSave();
+      setTimeout(function () {
+        minigame.active = false;
+        minigameHud();
+        showToast('投壶结束：' + minigame.score + ' 分' + (minigame.score >= 5 ? ' · 称号「投壶高手」' : ' · 再来一次？'), 5200);
+        if (minigame.score >= 5 && typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+      }, 1200);
+    }
+    minigameHud();
+    return { pts: pts, score: minigame.score, throws: minigame.throws };
+  }
+  function updateMinigame(dt) {
+    if (!minigame.active || minigame.finished) { minigameHud(); return; }
+    const speed = 0.85 + Math.min(0.7, minigame.throws * 0.22);
+    minigame.power += minigame.dir * speed * dt;
+    if (minigame.power >= 1) { minigame.power = 1; minigame.dir = -1; }
+    if (minigame.power <= 0) { minigame.power = 0; minigame.dir = 1; }
+    minigameHud();
   }
 
   function toggleWalk(force) {
@@ -1888,7 +2007,10 @@
         return;
       }
       if (e.key === 'Shift') { WALK.keys['shift'] = true; return; }
-      if (e.code === 'Space' || k2 === ' ') { WALK.jump(); e.preventDefault(); return; }
+      if (e.code === 'Space' || k2 === ' ') {
+        if (minigame.active) { throwArrow(); e.preventDefault(); return; }
+        WALK.jump(); e.preventDefault(); return;
+      }
       if (k2 === 'e') { if (!e.repeat) doInteract(); return; }
       if (k2 === 'p') { if (!e.repeat) takePhoto(); return; }
       if (k2 === 'g') { if (!e.repeat) openAlbum(); return; }
@@ -1901,6 +2023,7 @@
         return;
       }
       if (e.key === 'Escape') {
+        if (minigame.active) { stopMinigame(); return; }
         const ab = document.getElementById('album');
         if (ab && ab.classList.contains('show')) { openAlbum(false); return; }
         const av = document.getElementById('achv');
@@ -2212,6 +2335,7 @@
       updateInteractPrompt();
       updateQuests();
       updateNpcBubble(dt);
+      updateMinigame(dt);
       $('crosshair').style.display = WALK.thirdPerson ? 'none' : 'block';
     } else {
       AVATAR.setVisible(false);
@@ -2339,6 +2463,7 @@
       }
       bindUI();
   initTouch();
+  buildPot();
   (function bindAlbum() {
     const closeBtn = $('albumClose');
     if (closeBtn) closeBtn.addEventListener('click', function () { openAlbum(false); });
@@ -2473,6 +2598,10 @@
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
+    minigameInfo: function () { return { active: minigame.active, power: Math.round(minigame.power * 100) / 100, throws: minigame.throws, score: minigame.score, finished: minigame.finished, best: achievements.potBest || 0 }; },
+    startMinigame: function () { return startMinigame(); },
+    setMinigamePower: function (v) { minigame.power = Math.max(0, Math.min(1, v)); },
+    minigameThrow: function () { return throwArrow(); },
     weatherInfo: function () { return { mode: weather.mode, rain: Math.round(weather.rain * 100) / 100, cloud: Math.round(weather.cloud * 100) / 100, auto: !!settings.weatherAuto }; },
     weatherTick: function (dt) { updateWeather(dt || 0.016); updateTheme(dt || 0.016); draw(); },
     dayCycleInfo: function () { return { on: !!settings.autoCycle, phase: Math.round(dayPhase * 1000) / 1000, theme: currentTheme }; },

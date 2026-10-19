@@ -267,6 +267,24 @@
   .album .spot{font-size:10.5px;letter-spacing:.5px;padding:3px 8px;border:1px solid rgba(216,180,95,.25);color:rgba(230,224,208,.5)}
   .album .spot.on{color:var(--gold);border-color:rgba(216,180,95,.7);background:rgba(216,180,95,.1)}
   #tbPhoto{right:92px;bottom:56px}
+  /* ---------------- 投壶小游戏 ---------------- */
+  .minigame{
+    position:fixed;left:50%;top:104px;transform:translateX(-50%);z-index:10;display:none;
+    width:min(420px,86vw);padding:16px 20px 14px;
+    background:rgba(9,11,15,.82);border:1px solid rgba(216,180,95,.5);
+    backdrop-filter:blur(10px);text-align:center;
+  }
+  .minigame.show{display:block}
+  .minigame .mg-title{font-size:15px;letter-spacing:6px;color:var(--gold)}
+  .minigame .mg-score{font-size:11px;letter-spacing:1px;color:rgba(230,224,208,.65);margin:6px 0 12px}
+  .minigame .mg-bar{position:relative;height:8px;background:rgba(216,180,95,.16);overflow:visible}
+  .minigame .mg-bar i{display:block;height:100%;width:0;background:var(--gold)}
+  .minigame .mg-bar b{position:absolute;left:50%;top:-4px;width:10%;height:16px;transform:translateX(-50%);
+    border-left:1px solid rgba(255,240,200,.7);border-right:1px solid rgba(255,240,200,.7);background:rgba(255,240,200,.12)}
+  .minigame .mg-hint{font-size:10.5px;letter-spacing:1px;color:rgba(230,224,208,.5);margin-top:11px}
+  .minigame .mg-hint b{color:var(--gold);font-weight:500}
+  body.photo .minigame{display:none !important}
+
   /* ---------------- NPC 对话气泡 ---------------- */
   .npcbubble{
     position:fixed;z-index:9;display:none;max-width:250px;
@@ -449,6 +467,13 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="minigame" id="minigame">
+  <div class="mg-title">投壶</div>
+  <div class="mg-score" id="mgScore">0 分 · 第 1 / 3 投</div>
+  <div class="mg-bar"><i id="mgPower"></i><b></b></div>
+  <div class="mg-hint">按 <b>空格</b>（或跳跃键）投出 · <b>Esc</b> 退出</div>
+</div>
+
 <div class="npcbubble" id="npcBubble"><span class="who" id="npcWho">侍卫</span><span id="npcLine"></span></div>
 <div class="achv" id="achv">
   <button class="close" id="achvClose">×</button>
