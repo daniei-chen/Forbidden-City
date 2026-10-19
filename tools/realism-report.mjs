@@ -112,6 +112,23 @@ for (const t of themes) {
   }
   md.push('');
 }
+/* 版本里程碑（从 CHANGELOG 提取） */
+let changelogText = '';
+try { changelogText = fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8'); } catch (e) {}
+const milestones = [];
+for (const line of changelogText.split('\n')) {
+  const mm = line.match(/^## (v[\d.]+) — (.+)$/);
+  if (mm) milestones.push('| ' + mm[1] + ' | ' + mm[2].trim() + ' |');
+}
+if (milestones.length) {
+  md.push('## 2.5 版本里程碑');
+  md.push('');
+  md.push('| 版本 | 主题 |');
+  md.push('| --- | --- |');
+  for (const m of milestones) md.push(m);
+  md.push('');
+}
+
 md.push('## 3. 验收矩阵（16 项）');
 md.push('');
 md.push('| # | 验收标准 | 状态 | 证据 / 说明 |');
