@@ -573,6 +573,83 @@
     }
   }
 
+  /* =========================================================
+   *  日照流转（连续时间变化，约 4 分钟一昼夜）
+   * ======================================================= */
+  const DAY_CYCLE_SECONDS = 240;
+  let dayPhase = 0.08;
+  let daySavedTheme = 'day';
+  let dayEnvName = 'day';
+  const _cyA = new THREE.Color(), _cyB = new THREE.Color();
+  const DAY_KEYS = [
+    { t: 0.00, name: 'day' },
+    { t: 0.30, name: 'dusk' },
+    { t: 0.50, name: 'night' },
+    { t: 0.72, name: 'dusk' },
+    { t: 0.88, name: 'day' },
+    { t: 1.00, name: 'day' }
+  ];
+  function dayCycleBlend(phase) {
+    let i = 0;
+    for (; i < DAY_KEYS.length - 1; i++) {
+      if (phase >= DAY_KEYS[i].t && phase <= DAY_KEYS[i + 1].t) break;
+    }
+    if (i >= DAY_KEYS.length - 1) i = DAY_KEYS.length - 2;
+    const k0 = DAY_KEYS[i], k1 = DAY_KEYS[i + 1];
+    const a = (phase - k0.t) / Math.max(1e-6, k1.t - k0.t);
+    const A = CONFIG.themes[k0.name] || CONFIG.themes.day;
+    const B = CONFIG.themes[k1.name] || CONFIG.themes.day;
+    for (let ci = 0; ci < themeFieldsColor.length; ci++) {
+      const key = themeFieldsColor[ci];
+      _cyA.setHex(A[key]); _cyB.setHex(B[key]);
+      thT[key].copy(_cyA).lerp(_cyB, a);
+    }
+    for (let ni = 0; ni < themeFieldsNumber.length; ni++) {
+      const key = themeFieldsNumber[ni];
+      thT[key] = (A[key] == null ? 0 : A[key]) + ((B[key] == null ? 0 : B[key]) - (A[key] == null ? 0 : A[key])) * a;
+    }
+    thT.sunPos.set(
+      A.sunPos[0] + (B.sunPos[0] - A.sunPos[0]) * a,
+      A.sunPos[1] + (B.sunPos[1] - A.sunPos[1]) * a,
+      A.sunPos[2] + (B.sunPos[2] - A.sunPos[2]) * a
+    );
+    thT.grade.sat = A.grade.sat + (B.grade.sat - A.grade.sat) * a;
+    thT.grade.contrast = A.grade.contrast + (B.grade.contrast - A.grade.contrast) * a;
+    thT.grade.vignette = A.grade.vignette + (B.grade.vignette - A.grade.vignette) * a;
+    thT.grade.grain = A.grade.grain + (B.grade.grain - A.grade.grain) * a;
+    for (let gi = 0; gi < 3; gi++) {
+      thT.grade.tint[gi] = A.grade.tint[gi] + (B.grade.tint[gi] - A.grade.tint[gi]) * a;
+      thT.grade.lift[gi] = A.grade.lift[gi] + (B.grade.lift[gi] - A.grade.lift[gi]) * a;
+    }
+    /* 环境贴图跟随最近的预设切换 */
+    const nearest = a < 0.5 ? k0.name : k1.name;
+    if (nearest !== dayEnvName) {
+      dayEnvName = nearest;
+      updateEnvironment(nearest);
+    }
+  }
+  function updateDayCycle(dt) {
+    if (!settings.autoCycle) return;
+    dayPhase += dt / DAY_CYCLE_SECONDS;
+    if (dayPhase >= 1) dayPhase -= 1;
+    dayCycleBlend(dayPhase);
+  }
+  function setDayCycle(on) {
+    settings.autoCycle = !!on;
+    const oc = $('optAutoCycle');
+    if (oc) oc.checked = settings.autoCycle;
+    if (settings.autoCycle) {
+      daySavedTheme = currentTheme;
+      dayPhase = 0.08;
+      dayEnvName = currentTheme;
+      showToast('日照流转：开启（约 4 分钟一昼夜）', 3000);
+    } else {
+      setTheme(daySavedTheme || 'day');
+      showToast('日照流转：关闭', 2200);
+    }
+    saveSettings();
+  }
+
   const lastSunPos = new THREE.Vector3(1e9, 1e9, 1e9);
   function updateTheme(dt) {
     const k = 1 - Math.exp(-6.0 * dt);
@@ -1532,6 +1609,12 @@
     for (let i = 0; i < themeBtns.length; i++) {
       themeBtns[i].addEventListener('click', function () {
         const name = this.getAttribute('data-theme');
+        if (settings.autoCycle) {
+          settings.autoCycle = false;
+          const oc = $('optAutoCycle');
+          if (oc) oc.checked = false;
+          saveSettings();
+        }
         setTheme(name);
         showToast('时段：' + CONFIG.themes[name].label);
       });
@@ -1614,10 +1697,7 @@
     if (optAutoCycle) {
       optAutoCycle.checked = !!settings.autoCycle;
       optAutoCycle.addEventListener('change', function (e) {
-        settings.autoCycle = e.target.checked;
-        autoCycleT = 0;
-        saveSettings();
-        showToast(e.target.checked ? '自动昼夜：每 150 秒轮换' : '自动昼夜：关闭');
+        setDayCycle(e.target.checked);
       });
     }
     $('optCloud').addEventListener('change', function (e) {
@@ -2046,15 +2126,7 @@
     if (document.hidden) return;
     const dt = Math.min(clock.getDelta(), 0.05);
     pollGamepad(dt);
-    if (settings.autoCycle) {
-      autoCycleT += dt;
-      if (autoCycleT > 150) {
-        autoCycleT = 0;
-        const order = ['day', 'dusk', 'night'];
-        const next = order[(order.indexOf(currentTheme) + 1) % order.length];
-        setTheme(next);
-      }
-    }
+    updateDayCycle(dt);
     if (WALK.active) {
       WALK.update(dt);
       AVATAR.place(WALK.pos, WALK.avatarYaw);
@@ -2142,6 +2214,7 @@
       staticMode = new URLSearchParams(location.search).get('static') === '1';
       if (staticMode) {
         if (typeof EFFECTS !== 'undefined') EFFECTS.staticMode = true;
+        settings.autoCycle = false;
         if (typeof MATS !== 'undefined' && MATS.setSwayStatic) MATS.setSwayStatic();
         if (typeof AVATAR !== 'undefined') AVATAR.setVisible(false);
         if (typeof NPC !== 'undefined' && NPC.group) NPC.group.visible = false;
@@ -2218,7 +2291,8 @@
           ctrl.snapTo(ca, la);
         }
       }
-      if (params.get('walk') === '1') toggleWalk(true);
+      if (params.get('daycycle') === '1') setDayCycle(true);
+  if (params.get('walk') === '1') toggleWalk(true);
       if (params.get('walkdemo') === '1') {
         toggleWalk(true);
         setTimeout(function () {
@@ -2316,6 +2390,10 @@
         setCinema: setCinema,
         toggleLabels: function () { toggleLabels(); },
         startWalk: function () { toggleWalk(true); },
+    setDayCycle: setDayCycle,
+    dayCycleInfo: function () { return { on: !!settings.autoCycle, phase: Math.round(dayPhase * 1000) / 1000, theme: currentTheme }; },
+    setDayPhase: function (v) { dayPhase = Math.max(0, Math.min(0.9999, v)); },
+    dayCycleTick: function (dt) { updateDayCycle(dt || 0.016); updateTheme(dt || 0.016); draw(); },
     pollGamepad: pollGamepad,
     touchEnabled: function () { return touchEnabled; },
     interact: doInteract,
