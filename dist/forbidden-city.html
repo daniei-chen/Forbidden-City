@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.36.0.20261019.0322">
-<meta name="build-time" content="2026-10-19T03:22:08.553Z">
+<meta name="generator" content="forbidden-city-build 5.37.0.20261019.0356">
+<meta name="build-time" content="2026-10-19T03:56:47.325Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T03:22:08.553Z
-  version: 5.36.0.20261019.0322
+  build: 2026-10-19T03:56:47.325Z
+  version: 5.37.0.20261019.0356
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.36.0',
+  version: '5.37.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -5342,11 +5342,11 @@ LAYOUT.meridianGate = function () {
 
   /* 雁翅楼（东西各 13 间） */
   for (let s = -1; s <= 1; s += 2) {
-    BUILD.begin(s * 44, 507, Math.PI / 2);
-    BUILD.corridor({ len: 54, dep: 10, h: 9.5, baseY: 0, rise: 2.2 });
+    BUILD.begin(s * 44, 494.5, Math.PI / 2);
+    BUILD.corridor({ len: 24, dep: 10, h: 9.5, baseY: 0, rise: 2.2 });
     BUILD.end();
     /* 两端方亭（重檐攒尖） */
-    BUILD.begin(s * 44, 536, 0);
+    BUILD.begin(s * 44, 505, 0);
     BUILD.hall({
       baseY: 9.0, bodyW: 8.5, bodyD: 8.5, bodyH: 3.2, bays: 3, noColumns: true,
       layers: 2, facets: 'pyramid',
@@ -5689,6 +5689,19 @@ LAYOUT.moat = function () {
   waterStrip(0, walls.n - 34 - w / 2, 2 * (walls.x + 60), w);
   waterStrip(walls.x + 34 + w / 2, 0, w, 2 * (walls.s - walls.n) + 120);
   waterStrip(-(walls.x + 34 + w / 2), 0, w, 2 * (walls.s - walls.n) + 120);
+  /* 驳岸：压住水面边缘，避免水线悬空 */
+  const bankW = 2 * (walls.x + 60);
+  const bankL = 2 * (walls.s - walls.n) + 120;
+  const bzS = walls.s + 34 + w / 2, bzN = walls.n - 34 - w / 2;
+  const bxE = walls.x + 34 + w / 2, bxW = -(walls.x + 34 + w / 2);
+  for (const dz of [w / 2 + 0.6, -(w / 2 + 0.6)]) {
+    GEOM.box(bankW, 0.5, 1.2, MATS.stoneDark, 0, 0.25, bzS + dz);
+    GEOM.box(bankW, 0.5, 1.2, MATS.stoneDark, 0, 0.25, bzN + dz);
+  }
+  for (const dx of [w / 2 + 0.6, -(w / 2 + 0.6)]) {
+    GEOM.box(1.2, 0.5, bankL, MATS.stoneDark, bxE + dx, 0.25, 0);
+    GEOM.box(1.2, 0.5, bankL, MATS.stoneDark, bxW + dx, 0.25, 0);
+  }
 };
 
 /* =============================================================
@@ -10169,6 +10182,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.36.0.20261019.0322","time":"2026-10-19T03:22:08.553Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.37.0.20261019.0356","time":"2026-10-19T03:56:47.325Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

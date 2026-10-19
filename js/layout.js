@@ -269,11 +269,11 @@ LAYOUT.meridianGate = function () {
 
   /* 雁翅楼（东西各 13 间） */
   for (let s = -1; s <= 1; s += 2) {
-    BUILD.begin(s * 44, 507, Math.PI / 2);
-    BUILD.corridor({ len: 54, dep: 10, h: 9.5, baseY: 0, rise: 2.2 });
+    BUILD.begin(s * 44, 494.5, Math.PI / 2);
+    BUILD.corridor({ len: 24, dep: 10, h: 9.5, baseY: 0, rise: 2.2 });
     BUILD.end();
     /* 两端方亭（重檐攒尖） */
-    BUILD.begin(s * 44, 536, 0);
+    BUILD.begin(s * 44, 505, 0);
     BUILD.hall({
       baseY: 9.0, bodyW: 8.5, bodyD: 8.5, bodyH: 3.2, bays: 3, noColumns: true,
       layers: 2, facets: 'pyramid',
@@ -616,6 +616,19 @@ LAYOUT.moat = function () {
   waterStrip(0, walls.n - 34 - w / 2, 2 * (walls.x + 60), w);
   waterStrip(walls.x + 34 + w / 2, 0, w, 2 * (walls.s - walls.n) + 120);
   waterStrip(-(walls.x + 34 + w / 2), 0, w, 2 * (walls.s - walls.n) + 120);
+  /* 驳岸：压住水面边缘，避免水线悬空 */
+  const bankW = 2 * (walls.x + 60);
+  const bankL = 2 * (walls.s - walls.n) + 120;
+  const bzS = walls.s + 34 + w / 2, bzN = walls.n - 34 - w / 2;
+  const bxE = walls.x + 34 + w / 2, bxW = -(walls.x + 34 + w / 2);
+  for (const dz of [w / 2 + 0.6, -(w / 2 + 0.6)]) {
+    GEOM.box(bankW, 0.5, 1.2, MATS.stoneDark, 0, 0.25, bzS + dz);
+    GEOM.box(bankW, 0.5, 1.2, MATS.stoneDark, 0, 0.25, bzN + dz);
+  }
+  for (const dx of [w / 2 + 0.6, -(w / 2 + 0.6)]) {
+    GEOM.box(1.2, 0.5, bankL, MATS.stoneDark, bxE + dx, 0.25, 0);
+    GEOM.box(1.2, 0.5, bankL, MATS.stoneDark, bxW + dx, 0.25, 0);
+  }
 };
 
 /* =============================================================
