@@ -1642,8 +1642,29 @@
       }
     }
     if (typeof EFFECTS !== 'undefined' && EFFECTS.setRain) EFFECTS.setRain(weather.rain);
+    if (typeof MATS !== 'undefined') applyWetMaterials(weather.rain);
     if (typeof AUDIO !== 'undefined' && AUDIO.setRain) AUDIO.setRain(weather.rain);
     return weather;
+  }
+  /* 雨天湿润：地面材质变暗、粗糙度降低、反射增强 */
+  const WET_MATS = ['paving', 'marble', 'marbleRail', 'stoneDark', 'terraceTop', 'brick', 'path', 'groundMottle'];
+  const WET_COLOR = new THREE.Color(0x6d6a63);
+  function applyWetMaterials(rain) {
+    for (let i = 0; i < WET_MATS.length; i++) {
+      const m = MATS[WET_MATS[i]];
+      if (!m) continue;
+      if (m.__wetRough == null) {
+        m.__wetRough = (m.roughness == null ? 1 : m.roughness);
+        m.__wetEnv = (m.envMapIntensity == null ? 1 : m.envMapIntensity);
+        m.__wetColor = m.color ? m.color.clone() : null;
+      }
+      if (m.roughness != null) m.roughness = m.__wetRough * (1 - rain * 0.45) + 0.12 * rain;
+      m.envMapIntensity = m.__wetEnv + (1.5 - m.__wetEnv) * rain;
+      if (m.__wetColor && m.color) {
+        m.color.copy(m.__wetColor).lerp(WET_COLOR, rain * 0.35);
+      }
+      m.needsUpdate = false;
+    }
   }
   /* 天气对光照/天空/雾的叠加（在主题更新后调用） */
   const WEATHER_GREY = new THREE.Color(0x9aa4ac);

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.15.0.20261019.1504">
-<meta name="build-time" content="2026-10-19T15:04:28.491Z">
+<meta name="generator" content="forbidden-city-build 6.16.0.20261019.1523">
+<meta name="build-time" content="2026-10-19T15:23:08.080Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T15:04:28.491Z
-  version: 6.15.0.20261019.1504
+  build: 2026-10-19T15:23:08.080Z
+  version: 6.16.0.20261019.1523
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -620,7 +620,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.15.0',
+  version: '6.16.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -8121,6 +8121,7 @@ const EFFECTS = {
     this.initLanterns(scene);
     this.initCloudShadows(scene);
     this.initRain(scene);
+    this.initSplashes(scene);
   },
 
   /* ---------------- 雨（雨丝线段） ---------------- */
@@ -8177,6 +8178,72 @@ const EFFECTS = {
       arr[o + 3] = px + 0.03; arr[o + 4] = d.y - d.len * 6; arr[o + 5] = pz;
     }
     lines.geometry.attributes.position.needsUpdate = true;
+  },
+
+  /* ---------------- 雨点溅落水花 ---------------- */
+  splashPool: null,
+  initSplashes: function (scene) {
+    const cv = document.createElement('canvas');
+    cv.width = 64; cv.height = 64;
+    const g = cv.getContext('2d');
+    g.clearRect(0, 0, 64, 64);
+    g.strokeStyle = 'rgba(200,225,240,0.9)';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(32, 32, 22, 0, 6.283);
+    g.stroke();
+    g.strokeStyle = 'rgba(200,225,240,0.45)';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(32, 32, 13, 0, 6.283);
+    g.stroke();
+    const tex = new THREE.CanvasTexture(cv);
+    tex.needsUpdate = true;
+    const pool = [];
+    for (let i = 0; i < 26; i++) {
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false });
+      const sp = new THREE.Sprite(mat);
+      sp.scale.set(0.5, 0.25, 1);
+      sp.visible = false;
+      scene.add(sp);
+      pool.push({ sp: sp, life: 0, ttl: 0.42 });
+    }
+    this.splashPool = pool;
+  },
+  updateSplashes: function (dt, camera) {
+    const pool = this.splashPool;
+    if (!pool) return;
+    const rain = this.rainAmt || 0;
+    const cx = camera ? camera.position.x : 0;
+    const cz = camera ? camera.position.z : 0;
+    /* 生成 */
+    if (rain > 0.18) {
+      const want = Math.floor(rain * 5 * Math.min(1, dt * 60));
+      for (let k = 0; k < want; k++) {
+        for (let i = 0; i < pool.length; i++) {
+          const h = pool[i];
+          if (h.life > 0) continue;
+          h.life = h.ttl = 0.34 + Math.random() * 0.22;
+          h.sp.position.set(
+            cx + (Math.random() - 0.5) * 26,
+            0.05,
+            cz + (Math.random() - 0.5) * 26
+          );
+          h.sp.material.opacity = 0.55;
+          h.sp.visible = true;
+          break;
+        }
+      }
+    }
+    for (let i = 0; i < pool.length; i++) {
+      const h = pool[i];
+      if (h.life <= 0) continue;
+      h.life -= dt;
+      if (h.life <= 0) { h.sp.visible = false; h.sp.material.opacity = 0; continue; }
+      const k2 = 1 - h.life / h.ttl;
+      h.sp.scale.set(0.4 + k2 * 0.9, 0.2 + k2 * 0.42, 1);
+      h.sp.material.opacity = (1 - k2) * 0.55;
+    }
   },
 
   /* ---------------- 云影（地面移动阴影） ---------------- */
@@ -8675,6 +8742,8 @@ const EFFECTS = {
       if (this.birds) this.birds.visible = false;
       if (this.lanternBodies) this.lanternBodies.visible = false;
       if (this.butterflies) this.butterflies.visible = false;
+      if (this.rain) this.rain.visible = false;
+      if (this.splashPool) { for (let si = 0; si < this.splashPool.length; si++) this.splashPool[si].sp.visible = false; }
       if (this.lanternCaps) this.lanternCaps.visible = false;
       if (this.lanternPosts) this.lanternPosts.visible = false;
       if (this.cloudShadows) {
@@ -8684,6 +8753,10 @@ const EFFECTS = {
       return;
     }
     this.snowAmount = st.snow;
+    this.updateHearts(dt);
+    var camRef = (window.__app && window.__app.camera) ? window.__app.camera : null;
+    this.updateRain(dt, camRef);
+    this.updateSplashes(dt, camRef);
     this.updateBirds(dt, st);
     this.updateLeaves(dt, st);
     this.updateLanterns(dt);
@@ -11056,8 +11129,29 @@ const ASSETS = {
       }
     }
     if (typeof EFFECTS !== 'undefined' && EFFECTS.setRain) EFFECTS.setRain(weather.rain);
+    if (typeof MATS !== 'undefined') applyWetMaterials(weather.rain);
     if (typeof AUDIO !== 'undefined' && AUDIO.setRain) AUDIO.setRain(weather.rain);
     return weather;
+  }
+  /* 雨天湿润：地面材质变暗、粗糙度降低、反射增强 */
+  const WET_MATS = ['paving', 'marble', 'marbleRail', 'stoneDark', 'terraceTop', 'brick', 'path', 'groundMottle'];
+  const WET_COLOR = new THREE.Color(0x6d6a63);
+  function applyWetMaterials(rain) {
+    for (let i = 0; i < WET_MATS.length; i++) {
+      const m = MATS[WET_MATS[i]];
+      if (!m) continue;
+      if (m.__wetRough == null) {
+        m.__wetRough = (m.roughness == null ? 1 : m.roughness);
+        m.__wetEnv = (m.envMapIntensity == null ? 1 : m.envMapIntensity);
+        m.__wetColor = m.color ? m.color.clone() : null;
+      }
+      if (m.roughness != null) m.roughness = m.__wetRough * (1 - rain * 0.45) + 0.12 * rain;
+      m.envMapIntensity = m.__wetEnv + (1.5 - m.__wetEnv) * rain;
+      if (m.__wetColor && m.color) {
+        m.color.copy(m.__wetColor).lerp(WET_COLOR, rain * 0.35);
+      }
+      m.needsUpdate = false;
+    }
   }
   /* 天气对光照/天空/雾的叠加（在主题更新后调用） */
   const WEATHER_GREY = new THREE.Color(0x9aa4ac);
@@ -12190,6 +12284,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.15.0.20261019.1504","time":"2026-10-19T15:04:28.491Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.16.0.20261019.1523","time":"2026-10-19T15:23:08.080Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

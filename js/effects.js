@@ -107,6 +107,7 @@ const EFFECTS = {
     this.initLanterns(scene);
     this.initCloudShadows(scene);
     this.initRain(scene);
+    this.initSplashes(scene);
   },
 
   /* ---------------- 雨（雨丝线段） ---------------- */
@@ -163,6 +164,72 @@ const EFFECTS = {
       arr[o + 3] = px + 0.03; arr[o + 4] = d.y - d.len * 6; arr[o + 5] = pz;
     }
     lines.geometry.attributes.position.needsUpdate = true;
+  },
+
+  /* ---------------- 雨点溅落水花 ---------------- */
+  splashPool: null,
+  initSplashes: function (scene) {
+    const cv = document.createElement('canvas');
+    cv.width = 64; cv.height = 64;
+    const g = cv.getContext('2d');
+    g.clearRect(0, 0, 64, 64);
+    g.strokeStyle = 'rgba(200,225,240,0.9)';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(32, 32, 22, 0, 6.283);
+    g.stroke();
+    g.strokeStyle = 'rgba(200,225,240,0.45)';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(32, 32, 13, 0, 6.283);
+    g.stroke();
+    const tex = new THREE.CanvasTexture(cv);
+    tex.needsUpdate = true;
+    const pool = [];
+    for (let i = 0; i < 26; i++) {
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false });
+      const sp = new THREE.Sprite(mat);
+      sp.scale.set(0.5, 0.25, 1);
+      sp.visible = false;
+      scene.add(sp);
+      pool.push({ sp: sp, life: 0, ttl: 0.42 });
+    }
+    this.splashPool = pool;
+  },
+  updateSplashes: function (dt, camera) {
+    const pool = this.splashPool;
+    if (!pool) return;
+    const rain = this.rainAmt || 0;
+    const cx = camera ? camera.position.x : 0;
+    const cz = camera ? camera.position.z : 0;
+    /* 生成 */
+    if (rain > 0.18) {
+      const want = Math.floor(rain * 5 * Math.min(1, dt * 60));
+      for (let k = 0; k < want; k++) {
+        for (let i = 0; i < pool.length; i++) {
+          const h = pool[i];
+          if (h.life > 0) continue;
+          h.life = h.ttl = 0.34 + Math.random() * 0.22;
+          h.sp.position.set(
+            cx + (Math.random() - 0.5) * 26,
+            0.05,
+            cz + (Math.random() - 0.5) * 26
+          );
+          h.sp.material.opacity = 0.55;
+          h.sp.visible = true;
+          break;
+        }
+      }
+    }
+    for (let i = 0; i < pool.length; i++) {
+      const h = pool[i];
+      if (h.life <= 0) continue;
+      h.life -= dt;
+      if (h.life <= 0) { h.sp.visible = false; h.sp.material.opacity = 0; continue; }
+      const k2 = 1 - h.life / h.ttl;
+      h.sp.scale.set(0.4 + k2 * 0.9, 0.2 + k2 * 0.42, 1);
+      h.sp.material.opacity = (1 - k2) * 0.55;
+    }
   },
 
   /* ---------------- 云影（地面移动阴影） ---------------- */
@@ -661,6 +728,8 @@ const EFFECTS = {
       if (this.birds) this.birds.visible = false;
       if (this.lanternBodies) this.lanternBodies.visible = false;
       if (this.butterflies) this.butterflies.visible = false;
+      if (this.rain) this.rain.visible = false;
+      if (this.splashPool) { for (let si = 0; si < this.splashPool.length; si++) this.splashPool[si].sp.visible = false; }
       if (this.lanternCaps) this.lanternCaps.visible = false;
       if (this.lanternPosts) this.lanternPosts.visible = false;
       if (this.cloudShadows) {
@@ -670,6 +739,10 @@ const EFFECTS = {
       return;
     }
     this.snowAmount = st.snow;
+    this.updateHearts(dt);
+    var camRef = (window.__app && window.__app.camera) ? window.__app.camera : null;
+    this.updateRain(dt, camRef);
+    this.updateSplashes(dt, camRef);
     this.updateBirds(dt, st);
     this.updateLeaves(dt, st);
     this.updateLanterns(dt);
