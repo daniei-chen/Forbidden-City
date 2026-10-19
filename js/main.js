@@ -246,6 +246,32 @@
   sunGlow.scale.set(320, 320, 1);
   scene.add(sunGlow);
 
+  /* 太阳圆盘 */
+  const sunDiskMat = new THREE.SpriteMaterial({
+    map: TEX.dot(), color: 0xfff6dc, transparent: true, opacity: 0,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  const sunDisk = new THREE.Sprite(sunDiskMat);
+  sunDisk.scale.set(46, 46, 1);
+  scene.add(sunDisk);
+
+  /* 月亮 + 月晕 */
+  const moonMat = new THREE.SpriteMaterial({
+    map: TEX.dot(), color: 0xe8f1ff, transparent: true, opacity: 0, depthWrite: false
+  });
+  const moon = new THREE.Sprite(moonMat);
+  moon.scale.set(86, 86, 1);
+  moon.position.set(120, 300, -2100);
+  scene.add(moon);
+  const moonGlowMat = new THREE.SpriteMaterial({
+    map: TEX.dot(), color: 0x8fa8d8, transparent: true, opacity: 0,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  const moonGlow = new THREE.Sprite(moonGlowMat);
+  moonGlow.scale.set(420, 420, 1);
+  moonGlow.position.copy(moon.position);
+  scene.add(moonGlow);
+
   const cloudGroup = new THREE.Group();
   scene.add(cloudGroup);
   const clouds = [];
@@ -582,6 +608,10 @@
     }
     sun.position.copy(th.sunPos);
     sunGlow.position.copy(th.sunPos.clone().normalize().multiplyScalar(2600));
+    sunDisk.position.copy(sunGlow.position);
+    sunDiskMat.opacity = (1 - Math.min(1, Math.max(0, th.stars))) * 0.92;
+    moonMat.opacity = Math.min(1, Math.max(0, th.stars)) * 0.95;
+    moonGlowMat.opacity = Math.min(1, Math.max(0, th.stars)) * 0.16;
 
     MATS.setSnow(th.snow);
     MATS.setNightGlow(th.windowGlow);

@@ -101,3 +101,4 @@ pm run smoke` → ④ 多机位截图 → ⑤ 更新文档/版本 → ⑥ 记录
 | R41 | 广场麻雀（InstancedMesh，靠近飞走）| 冒烟 + harness |
 | R42 | 远景树线剪影环 | 冒烟 + harness |
 | R43 | 树叶随风摆动（顶点注入）| 冒烟 + harness |
+| R44 | 太阳圆盘 + 月亮/月晕 | 冒烟 + harness |
