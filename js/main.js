@@ -1339,6 +1339,7 @@
     }
     MATS.water.map.offset.x -= dt * 0.004;
     MATS.water.map.offset.y += dt * 0.0022;
+    if (!staticMode) MATS.updateSway(performance.now() * 0.001);
     EFFECTS.update(dt, th);
     if (!staticMode) NPC.update(dt);
 
@@ -1402,6 +1403,7 @@
       staticMode = new URLSearchParams(location.search).get('static') === '1';
       if (staticMode) {
         if (typeof EFFECTS !== 'undefined') EFFECTS.staticMode = true;
+        if (typeof MATS !== 'undefined' && MATS.setSwayStatic) MATS.setSwayStatic();
         if (typeof AVATAR !== 'undefined') AVATAR.setVisible(false);
         if (typeof NPC !== 'undefined' && NPC.group) NPC.group.visible = false;
       }

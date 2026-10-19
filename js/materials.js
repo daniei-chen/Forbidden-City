@@ -183,6 +183,12 @@ MATS.water.envMapIntensity = 1.35;
   MATS.addSnow(MATS.leafLight, 0.22, 0.95);
   MATS.addSnow(MATS.trunk, 0.24, 0.95);
 
+/* 树冠摆动 */
+MATS.addSway(MATS.leaf, 0.05);
+MATS.addSway(MATS.leafLight, 0.055);
+MATS.addSway(MATS.leafDark || MATS.leaf, 0.05);
+MATS.addSway(MATS.leafCard, 0.075);
+
   /* ---- 夜间窗光 ---- */
   MATS.addNightGlow(MATS.facade9, 0.95);
   MATS.addNightGlow(MATS.facade11, 0.95);
@@ -226,6 +232,39 @@ MATS.setSnow = function (v) {
     if (u) u.value = v;
   }
 };
+
+/* =============================================================
+ *  树叶随风摆动（顶点着色器注入，静态评测时可冻结）
+ * ============================================================ */
+MATS.swayMats = [];
+MATS.addSway = function (mat, amp) {
+  const a = (amp == null ? 0.06 : amp).toFixed(3);
+  const prevCompile = mat.onBeforeCompile;
+  const prevKey = mat.customProgramCacheKey;
+  mat.onBeforeCompile = function (shader) {
+    if (prevCompile) prevCompile.call(mat, shader);
+    shader.uniforms.uTime = { value: 0 };
+    mat.userData.uTime = shader.uniforms.uTime;
+    shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\n' +
+      '  float swayW = smoothstep(0.0, 5.0, position.y);\n' +
+      '  transformed.x += sin(uTime * 1.6 + position.z * 0.12 + position.y * 0.07) * ' + a + ' * swayW;\n' +
+      '  transformed.z += cos(uTime * 1.25 + position.x * 0.1 + position.y * 0.05) * ' + a + ' * 0.7 * swayW;'
+    );
+  };
+  mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(mat) : '') + '|sway_' + a; };
+  MATS.swayMats.push(mat);
+  mat.needsUpdate = true;
+};
+MATS.updateSway = function (t) {
+  for (let i = 0; i < MATS.swayMats.length; i++) {
+    const u = MATS.swayMats[i].userData.uTime;
+    if (u) u.value = t;
+  }
+};
+MATS.setSwayStatic = function () { MATS.updateSway(0); };
 
 /* =============================================================
  *  夜间窗光
