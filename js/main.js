@@ -746,6 +746,7 @@
       $('btnTour').classList.remove('on');
       const nb = $('npcBubble'); if (nb) nb.classList.remove('show');
       stopMinigame(true);
+      closeRiddle();
       ctrl.syncFromCamera();
       if (restore !== false) ctrl.setView(VIEWS[currentView], false);
     },
@@ -1052,6 +1053,13 @@
       nearInteractive = null;
       return;
     }
+    const rs = nearRiddle();
+    if (rs) {
+      el.classList.add('show');
+      if (lab) lab.textContent = '猜灯谜';
+      nearInteractive = null;
+      return;
+    }
     const catIdx = nearestCat();
     if (catIdx != null) {
       el.classList.add('show');
@@ -1077,6 +1085,7 @@
       achievements.photos = savedA.photos || 0;
       achievements.potBest = savedA.potBest || 0;
       achievements.potGames = savedA.potGames || 0;
+      achievements.riddles = Array.isArray(savedA.riddles) ? savedA.riddles : [];
     }
   } catch (e) {}
   function achievementsSave() {
@@ -1095,6 +1104,7 @@
   function doInteract() {
     if (!WALK.active) return;
     if (nearPot()) { startMinigame(); return; }
+    if (nearRiddle()) { openRiddle(); return; }
     const ci = nearestCat();
     if (ci != null && typeof NPC !== 'undefined' && NPC.feedCatNear) {
       const fed = NPC.feedCatNear(WALK.pos.x, WALK.pos.z, 3.6);
@@ -1444,6 +1454,7 @@
       { name: '御用摄影师', ok: spots >= DISCOVERIES.length },
       { name: '猫薄荷', ok: feeds >= 5 },
       { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
+      { name: '灯谜雅士', ok: (achievements.riddles || []).length >= 3 },
       { name: '紫禁城居民', ok: disc >= 10 && questsDone >= 3 && spots >= 10 }
     ];
     const rows = [
@@ -1762,6 +1773,111 @@
     minigameHud();
   }
 
+  /* =========================================================
+   *  猜灯谜（宫灯互动）
+   * ======================================================= */
+  const RIDDLE_SPOTS = [
+    { x: 0, z: -160, r: 3.6, idx: 0 },
+    { x: 0, z: -320, r: 3.8, idx: 1 },
+    { x: 0, z: 240, r: 3.6, idx: 2 }
+  ];
+  const RIDDLES = [
+    {
+      q: '千条线，万条线，掉到水里看不见。（打一自然现象）',
+      opts: ['雨', '风', '雪'],
+      ans: 0
+    },
+    {
+      q: '五个兄弟，住在一起，名字不同，高矮不齐。（打一身体部位）',
+      opts: ['牙齿', '手指', '脚趾'],
+      ans: 1
+    },
+    {
+      q: '有面没有口，有脚没有手，虽有四只脚，自己不会走。（打一物）',
+      opts: ['椅子', '桌子', '铜缸'],
+      ans: 1
+    }
+  ];
+  const riddle = { active: false, spot: -1, riddleIdx: -1 };
+  function solvedRiddles() {
+    if (!Array.isArray(achievements.riddles)) achievements.riddles = achievements.riddles || [];
+    return achievements.riddles;
+  }
+  function nearRiddle() {
+    if (!WALK.active) return null;
+    for (let i = 0; i < RIDDLE_SPOTS.length; i++) {
+      const s = RIDDLE_SPOTS[i];
+      if (Math.hypot(WALK.pos.x - s.x, WALK.pos.z - s.z) < s.r) return s;
+    }
+    return null;
+  }
+  function renderRiddle() {
+    const el = $('riddle');
+    if (!el) return;
+    if (!riddle.active) { el.classList.remove('show'); return; }
+    const r = RIDDLES[riddle.riddleIdx];
+    if (!r) { el.classList.remove('show'); return; }
+    const q = $('rdQ'), opts = $('rdOpts'), head = $('rdHead');
+    if (head) head.textContent = '宫灯 · 灯谜（' + (solvedRiddles().length) + '/3 已解）';
+    if (q) q.textContent = r.q;
+    if (opts) {
+      let html = '';
+      for (let i = 0; i < r.opts.length; i++) {
+        html += '<div class="rd-opt" data-i="' + i + '"><b>' + (i + 1) + '</b><span>' + r.opts[i] + '</span></div>';
+      }
+      opts.innerHTML = html;
+      const items = opts.querySelectorAll('.rd-opt');
+      for (let k = 0; k < items.length; k++) {
+        items[k].addEventListener('click', function () {
+          answerRiddle(parseInt(this.getAttribute('data-i'), 10));
+        });
+      }
+    }
+    el.classList.add('show');
+  }
+  function openRiddle() {
+    const s = nearRiddle();
+    if (!s) return false;
+    const solved = solvedRiddles();
+    if (solved.indexOf(s.idx) >= 0) {
+      showToast('这盏宫灯的谜题已经解开了（' + solved.length + '/3）', 2600);
+      return false;
+    }
+    riddle.active = true;
+    riddle.spot = s.idx;
+    riddle.riddleIdx = s.idx;
+    renderRiddle();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    return true;
+  }
+  function closeRiddle() {
+    riddle.active = false;
+    const el = $('riddle');
+    if (el) el.classList.remove('show');
+  }
+  function answerRiddle(i) {
+    if (!riddle.active) return null;
+    const r = RIDDLES[riddle.riddleIdx];
+    if (!r) return null;
+    const solved = solvedRiddles();
+    let ok = false;
+    if (i === r.ans) {
+      ok = true;
+      if (solved.indexOf(riddle.riddleIdx) < 0) solved.push(riddle.riddleIdx);
+      achievementsSave();
+      showToast('答对了！' + (i === r.ans ? '' : '') + '（已解 ' + solved.length + '/3）', 3000);
+      if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+      if (solved.length >= 3) {
+        setTimeout(function () { showToast('称号达成 · 灯谜雅士（三盏宫灯谜题全解）', 5200); }, 3200);
+      }
+      closeRiddle();
+    } else {
+      showToast('不对，再想想（提示：' + r.opts.join(' / ') + '）', 3200);
+      if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    }
+    return { ok: ok, solved: solved.length };
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -1999,6 +2115,14 @@
   window.addEventListener('keydown', function (e) {
     const tag = (e.target && e.target.tagName) || '';
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (riddle.active) {
+      if (e.key === '1' || e.key === '2' || e.key === '3') {
+        answerRiddle(parseInt(e.key, 10) - 1);
+        e.preventDefault();
+        return;
+      }
+      if (e.key === 'Escape') { closeRiddle(); e.preventDefault(); return; }
+    }
     if (WALK.active) {
       const k2 = (e.key || '').toLowerCase();
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].indexOf(k2) >= 0) {
@@ -2599,6 +2723,9 @@
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
     minigameInfo: function () { return { active: minigame.active, power: Math.round(minigame.power * 100) / 100, throws: minigame.throws, score: minigame.score, finished: minigame.finished, best: achievements.potBest || 0 }; },
+    riddleInfo: function () { return { active: riddle.active, idx: riddle.riddleIdx, solved: (achievements.riddles || []).slice(), near: !!nearRiddle() }; },
+    openRiddle: function () { return openRiddle(); },
+    answerRiddle: function (i) { return answerRiddle(i); },
     startMinigame: function () { return startMinigame(); },
     setMinigamePower: function (v) { minigame.power = Math.max(0, Math.min(1, v)); },
     minigameThrow: function () { return throwArrow(); },
