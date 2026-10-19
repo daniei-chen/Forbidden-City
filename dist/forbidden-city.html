@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.27.0.20261019.1846">
-<meta name="build-time" content="2026-10-19T18:46:23.912Z">
+<meta name="generator" content="forbidden-city-build 6.28.0.20261019.1903">
+<meta name="build-time" content="2026-10-19T19:03:27.979Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T18:46:23.912Z
-  version: 6.27.0.20261019.1846
+  build: 2026-10-19T19:03:27.979Z
+  version: 6.28.0.20261019.1903
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -667,7 +667,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.27.0',
+  version: '6.28.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -4525,6 +4525,8 @@ const AUDIO = {
       this._noiseBurst(0.05, (running ? 1400 : 1650) + Math.random() * 400, 0.03 * v, 'bandpass');
     } else if (s === 'grass') {
       this._noiseBurst(0.11, 260 + Math.random() * 120, 0.036 * v, 'lowpass');
+    } else if (s === 'stairs') {
+      this._noiseBurst(0.045, 1150 + Math.random() * 250, 0.03 * v, 'bandpass');
     } else if (s === 'wet') {
       this._noiseBurst(0.1, 700 + Math.random() * 300, 0.05 * v, 'bandpass');
       this._noiseBurst(0.06, 1800 + Math.random() * 500, 0.018 * v, 'bandpass');
@@ -4541,7 +4543,8 @@ const AUDIO = {
 
   land: function (surface) {
     const s = surface || 'stone';
-    if (s === 'snow') this._noiseBurst(0.2, 700, 0.075, 'lowpass');
+    if (s === 'stairs') this._noiseBurst(0.1, 1200, 0.05, 'bandpass');
+    else if (s === 'snow') this._noiseBurst(0.2, 700, 0.075, 'lowpass');
     else if (s === 'marble') this._noiseBurst(0.12, 1500, 0.06, 'bandpass');
     else if (s === 'grass') this._noiseBurst(0.16, 240, 0.065, 'lowpass');
     else this._noiseBurst(0.14, 200, 0.07, 'lowpass');
@@ -4602,6 +4605,28 @@ const AUDIO = {
       g.gain.exponentialRampToValueAtTime(0.0001, s + 0.7);
       o.connect(g); g.connect(this.master);
       o.start(s); o.stop(s + 0.75);
+    }
+  },
+
+  /* 风铃：高频清脆分音 */
+  windchime: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.02;
+    const notes = [1567.98, 1760, 1975.53, 2349.32, 2637.02];
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const f = notes[Math.floor(Math.random() * notes.length)];
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      o.frequency.value = f;
+      const s = t0 + i * (0.08 + Math.random() * 0.18);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.016, s + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 1.4 + Math.random() * 0.8);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 2.3);
     }
   },
 
@@ -8012,6 +8037,9 @@ const WALK = {
   /* 脚下材质：snow / marble（台基殿内）/ grass（御花园）/ stone（石板） */
   surfaceAt: function (x, z) {
     if (typeof EFFECTS !== 'undefined' && EFFECTS.snowAmount > 0.5) return 'snow';
+    /* 三台台阶 / 保和殿后台阶：踏跺石阶 */
+    if (Math.abs(x) <= 34 && z > 112 && z <= 146) return 'stairs';
+    if (Math.abs(x) <= 13 && z >= -107 && z < -83) return 'stairs';
     if (this.groundAt(x, z) > 6) return 'marble';
     if (z < -290 && Math.abs(x) < 140) return 'grass';
     return 'stone';
@@ -11836,7 +11864,8 @@ const ASSETS = {
     bell: { t: 40 + Math.random() * 60, n: 0 },
     pigeon: { t: 18 + Math.random() * 30, n: 0 },
     meow: { t: 15 + Math.random() * 20, n: 0 },
-    drip: { t: 1, n: 0 }
+    drip: { t: 1, n: 0 },
+    windchime: { t: 12 + Math.random() * 18, n: 0 }
   };
   function updateAmbientAudio(dt) {
     if (typeof AUDIO === 'undefined' || !AUDIO.ready) return;
@@ -11874,6 +11903,15 @@ const ASSETS = {
       if (near < 12) {
         AMBIENT.meow.n++;
         if (AUDIO.meow) AUDIO.meow();
+      }
+    }
+
+    AMBIENT.windchime.t -= dt;
+    if (AMBIENT.windchime.t <= 0) {
+      AMBIENT.windchime.t = 16 + Math.random() * 26;
+      if (zone !== 'interior' && rain < 0.4) {
+        AMBIENT.windchime.n++;
+        if (AUDIO.windchime) AUDIO.windchime();
       }
     }
 
@@ -13082,7 +13120,7 @@ const ASSETS = {
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
-    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
+    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
@@ -13150,6 +13188,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.27.0.20261019.1846","time":"2026-10-19T18:46:23.912Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.28.0.20261019.1903","time":"2026-10-19T19:03:27.979Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

@@ -101,6 +101,9 @@ const WALK = {
   /* 脚下材质：snow / marble（台基殿内）/ grass（御花园）/ stone（石板） */
   surfaceAt: function (x, z) {
     if (typeof EFFECTS !== 'undefined' && EFFECTS.snowAmount > 0.5) return 'snow';
+    /* 三台台阶 / 保和殿后台阶：踏跺石阶 */
+    if (Math.abs(x) <= 34 && z > 112 && z <= 146) return 'stairs';
+    if (Math.abs(x) <= 13 && z >= -107 && z < -83) return 'stairs';
     if (this.groundAt(x, z) > 6) return 'marble';
     if (z < -290 && Math.abs(x) < 140) return 'grass';
     return 'stone';

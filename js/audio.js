@@ -156,6 +156,8 @@ const AUDIO = {
       this._noiseBurst(0.05, (running ? 1400 : 1650) + Math.random() * 400, 0.03 * v, 'bandpass');
     } else if (s === 'grass') {
       this._noiseBurst(0.11, 260 + Math.random() * 120, 0.036 * v, 'lowpass');
+    } else if (s === 'stairs') {
+      this._noiseBurst(0.045, 1150 + Math.random() * 250, 0.03 * v, 'bandpass');
     } else if (s === 'wet') {
       this._noiseBurst(0.1, 700 + Math.random() * 300, 0.05 * v, 'bandpass');
       this._noiseBurst(0.06, 1800 + Math.random() * 500, 0.018 * v, 'bandpass');
@@ -172,7 +174,8 @@ const AUDIO = {
 
   land: function (surface) {
     const s = surface || 'stone';
-    if (s === 'snow') this._noiseBurst(0.2, 700, 0.075, 'lowpass');
+    if (s === 'stairs') this._noiseBurst(0.1, 1200, 0.05, 'bandpass');
+    else if (s === 'snow') this._noiseBurst(0.2, 700, 0.075, 'lowpass');
     else if (s === 'marble') this._noiseBurst(0.12, 1500, 0.06, 'bandpass');
     else if (s === 'grass') this._noiseBurst(0.16, 240, 0.065, 'lowpass');
     else this._noiseBurst(0.14, 200, 0.07, 'lowpass');
@@ -233,6 +236,28 @@ const AUDIO = {
       g.gain.exponentialRampToValueAtTime(0.0001, s + 0.7);
       o.connect(g); g.connect(this.master);
       o.start(s); o.stop(s + 0.75);
+    }
+  },
+
+  /* 风铃：高频清脆分音 */
+  windchime: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.02;
+    const notes = [1567.98, 1760, 1975.53, 2349.32, 2637.02];
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const f = notes[Math.floor(Math.random() * notes.length)];
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      o.frequency.value = f;
+      const s = t0 + i * (0.08 + Math.random() * 0.18);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.016, s + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 1.4 + Math.random() * 0.8);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 2.3);
     }
   },
 

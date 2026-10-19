@@ -1952,7 +1952,8 @@
     bell: { t: 40 + Math.random() * 60, n: 0 },
     pigeon: { t: 18 + Math.random() * 30, n: 0 },
     meow: { t: 15 + Math.random() * 20, n: 0 },
-    drip: { t: 1, n: 0 }
+    drip: { t: 1, n: 0 },
+    windchime: { t: 12 + Math.random() * 18, n: 0 }
   };
   function updateAmbientAudio(dt) {
     if (typeof AUDIO === 'undefined' || !AUDIO.ready) return;
@@ -1990,6 +1991,15 @@
       if (near < 12) {
         AMBIENT.meow.n++;
         if (AUDIO.meow) AUDIO.meow();
+      }
+    }
+
+    AMBIENT.windchime.t -= dt;
+    if (AMBIENT.windchime.t <= 0) {
+      AMBIENT.windchime.t = 16 + Math.random() * 26;
+      if (zone !== 'interior' && rain < 0.4) {
+        AMBIENT.windchime.n++;
+        if (AUDIO.windchime) AUDIO.windchime();
       }
     }
 
@@ -3198,7 +3208,7 @@
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
-    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
+    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
