@@ -1226,6 +1226,116 @@
     bindBtn('tbRun', function () { WALK.keys['shift'] = true; }, function () { WALK.keys['shift'] = false; });
     bindBtn('tbView', function () { WALK.toggleView(); });
     bindBtn('tbInteract', function () { doInteract(); });
+    bindBtn('tbPhoto', function () { takePhoto(); });
+  }
+
+  /* =========================================================
+   *  拍照 / 相册（P 拍照 · G 相册 · 10 处地标打卡）
+   * ======================================================= */
+  const PHOTO_KEY = 'forbidden-city-photos-v1';
+  const album = [];
+  const photoSpots = {};   /* DISCOVERIES 索引 -> 已打卡 */
+  try {
+    const savedP = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}');
+    if (savedP && typeof savedP === 'object') {
+      if (Array.isArray(savedP.spots)) savedP.spots.forEach(function (i) { photoSpots[i] = true; });
+      if (typeof savedP.count === 'number') achievements.photos = savedP.count;
+    }
+  } catch (e) {}
+  function photoSave() {
+    try {
+      localStorage.setItem(PHOTO_KEY, JSON.stringify({ count: achievements.photos, spots: Object.keys(photoSpots).map(Number) }));
+    } catch (e) {}
+  }
+  function photoSpotAt() {
+    for (let i = 0; i < DISCOVERIES.length; i++) {
+      const d = DISCOVERIES[i];
+      if (Math.hypot(d.x - WALK.pos.x, d.z - WALK.pos.z) < Math.max(28, d.r + 6)) return i;
+    }
+    return -1;
+  }
+  function takePhoto() {
+    if (!WALK.active) return null;
+    const fl = $('photoFlash');
+    if (fl) { fl.classList.add('on'); setTimeout(function () { fl.classList.remove('on'); }, 130); }
+    /* 抓取当前画面（后处理已绘制到主 canvas） */
+    let full = '';
+    try {
+      if (typeof draw === 'function') draw(); else renderer.render(scene, camera);
+      full = renderer.domElement.toDataURL('image/jpeg', 0.92);
+    } catch (e) { full = ''; }
+    /* 缩略图（相册用，降低内存） */
+    let thumb = full;
+    try {
+      const cv = document.createElement('canvas');
+      cv.width = 480; cv.height = 270;
+      const g2 = cv.getContext('2d');
+      g2.drawImage(renderer.domElement, 0, 0, 480, 270);
+      thumb = cv.toDataURL('image/jpeg', 0.8);
+    } catch (e) {}
+    const spot = photoSpotAt();
+    let spotName = '宫城随拍';
+    let isNewSpot = false;
+    if (spot >= 0) {
+      spotName = DISCOVERIES[spot].name;
+      if (!photoSpots[spot]) { photoSpots[spot] = true; isNewSpot = true; }
+    }
+    achievements.photos++;
+    album.push({ url: full, thumb: thumb, name: spotName, t: Date.now() });
+    if (album.length > 24) album.shift();
+    photoSave();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    const done = Object.keys(photoSpots).length;
+    let msg = '拍照成功 · 已收藏 ' + achievements.photos + ' 张';
+    if (isNewSpot) msg += ' · 打卡「' + spotName + '」' + done + '/' + DISCOVERIES.length;
+    if (done >= DISCOVERIES.length && !photoAllDone) {
+      photoAllDone = true;
+      showToast('称号达成 · 御用摄影师（10 处地标全部打卡）', 5200);
+      if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+      setTimeout(function () { showToast(msg, 3000); }, 5400);
+    } else {
+      showToast(msg, 2800);
+    }
+    return { name: spotName, isNewSpot: isNewSpot, done: done, total: DISCOVERIES.length, count: achievements.photos };
+  }
+  let photoAllDone = Object.keys(photoSpots).length >= DISCOVERIES.length;
+  function refreshAlbum() {
+    const grid = $('albumGrid');
+    const spots = $('albumSpots');
+    const sub = $('albumSub');
+    if (!grid) return;
+    let html = '';
+    for (let i = album.length - 1; i >= 0; i--) {
+      const ph = album[i];
+      html += '<div class="ph" data-i="' + i + '"><img src="' + (ph.thumb || ph.url) + '"><span>' + ph.name + '</span></div>';
+    }
+    if (!album.length) html = '<div class="empty">还没有照片，进入漫游后按 P 拍照</div>';
+    grid.innerHTML = html;
+    if (spots) {
+      let sh = '';
+      for (let i = 0; i < DISCOVERIES.length; i++) {
+        sh += '<span class="spot' + (photoSpots[i] ? ' on' : '') + '">' + (photoSpots[i] ? '✓ ' : '○ ') + DISCOVERIES[i].name + '</span>';
+      }
+      spots.innerHTML = sh;
+    }
+    if (sub) sub.textContent = '共 ' + achievements.photos + ' 张 · 地标打卡 ' + Object.keys(photoSpots).length + '/' + DISCOVERIES.length + ' · 点击照片下载原图 · P 拍照 · G / Esc 关闭';
+  }
+  function downloadPhoto(i) {
+    const ph = album[i];
+    if (!ph) return;
+    try {
+      const a = document.createElement('a');
+      a.href = ph.url;
+      a.download = '紫禁城-' + (ph.name || '照片') + '-' + new Date(ph.t).toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.jpg';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch (e) {}
+  }
+  function openAlbum(force) {
+    const el = $('album');
+    if (!el) return;
+    const on = force == null ? !el.classList.contains('show') : !!force;
+    if (on) { refreshAlbum(); el.classList.add('show'); }
+    else el.classList.remove('show');
   }
 
   function toggleWalk(force) {
@@ -1456,6 +1566,8 @@
       if (e.key === 'Shift') { WALK.keys['shift'] = true; return; }
       if (e.code === 'Space' || k2 === ' ') { WALK.jump(); e.preventDefault(); return; }
       if (k2 === 'e') { if (!e.repeat) doInteract(); return; }
+      if (k2 === 'p') { if (!e.repeat) takePhoto(); return; }
+      if (k2 === 'g') { if (!e.repeat) openAlbum(); return; }
       if (k2 === 'x') { WALK.toggleView(); return; }
       if (k2 === 'r') {
         discSet = {}; saveDisc(); refreshWalkGame();
@@ -1463,7 +1575,12 @@
         showToast('探索与任务进度已重置', 2400);
         return;
       }
-      if (k2 === 'v' || e.key === 'Escape') { toggleWalk(false); return; }
+      if (e.key === 'Escape') {
+        const ab = document.getElementById('album');
+        if (ab && ab.classList.contains('show')) { openAlbum(false); return; }
+        toggleWalk(false); return;
+      }
+      if (k2 === 'v') { toggleWalk(false); return; }
     }
     const key = e.key;
     if (key === '0') {
@@ -1900,6 +2017,20 @@
       }
       bindUI();
   initTouch();
+  (function bindAlbum() {
+    const closeBtn = $('albumClose');
+    if (closeBtn) closeBtn.addEventListener('click', function () { openAlbum(false); });
+    const grid = $('albumGrid');
+    if (grid) grid.addEventListener('click', function (e) {
+      let el = e.target;
+      while (el && el !== grid && !(el.getAttribute && el.getAttribute('data-i'))) el = el.parentNode;
+      if (!el || el === grid) return;
+      const i = parseInt(el.getAttribute('data-i'), 10);
+      if (!isNaN(i)) downloadPhoto(i);
+    });
+    const ab = $('album');
+    if (ab) ab.addEventListener('click', function (e) { if (e.target === ab) openAlbum(false); });
+  })();
       if (params.get('labels') === '1') toggleLabels(true);
       if (params.get('cinema') === '1') setCinema(true);
       const camParam = params.get('cam');
@@ -2014,6 +2145,9 @@
     interact: doInteract,
     interactInfo: function () { const it = nearestInteractive(); return it ? { title: it.title, text: it.text } : null; },
     achievements: function () { return { catFeeds: achievements.catFeeds, photos: achievements.photos }; },
+    takePhoto: takePhoto,
+    albumInfo: function () { return { photos: album.length, spots: Object.keys(photoSpots).length, allDone: photoAllDone, names: album.map(function (a) { return a.name; }) }; },
+    openAlbum: openAlbum,
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
     questTick: updateQuests,
     walkGameTick: updateWalkGame,

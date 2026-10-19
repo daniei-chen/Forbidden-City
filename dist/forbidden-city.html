@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.7.0.20261019.1030">
-<meta name="build-time" content="2026-10-19T10:30:00.816Z">
+<meta name="generator" content="forbidden-city-build 6.8.0.20261019.1051">
+<meta name="build-time" content="2026-10-19T10:51:18.840Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T10:30:00.816Z
-  version: 6.7.0.20261019.1030
+  build: 2026-10-19T10:51:18.840Z
+  version: 6.8.0.20261019.1051
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -250,6 +250,32 @@
   #tbView{right:20px;bottom:128px}
   #tbInteract{right:20px;bottom:58px}
   .touchui .ttip{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);
+  /* ---------------- 拍照/相册 ---------------- */
+  #photoFlash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:30;transition:opacity .12s ease}
+  #photoFlash.on{opacity:.85}
+  .album{
+    position:fixed;inset:0;z-index:31;display:none;align-items:center;justify-content:center;
+    background:rgba(4,6,9,.82);backdrop-filter:blur(10px);
+  }
+  .album.show{display:flex}
+  .album .inner{
+    width:min(980px,92vw);max-height:86vh;overflow:auto;padding:24px;
+    background:rgba(9,11,15,.9);border:1px solid rgba(216,180,95,.4);
+  }
+  .album h3{margin:0 0 4px;font-weight:400;font-size:18px;letter-spacing:3px;color:var(--gold)}
+  .album .sub{font-size:11px;color:rgba(230,224,208,.55);letter-spacing:1px;margin-bottom:16px}
+  .album .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .album .ph{position:relative;cursor:pointer;border:1px solid rgba(216,180,95,.25);background:#000;aspect-ratio:16/9;overflow:hidden}
+  .album .ph img{width:100%;height:100%;object-fit:cover;display:block;transition:.25s}
+  .album .ph:hover img{transform:scale(1.05)}
+  .album .ph span{position:absolute;left:6px;bottom:4px;font-size:10px;color:#f2e6c8;text-shadow:0 1px 3px #000;letter-spacing:.5px}
+  .album .empty{color:rgba(230,224,208,.4);font-size:12px;letter-spacing:1px;padding:30px 0;text-align:center}
+  .album .close{position:absolute;right:26px;top:20px;width:40px;height:40px;border:1px solid rgba(216,180,95,.5);
+    background:rgba(9,11,15,.7);color:var(--gold);font-size:18px;cursor:pointer}
+  .album .spots{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+  .album .spot{font-size:10.5px;letter-spacing:.5px;padding:3px 8px;border:1px solid rgba(216,180,95,.25);color:rgba(230,224,208,.5)}
+  .album .spot.on{color:var(--gold);border-color:rgba(216,180,95,.7);background:rgba(216,180,95,.1)}
+  #tbPhoto{right:92px;bottom:56px}
     font-size:9.5px;color:rgba(230,224,208,.38);letter-spacing:1.2px;white-space:nowrap}
   @media (max-height:520px){
     .touchui .stick{width:108px;height:108px}
@@ -368,6 +394,7 @@
   <div class="tbtn" id="tbRun">疾</div>
   <div class="tbtn" id="tbView">视</div>
   <div class="tbtn" id="tbInteract">互动</div>
+  <div class="tbtn" id="tbPhoto">拍照</div>
   <div class="ttip">左侧摇杆移动 · 右侧滑动环视 · 点按按钮操作</div>
 </div>
 
@@ -391,6 +418,16 @@
 <div class="fps" id="fps">— FPS</div>
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
+<div id="photoFlash"></div>
+<div class="album" id="album">
+  <button class="close" id="albumClose">×</button>
+  <div class="inner">
+    <h3>御用相册</h3>
+    <div class="sub" id="albumSub">按 P 拍照 · 点击照片下载原图 · G 或 Esc 关闭</div>
+    <div class="grid" id="albumGrid"></div>
+    <div class="spots" id="albumSpots"></div>
+  </div>
+</div>
 
 <aside class="drawer" id="drawer">
   <h3>设置 <button id="btnCloseDrawer">×</button></h3>
@@ -478,7 +515,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.7.0',
+  version: '6.8.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -10340,6 +10377,116 @@ const ASSETS = {
     bindBtn('tbRun', function () { WALK.keys['shift'] = true; }, function () { WALK.keys['shift'] = false; });
     bindBtn('tbView', function () { WALK.toggleView(); });
     bindBtn('tbInteract', function () { doInteract(); });
+    bindBtn('tbPhoto', function () { takePhoto(); });
+  }
+
+  /* =========================================================
+   *  拍照 / 相册（P 拍照 · G 相册 · 10 处地标打卡）
+   * ======================================================= */
+  const PHOTO_KEY = 'forbidden-city-photos-v1';
+  const album = [];
+  const photoSpots = {};   /* DISCOVERIES 索引 -> 已打卡 */
+  try {
+    const savedP = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}');
+    if (savedP && typeof savedP === 'object') {
+      if (Array.isArray(savedP.spots)) savedP.spots.forEach(function (i) { photoSpots[i] = true; });
+      if (typeof savedP.count === 'number') achievements.photos = savedP.count;
+    }
+  } catch (e) {}
+  function photoSave() {
+    try {
+      localStorage.setItem(PHOTO_KEY, JSON.stringify({ count: achievements.photos, spots: Object.keys(photoSpots).map(Number) }));
+    } catch (e) {}
+  }
+  function photoSpotAt() {
+    for (let i = 0; i < DISCOVERIES.length; i++) {
+      const d = DISCOVERIES[i];
+      if (Math.hypot(d.x - WALK.pos.x, d.z - WALK.pos.z) < Math.max(28, d.r + 6)) return i;
+    }
+    return -1;
+  }
+  function takePhoto() {
+    if (!WALK.active) return null;
+    const fl = $('photoFlash');
+    if (fl) { fl.classList.add('on'); setTimeout(function () { fl.classList.remove('on'); }, 130); }
+    /* 抓取当前画面（后处理已绘制到主 canvas） */
+    let full = '';
+    try {
+      if (typeof draw === 'function') draw(); else renderer.render(scene, camera);
+      full = renderer.domElement.toDataURL('image/jpeg', 0.92);
+    } catch (e) { full = ''; }
+    /* 缩略图（相册用，降低内存） */
+    let thumb = full;
+    try {
+      const cv = document.createElement('canvas');
+      cv.width = 480; cv.height = 270;
+      const g2 = cv.getContext('2d');
+      g2.drawImage(renderer.domElement, 0, 0, 480, 270);
+      thumb = cv.toDataURL('image/jpeg', 0.8);
+    } catch (e) {}
+    const spot = photoSpotAt();
+    let spotName = '宫城随拍';
+    let isNewSpot = false;
+    if (spot >= 0) {
+      spotName = DISCOVERIES[spot].name;
+      if (!photoSpots[spot]) { photoSpots[spot] = true; isNewSpot = true; }
+    }
+    achievements.photos++;
+    album.push({ url: full, thumb: thumb, name: spotName, t: Date.now() });
+    if (album.length > 24) album.shift();
+    photoSave();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    const done = Object.keys(photoSpots).length;
+    let msg = '拍照成功 · 已收藏 ' + achievements.photos + ' 张';
+    if (isNewSpot) msg += ' · 打卡「' + spotName + '」' + done + '/' + DISCOVERIES.length;
+    if (done >= DISCOVERIES.length && !photoAllDone) {
+      photoAllDone = true;
+      showToast('称号达成 · 御用摄影师（10 处地标全部打卡）', 5200);
+      if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+      setTimeout(function () { showToast(msg, 3000); }, 5400);
+    } else {
+      showToast(msg, 2800);
+    }
+    return { name: spotName, isNewSpot: isNewSpot, done: done, total: DISCOVERIES.length, count: achievements.photos };
+  }
+  let photoAllDone = Object.keys(photoSpots).length >= DISCOVERIES.length;
+  function refreshAlbum() {
+    const grid = $('albumGrid');
+    const spots = $('albumSpots');
+    const sub = $('albumSub');
+    if (!grid) return;
+    let html = '';
+    for (let i = album.length - 1; i >= 0; i--) {
+      const ph = album[i];
+      html += '<div class="ph" data-i="' + i + '"><img src="' + (ph.thumb || ph.url) + '"><span>' + ph.name + '</span></div>';
+    }
+    if (!album.length) html = '<div class="empty">还没有照片，进入漫游后按 P 拍照</div>';
+    grid.innerHTML = html;
+    if (spots) {
+      let sh = '';
+      for (let i = 0; i < DISCOVERIES.length; i++) {
+        sh += '<span class="spot' + (photoSpots[i] ? ' on' : '') + '">' + (photoSpots[i] ? '✓ ' : '○ ') + DISCOVERIES[i].name + '</span>';
+      }
+      spots.innerHTML = sh;
+    }
+    if (sub) sub.textContent = '共 ' + achievements.photos + ' 张 · 地标打卡 ' + Object.keys(photoSpots).length + '/' + DISCOVERIES.length + ' · 点击照片下载原图 · P 拍照 · G / Esc 关闭';
+  }
+  function downloadPhoto(i) {
+    const ph = album[i];
+    if (!ph) return;
+    try {
+      const a = document.createElement('a');
+      a.href = ph.url;
+      a.download = '紫禁城-' + (ph.name || '照片') + '-' + new Date(ph.t).toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.jpg';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch (e) {}
+  }
+  function openAlbum(force) {
+    const el = $('album');
+    if (!el) return;
+    const on = force == null ? !el.classList.contains('show') : !!force;
+    if (on) { refreshAlbum(); el.classList.add('show'); }
+    else el.classList.remove('show');
   }
 
   function toggleWalk(force) {
@@ -10570,6 +10717,8 @@ const ASSETS = {
       if (e.key === 'Shift') { WALK.keys['shift'] = true; return; }
       if (e.code === 'Space' || k2 === ' ') { WALK.jump(); e.preventDefault(); return; }
       if (k2 === 'e') { if (!e.repeat) doInteract(); return; }
+      if (k2 === 'p') { if (!e.repeat) takePhoto(); return; }
+      if (k2 === 'g') { if (!e.repeat) openAlbum(); return; }
       if (k2 === 'x') { WALK.toggleView(); return; }
       if (k2 === 'r') {
         discSet = {}; saveDisc(); refreshWalkGame();
@@ -10577,7 +10726,12 @@ const ASSETS = {
         showToast('探索与任务进度已重置', 2400);
         return;
       }
-      if (k2 === 'v' || e.key === 'Escape') { toggleWalk(false); return; }
+      if (e.key === 'Escape') {
+        const ab = document.getElementById('album');
+        if (ab && ab.classList.contains('show')) { openAlbum(false); return; }
+        toggleWalk(false); return;
+      }
+      if (k2 === 'v') { toggleWalk(false); return; }
     }
     const key = e.key;
     if (key === '0') {
@@ -11014,6 +11168,20 @@ const ASSETS = {
       }
       bindUI();
   initTouch();
+  (function bindAlbum() {
+    const closeBtn = $('albumClose');
+    if (closeBtn) closeBtn.addEventListener('click', function () { openAlbum(false); });
+    const grid = $('albumGrid');
+    if (grid) grid.addEventListener('click', function (e) {
+      let el = e.target;
+      while (el && el !== grid && !(el.getAttribute && el.getAttribute('data-i'))) el = el.parentNode;
+      if (!el || el === grid) return;
+      const i = parseInt(el.getAttribute('data-i'), 10);
+      if (!isNaN(i)) downloadPhoto(i);
+    });
+    const ab = $('album');
+    if (ab) ab.addEventListener('click', function (e) { if (e.target === ab) openAlbum(false); });
+  })();
       if (params.get('labels') === '1') toggleLabels(true);
       if (params.get('cinema') === '1') setCinema(true);
       const camParam = params.get('cam');
@@ -11128,6 +11296,9 @@ const ASSETS = {
     interact: doInteract,
     interactInfo: function () { const it = nearestInteractive(); return it ? { title: it.title, text: it.text } : null; },
     achievements: function () { return { catFeeds: achievements.catFeeds, photos: achievements.photos }; },
+    takePhoto: takePhoto,
+    albumInfo: function () { return { photos: album.length, spots: Object.keys(photoSpots).length, allDone: photoAllDone, names: album.map(function (a) { return a.name; }) }; },
+    openAlbum: openAlbum,
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
     questTick: updateQuests,
     walkGameTick: updateWalkGame,
@@ -11158,6 +11329,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.7.0.20261019.1030","time":"2026-10-19T10:30:00.816Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.8.0.20261019.1051","time":"2026-10-19T10:51:18.840Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
