@@ -95,6 +95,25 @@ const WALK = {
     return false;
   },
 
+  /* 脚下材质：snow / marble（台基殿内）/ grass（御花园）/ stone（石板） */
+  surfaceAt: function (x, z) {
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.snowAmount > 0.5) return 'snow';
+    if (this.groundAt(x, z) > 6) return 'marble';
+    if (z < -290 && Math.abs(x) < 140) return 'grass';
+    return 'stone';
+  },
+
+  /* 区域：广场 / 御花园 / 殿内（驱动环境音） */
+  zoneAt: function (x, z) {
+    const interior =
+      (Math.abs(x) <= 35.5 && z >= 36.5 && z <= 80.5) ||
+      (Math.abs(x) <= 18 && z >= -14 && z <= 10) ||
+      (Math.abs(x) <= 30.8 && z >= -69.5 && z <= -43.5);
+    if (interior) return 'interior';
+    if (z < -290 && Math.abs(x) < 140) return 'garden';
+    return 'plaza';
+  },
+
   blocked: function (nx, nz) {
     /* 高差过大（仅地面状态；跳跃时允许跨越） */
     if (this.onGround) {
@@ -133,6 +152,9 @@ const WALK = {
     this.jumpHeld = false;
     this.baseFov = this.camera ? this.camera.fov : 60;
     this.fovNow = this.baseFov;
+    this._zone = 'plaza';
+    this._zoneT = 0;
+    if (typeof AUDIO !== 'undefined' && AUDIO.setZone) AUDIO.setZone('plaza');
     this.canvas.style.cursor = 'crosshair';
     if (this.onEnter) this.onEnter();
   },
@@ -151,6 +173,7 @@ const WALK = {
       this.camera.fov = this.baseFov;
       this.camera.updateProjectionMatrix();
     }
+    if (typeof AUDIO !== 'undefined' && AUDIO.setZone) AUDIO.setZone('plaza');
     if (this.onExit) this.onExit();
   },
 
@@ -302,7 +325,7 @@ const WALK = {
     this.bobPhase += moved * 2.2;
     if (this.stepSound > 0.66 && this.onGround && typeof AUDIO !== 'undefined') {
       this.stepSound = 0;
-      AUDIO.step(this.speed > 8);
+      AUDIO.step(this.speed > 8, this.surfaceAt(this.pos.x, this.pos.z));
     }
     this.moving = moved > 1e-4;
     if (this.moving) {
@@ -331,7 +354,7 @@ const WALK = {
         this.vy = 0;
         this.onGround = true;
         this.landDip = Math.min(0.24, Math.max(0, (landSpeed - 5) * 0.022));
-        if (typeof AUDIO !== 'undefined') AUDIO.land();
+        if (typeof AUDIO !== 'undefined') AUDIO.land(this.surfaceAt(this.pos.x, this.pos.z));
       }
     } else {
       this.coyote = Math.max(0, this.coyote - dt);
@@ -342,6 +365,17 @@ const WALK = {
       } else {
         this.pos.y += (gy - this.pos.y) * Math.min(1, dt * 12);
         this.coyote = 0.14;
+      }
+    }
+
+    /* 区域环境音（0.4s 节流） */
+    this._zoneT = (this._zoneT || 0) + dt;
+    if (this._zoneT > 0.4) {
+      this._zoneT = 0;
+      const zone = this.zoneAt(this.pos.x, this.pos.z);
+      if (zone !== this._zone) {
+        this._zone = zone;
+        if (typeof AUDIO !== 'undefined' && AUDIO.setZone) AUDIO.setZone(zone);
       }
     }
 

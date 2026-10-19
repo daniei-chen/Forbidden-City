@@ -51,6 +51,27 @@ const AUDIO = {
     lfo.connect(lfoGain); lfoGain.connect(g.gain);
     lfo.start();
 
+    /* 殿内 room tone：两个低频正弦叠加，进殿时淡入 */
+    this.roomGain = c.createGain();
+    this.roomGain.gain.value = 0.0;
+    const lp2 = c.createBiquadFilter();
+    lp2.type = 'lowpass';
+    lp2.frequency.value = 240;
+    this.roomGain.connect(lp2);
+    lp2.connect(this.master);
+    this.roomOscs = [];
+    for (const fq of [86, 129]) {
+      const o2 = c.createOscillator();
+      o2.type = 'sine';
+      o2.frequency.value = fq;
+      const g2 = c.createGain();
+      g2.gain.value = 0.5;
+      o2.connect(g2); g2.connect(this.roomGain);
+      o2.start();
+      this.roomOscs.push(o2);
+    }
+    this.zone = 'plaza';
+
     this.ready = true;
     this.scheduleBird();
   },
@@ -58,7 +79,10 @@ const AUDIO = {
   scheduleBird: function () {
     if (!this.ready) return;
     const self = this;
-    const dt = 4500 + Math.random() * 9000;
+    let dt;
+    if (this.zone === 'garden') dt = 2200 + Math.random() * 4200;
+    else if (this.zone === 'interior') dt = 14000 + Math.random() * 14000;
+    else dt = 4500 + Math.random() * 9000;
     this.birdTimer = setTimeout(function () {
       self.chirp();
       self.scheduleBird();
@@ -108,16 +132,48 @@ const AUDIO = {
     src.start();
   },
 
-  step: function (running) {
-    this._noiseBurst(0.075, running ? 520 : 700 + Math.random() * 260, running ? 0.05 : 0.032);
+  step: function (running, surface) {
+    const s = surface || 'stone';
+    const v = running ? 1.25 : 1.0;
+    if (s === 'marble') {
+      this._noiseBurst(0.05, (running ? 1400 : 1650) + Math.random() * 400, 0.03 * v, 'bandpass');
+    } else if (s === 'grass') {
+      this._noiseBurst(0.11, 260 + Math.random() * 120, 0.036 * v, 'lowpass');
+    } else if (s === 'snow') {
+      this._noiseBurst(0.13, 900 + Math.random() * 500, 0.042 * v, 'bandpass');
+    } else {
+      this._noiseBurst(0.075, running ? 520 : 700 + Math.random() * 260, (running ? 0.05 : 0.032));
+    }
   },
 
   jump: function () {
     this._noiseBurst(0.12, 300, 0.05, 'lowpass');
   },
 
-  land: function () {
-    this._noiseBurst(0.14, 200, 0.07, 'lowpass');
+  land: function (surface) {
+    const s = surface || 'stone';
+    if (s === 'snow') this._noiseBurst(0.2, 700, 0.075, 'lowpass');
+    else if (s === 'marble') this._noiseBurst(0.12, 1500, 0.06, 'bandpass');
+    else if (s === 'grass') this._noiseBurst(0.16, 240, 0.065, 'lowpass');
+    else this._noiseBurst(0.14, 200, 0.07, 'lowpass');
+  },
+
+  /* 区域切换：广场 / 御花园 / 殿内 */
+  setZone: function (zone) {
+    if (!this.ready) { this.zone = zone || 'plaza'; return; }
+    this.zone = zone || 'plaza';
+    const c = this.ctx;
+    const now = c.currentTime;
+    if (this.wind) {
+      let windTarget = 0.05;
+      if (this.zone === 'garden') windTarget = 0.038;
+      if (this.zone === 'interior') windTarget = 0.012;
+      try { this.wind.gain.setTargetAtTime(windTarget, now, 0.6); } catch (e) { this.wind.gain.value = windTarget; }
+    }
+    if (this.roomGain) {
+      const roomTarget = this.zone === 'interior' ? 0.055 : 0.0;
+      try { this.roomGain.gain.setTargetAtTime(roomTarget, now, 0.8); } catch (e) { this.roomGain.gain.value = roomTarget; }
+    }
   },
 
   /* 互动提示音：柔和双音（磬） */

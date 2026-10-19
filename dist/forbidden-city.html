@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.4.0.20261019.0933">
-<meta name="build-time" content="2026-10-19T09:33:44.301Z">
+<meta name="generator" content="forbidden-city-build 6.5.0.20261019.0952">
+<meta name="build-time" content="2026-10-19T09:52:00.054Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T09:33:44.301Z
-  version: 6.4.0.20261019.0933
+  build: 2026-10-19T09:52:00.054Z
+  version: 6.5.0.20261019.0952
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -439,7 +439,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.4.0',
+  version: '6.5.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -3900,6 +3900,27 @@ const AUDIO = {
     lfo.connect(lfoGain); lfoGain.connect(g.gain);
     lfo.start();
 
+    /* 殿内 room tone：两个低频正弦叠加，进殿时淡入 */
+    this.roomGain = c.createGain();
+    this.roomGain.gain.value = 0.0;
+    const lp2 = c.createBiquadFilter();
+    lp2.type = 'lowpass';
+    lp2.frequency.value = 240;
+    this.roomGain.connect(lp2);
+    lp2.connect(this.master);
+    this.roomOscs = [];
+    for (const fq of [86, 129]) {
+      const o2 = c.createOscillator();
+      o2.type = 'sine';
+      o2.frequency.value = fq;
+      const g2 = c.createGain();
+      g2.gain.value = 0.5;
+      o2.connect(g2); g2.connect(this.roomGain);
+      o2.start();
+      this.roomOscs.push(o2);
+    }
+    this.zone = 'plaza';
+
     this.ready = true;
     this.scheduleBird();
   },
@@ -3907,7 +3928,10 @@ const AUDIO = {
   scheduleBird: function () {
     if (!this.ready) return;
     const self = this;
-    const dt = 4500 + Math.random() * 9000;
+    let dt;
+    if (this.zone === 'garden') dt = 2200 + Math.random() * 4200;
+    else if (this.zone === 'interior') dt = 14000 + Math.random() * 14000;
+    else dt = 4500 + Math.random() * 9000;
     this.birdTimer = setTimeout(function () {
       self.chirp();
       self.scheduleBird();
@@ -3957,16 +3981,48 @@ const AUDIO = {
     src.start();
   },
 
-  step: function (running) {
-    this._noiseBurst(0.075, running ? 520 : 700 + Math.random() * 260, running ? 0.05 : 0.032);
+  step: function (running, surface) {
+    const s = surface || 'stone';
+    const v = running ? 1.25 : 1.0;
+    if (s === 'marble') {
+      this._noiseBurst(0.05, (running ? 1400 : 1650) + Math.random() * 400, 0.03 * v, 'bandpass');
+    } else if (s === 'grass') {
+      this._noiseBurst(0.11, 260 + Math.random() * 120, 0.036 * v, 'lowpass');
+    } else if (s === 'snow') {
+      this._noiseBurst(0.13, 900 + Math.random() * 500, 0.042 * v, 'bandpass');
+    } else {
+      this._noiseBurst(0.075, running ? 520 : 700 + Math.random() * 260, (running ? 0.05 : 0.032));
+    }
   },
 
   jump: function () {
     this._noiseBurst(0.12, 300, 0.05, 'lowpass');
   },
 
-  land: function () {
-    this._noiseBurst(0.14, 200, 0.07, 'lowpass');
+  land: function (surface) {
+    const s = surface || 'stone';
+    if (s === 'snow') this._noiseBurst(0.2, 700, 0.075, 'lowpass');
+    else if (s === 'marble') this._noiseBurst(0.12, 1500, 0.06, 'bandpass');
+    else if (s === 'grass') this._noiseBurst(0.16, 240, 0.065, 'lowpass');
+    else this._noiseBurst(0.14, 200, 0.07, 'lowpass');
+  },
+
+  /* 区域切换：广场 / 御花园 / 殿内 */
+  setZone: function (zone) {
+    if (!this.ready) { this.zone = zone || 'plaza'; return; }
+    this.zone = zone || 'plaza';
+    const c = this.ctx;
+    const now = c.currentTime;
+    if (this.wind) {
+      let windTarget = 0.05;
+      if (this.zone === 'garden') windTarget = 0.038;
+      if (this.zone === 'interior') windTarget = 0.012;
+      try { this.wind.gain.setTargetAtTime(windTarget, now, 0.6); } catch (e) { this.wind.gain.value = windTarget; }
+    }
+    if (this.roomGain) {
+      const roomTarget = this.zone === 'interior' ? 0.055 : 0.0;
+      try { this.roomGain.gain.setTargetAtTime(roomTarget, now, 0.8); } catch (e) { this.roomGain.gain.value = roomTarget; }
+    }
   },
 
   /* 互动提示音：柔和双音（磬） */
@@ -7316,6 +7372,25 @@ const WALK = {
     return false;
   },
 
+  /* 脚下材质：snow / marble（台基殿内）/ grass（御花园）/ stone（石板） */
+  surfaceAt: function (x, z) {
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.snowAmount > 0.5) return 'snow';
+    if (this.groundAt(x, z) > 6) return 'marble';
+    if (z < -290 && Math.abs(x) < 140) return 'grass';
+    return 'stone';
+  },
+
+  /* 区域：广场 / 御花园 / 殿内（驱动环境音） */
+  zoneAt: function (x, z) {
+    const interior =
+      (Math.abs(x) <= 35.5 && z >= 36.5 && z <= 80.5) ||
+      (Math.abs(x) <= 18 && z >= -14 && z <= 10) ||
+      (Math.abs(x) <= 30.8 && z >= -69.5 && z <= -43.5);
+    if (interior) return 'interior';
+    if (z < -290 && Math.abs(x) < 140) return 'garden';
+    return 'plaza';
+  },
+
   blocked: function (nx, nz) {
     /* 高差过大（仅地面状态；跳跃时允许跨越） */
     if (this.onGround) {
@@ -7354,6 +7429,9 @@ const WALK = {
     this.jumpHeld = false;
     this.baseFov = this.camera ? this.camera.fov : 60;
     this.fovNow = this.baseFov;
+    this._zone = 'plaza';
+    this._zoneT = 0;
+    if (typeof AUDIO !== 'undefined' && AUDIO.setZone) AUDIO.setZone('plaza');
     this.canvas.style.cursor = 'crosshair';
     if (this.onEnter) this.onEnter();
   },
@@ -7372,6 +7450,7 @@ const WALK = {
       this.camera.fov = this.baseFov;
       this.camera.updateProjectionMatrix();
     }
+    if (typeof AUDIO !== 'undefined' && AUDIO.setZone) AUDIO.setZone('plaza');
     if (this.onExit) this.onExit();
   },
 
@@ -7523,7 +7602,7 @@ const WALK = {
     this.bobPhase += moved * 2.2;
     if (this.stepSound > 0.66 && this.onGround && typeof AUDIO !== 'undefined') {
       this.stepSound = 0;
-      AUDIO.step(this.speed > 8);
+      AUDIO.step(this.speed > 8, this.surfaceAt(this.pos.x, this.pos.z));
     }
     this.moving = moved > 1e-4;
     if (this.moving) {
@@ -7552,7 +7631,7 @@ const WALK = {
         this.vy = 0;
         this.onGround = true;
         this.landDip = Math.min(0.24, Math.max(0, (landSpeed - 5) * 0.022));
-        if (typeof AUDIO !== 'undefined') AUDIO.land();
+        if (typeof AUDIO !== 'undefined') AUDIO.land(this.surfaceAt(this.pos.x, this.pos.z));
       }
     } else {
       this.coyote = Math.max(0, this.coyote - dt);
@@ -7563,6 +7642,17 @@ const WALK = {
       } else {
         this.pos.y += (gy - this.pos.y) * Math.min(1, dt * 12);
         this.coyote = 0.14;
+      }
+    }
+
+    /* 区域环境音（0.4s 节流） */
+    this._zoneT = (this._zoneT || 0) + dt;
+    if (this._zoneT > 0.4) {
+      this._zoneT = 0;
+      const zone = this.zoneAt(this.pos.x, this.pos.z);
+      if (zone !== this._zone) {
+        this._zone = zone;
+        if (typeof AUDIO !== 'undefined' && AUDIO.setZone) AUDIO.setZone(zone);
       }
     }
 
@@ -10750,6 +10840,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.4.0.20261019.0933","time":"2026-10-19T09:33:44.301Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.5.0.20261019.0952","time":"2026-10-19T09:52:00.054Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
