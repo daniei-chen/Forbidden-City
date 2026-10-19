@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.36.0.20261019.2121">
-<meta name="build-time" content="2026-10-19T21:21:24.025Z">
+<meta name="generator" content="forbidden-city-build 6.37.0.20261019.2136">
+<meta name="build-time" content="2026-10-19T21:36:02.330Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T21:21:24.025Z
-  version: 6.36.0.20261019.2121
+  build: 2026-10-19T21:36:02.330Z
+  version: 6.37.0.20261019.2136
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -324,6 +324,13 @@
   }
   .objarrow.show{display:block}
   body.photo .objmark, body.photo .objarrow{display:none !important}
+  /* ---------------- 成就通知 ---------------- */
+  .achv .loglist{margin-top:16px;padding-top:14px;border-top:1px solid rgba(216,180,95,.18)}
+  .achv .loglist .lbl{font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.4);margin-bottom:6px}
+  .achv .loglist .li{display:flex;justify-content:space-between;gap:12px;font-size:11px;letter-spacing:.5px;padding:3px 0;color:rgba(230,224,208,.75)}
+  .achv .loglist .li b{color:var(--gold);font-weight:400}
+  .achv .loglist .li span{color:rgba(230,224,208,.4);font-size:10px}
+
   /* ---------------- 氛围预设 ---------------- */
   .presets{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 4px}
   .presets button{
@@ -656,6 +663,7 @@
   <label class="check"><span>任务指引（目标标记）</span><input type="checkbox" id="optObjective"></label>
   <label class="check"><span>性能 HUD（F 键）</span><input type="checkbox" id="optPerfHud"></label>
   <label class="check"><span>环境音效</span><input type="checkbox" id="optAudio"></label>
+  <button class="presets-one" id="btnReplayTutorial" style="margin-top:8px;width:100%;padding:8px;background:rgba(216,180,95,.06);border:1px solid rgba(216,180,95,.3);color:rgba(230,224,208,.8);font-size:10.5px;letter-spacing:1px;cursor:pointer">重新体验新手引导</button>
   <div class="keyhint">
     <b>WASD</b> 移动 · <b>Shift</b> 疾行 · <b>空格</b> 跳跃 · <b>鼠标拖拽</b> 环视<br>
     <b>E</b> 互动 · <b>P</b> 拍照 · <b>G</b> 相册 · <b>H</b> 档案 · <b>O</b> 指引 · <b>F</b> 性能 · <b>X</b> 视角 · <b>R</b> 重置 · <b>Esc</b> 退出
@@ -729,7 +737,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.36.0',
+  version: '6.37.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -11391,6 +11399,7 @@ const ASSETS = {
       achievements.catPlays = savedA.catPlays || 0;
       achievements.wishes = savedA.wishes || 0;
       achievements.incense = savedA.incense || 0;
+      achievements.log = Array.isArray(savedA.log) ? savedA.log : [];
     }
   } catch (e) {}
   function achievementsSave() {
@@ -11845,6 +11854,46 @@ const ASSETS = {
   /* =========================================================
    *  行程总览（H）：探索 / 任务 / 收藏 / 称号
    * ======================================================= */
+  function syncAchievementLog(notify) {
+    if (!Array.isArray(achievements.log)) achievements.log = [];
+    let changed = false;
+    const titles = [
+      { name: '中轴行者', ok: QUESTS[0].done },
+      { name: '寻芳客', ok: QUESTS[1].done },
+      { name: '御猫之友', ok: QUESTS[2].done },
+      { name: '御用摄影师', ok: Object.keys(photoSpots).length >= DISCOVERIES.length },
+      { name: '猫薄荷', ok: (achievements.catFeeds || 0) >= 5 },
+      { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
+      { name: '灯谜雅士', ok: (achievements.riddles || []).length >= 3 },
+      { name: '御猫团宠', ok: (achievements.catPlays || 0) >= 3 },
+      { name: '心愿达成', ok: (achievements.wishes || 0) >= 3 },
+      { name: '心香一瓣', ok: (achievements.incense || 0) >= 3 },
+      { name: '千里之行', ok: travel.dist >= 1000 },
+      { name: '宫城常客', ok: travel.dist >= 5000 },
+      { name: '身轻如燕', ok: travel.jumps >= 50 },
+      { name: '流连忘返', ok: travel.time >= 600 },
+      { name: '紫禁城居民', ok: Object.keys(discSet).length >= 10 && QUESTS.every(function (q) { return q.done; }) && Object.keys(photoSpots).length >= 10 }
+    ];
+    for (let i = 0; i < titles.length; i++) {
+      const ti = titles[i];
+      if (!ti.ok) continue;
+      let has = false;
+      for (let j = 0; j < achievements.log.length; j++) {
+        if (achievements.log[j].name === ti.name) { has = true; break; }
+      }
+      if (has) continue;
+      achievements.log.push({ name: ti.name, t: Date.now() });
+      changed = true;
+      if (notify) {
+        showToast('称号解锁 · ' + ti.name, 3600);
+        if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+      }
+    }
+    if (achievements.log.length > 60) achievements.log = achievements.log.slice(-60);
+    if (changed) achievementsSave();
+    return achievements.log.length;
+  }
+
   function achvData() {
     const disc = Object.keys(discSet).length;
     const questsDone = QUESTS.filter(function (q) { return q.done; }).length;
@@ -11892,7 +11941,7 @@ const ASSETS = {
       const arr = titles.filter(function (x) { return x.cat === gname; });
       if (arr.length) groups.push({ name: gname, items: arr });
     }
-    return { rows: rows, titles: titles, groups: groups, titleDone: titleDone, titleTotal: titles.length, pct: pct };
+    return { rows: rows, titles: titles, groups: groups, titleDone: titleDone, titleTotal: titles.length, pct: pct, log: (achievements.log || []).slice() };
   }
   function refreshAchievements() {
     const d = achvData();
@@ -11918,6 +11967,17 @@ const ASSETS = {
           html += '<span class="tt' + (it.ok ? '' : ' off') + '">' + (it.ok ? '★ ' : '☆ ') + it.name + '</span>';
         }
       }
+      /* 最近解锁 */
+      const recent = (d.log || []).slice(-8).reverse();
+      if (recent.length) {
+        html += '<div class="loglist" style="width:100%"><div class="lbl">最近解锁</div>';
+        for (let li = 0; li < recent.length; li++) {
+          const dtl = new Date(recent[li].t);
+          const ds = (dtl.getMonth() + 1) + '月' + dtl.getDate() + '日 ' + ('0' + dtl.getHours()).slice(-2) + ':' + ('0' + dtl.getMinutes()).slice(-2);
+          html += '<div class="li"><b>' + recent[li].name + '</b><span>' + ds + '</span></div>';
+        }
+        html += '</div>';
+      }
       tt.innerHTML = html;
     }
     const tot = $('achvTotal');
@@ -11937,6 +11997,7 @@ const ASSETS = {
     if (!el) return null;
     const on = force == null ? !el.classList.contains('show') : !!force;
     if (!on) { el.classList.remove('show'); return null; }
+    syncAchievementLog(false);
     const d = refreshAchievements();
     el.classList.add('show');
     return d;
@@ -12928,6 +12989,11 @@ const ASSETS = {
         setDayCycle(e.target.checked);
       });
     }
+    const replayBtn = $('btnReplayTutorial');
+    if (replayBtn) replayBtn.addEventListener('click', function () {
+      tutorialReset();
+      showToast('新手引导已重新开启', 2400);
+    });
     const presetBox = $('presets');
     if (presetBox) {
       const pbtns = presetBox.querySelectorAll('button');
@@ -13495,6 +13561,9 @@ const ASSETS = {
     updateAmbientAudio(dt);
     updateTravel(dt);
     updateTutorial(dt);
+    if (!window.__achvSyncT) window.__achvSyncT = 0;
+    window.__achvSyncT += dt;
+    if (window.__achvSyncT > 3) { window.__achvSyncT = 0; syncAchievementLog(true); }
     updatePerfHud(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
@@ -13759,6 +13828,8 @@ const ASSETS = {
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
+    syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
+    achievementLog: function () { return (achievements.log || []).slice(-20); },
     tutorialInfo: function () { return { active: tutorial.active, step: tutorial.step, done: tutorial.done, total: TUTORIAL_STEPS.length }; },
     tutorialReset: tutorialReset,
     tutorialTick: function (dt) { updateTutorial(dt || 0.016); },
@@ -13834,6 +13905,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.36.0.20261019.2121","time":"2026-10-19T21:21:24.025Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.37.0.20261019.2136","time":"2026-10-19T21:36:02.330Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

@@ -1098,6 +1098,7 @@
       achievements.catPlays = savedA.catPlays || 0;
       achievements.wishes = savedA.wishes || 0;
       achievements.incense = savedA.incense || 0;
+      achievements.log = Array.isArray(savedA.log) ? savedA.log : [];
     }
   } catch (e) {}
   function achievementsSave() {
@@ -1552,6 +1553,46 @@
   /* =========================================================
    *  行程总览（H）：探索 / 任务 / 收藏 / 称号
    * ======================================================= */
+  function syncAchievementLog(notify) {
+    if (!Array.isArray(achievements.log)) achievements.log = [];
+    let changed = false;
+    const titles = [
+      { name: '中轴行者', ok: QUESTS[0].done },
+      { name: '寻芳客', ok: QUESTS[1].done },
+      { name: '御猫之友', ok: QUESTS[2].done },
+      { name: '御用摄影师', ok: Object.keys(photoSpots).length >= DISCOVERIES.length },
+      { name: '猫薄荷', ok: (achievements.catFeeds || 0) >= 5 },
+      { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
+      { name: '灯谜雅士', ok: (achievements.riddles || []).length >= 3 },
+      { name: '御猫团宠', ok: (achievements.catPlays || 0) >= 3 },
+      { name: '心愿达成', ok: (achievements.wishes || 0) >= 3 },
+      { name: '心香一瓣', ok: (achievements.incense || 0) >= 3 },
+      { name: '千里之行', ok: travel.dist >= 1000 },
+      { name: '宫城常客', ok: travel.dist >= 5000 },
+      { name: '身轻如燕', ok: travel.jumps >= 50 },
+      { name: '流连忘返', ok: travel.time >= 600 },
+      { name: '紫禁城居民', ok: Object.keys(discSet).length >= 10 && QUESTS.every(function (q) { return q.done; }) && Object.keys(photoSpots).length >= 10 }
+    ];
+    for (let i = 0; i < titles.length; i++) {
+      const ti = titles[i];
+      if (!ti.ok) continue;
+      let has = false;
+      for (let j = 0; j < achievements.log.length; j++) {
+        if (achievements.log[j].name === ti.name) { has = true; break; }
+      }
+      if (has) continue;
+      achievements.log.push({ name: ti.name, t: Date.now() });
+      changed = true;
+      if (notify) {
+        showToast('称号解锁 · ' + ti.name, 3600);
+        if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+      }
+    }
+    if (achievements.log.length > 60) achievements.log = achievements.log.slice(-60);
+    if (changed) achievementsSave();
+    return achievements.log.length;
+  }
+
   function achvData() {
     const disc = Object.keys(discSet).length;
     const questsDone = QUESTS.filter(function (q) { return q.done; }).length;
@@ -1599,7 +1640,7 @@
       const arr = titles.filter(function (x) { return x.cat === gname; });
       if (arr.length) groups.push({ name: gname, items: arr });
     }
-    return { rows: rows, titles: titles, groups: groups, titleDone: titleDone, titleTotal: titles.length, pct: pct };
+    return { rows: rows, titles: titles, groups: groups, titleDone: titleDone, titleTotal: titles.length, pct: pct, log: (achievements.log || []).slice() };
   }
   function refreshAchievements() {
     const d = achvData();
@@ -1625,6 +1666,17 @@
           html += '<span class="tt' + (it.ok ? '' : ' off') + '">' + (it.ok ? '★ ' : '☆ ') + it.name + '</span>';
         }
       }
+      /* 最近解锁 */
+      const recent = (d.log || []).slice(-8).reverse();
+      if (recent.length) {
+        html += '<div class="loglist" style="width:100%"><div class="lbl">最近解锁</div>';
+        for (let li = 0; li < recent.length; li++) {
+          const dtl = new Date(recent[li].t);
+          const ds = (dtl.getMonth() + 1) + '月' + dtl.getDate() + '日 ' + ('0' + dtl.getHours()).slice(-2) + ':' + ('0' + dtl.getMinutes()).slice(-2);
+          html += '<div class="li"><b>' + recent[li].name + '</b><span>' + ds + '</span></div>';
+        }
+        html += '</div>';
+      }
       tt.innerHTML = html;
     }
     const tot = $('achvTotal');
@@ -1644,6 +1696,7 @@
     if (!el) return null;
     const on = force == null ? !el.classList.contains('show') : !!force;
     if (!on) { el.classList.remove('show'); return null; }
+    syncAchievementLog(false);
     const d = refreshAchievements();
     el.classList.add('show');
     return d;
@@ -2635,6 +2688,11 @@
         setDayCycle(e.target.checked);
       });
     }
+    const replayBtn = $('btnReplayTutorial');
+    if (replayBtn) replayBtn.addEventListener('click', function () {
+      tutorialReset();
+      showToast('新手引导已重新开启', 2400);
+    });
     const presetBox = $('presets');
     if (presetBox) {
       const pbtns = presetBox.querySelectorAll('button');
@@ -3202,6 +3260,9 @@
     updateAmbientAudio(dt);
     updateTravel(dt);
     updateTutorial(dt);
+    if (!window.__achvSyncT) window.__achvSyncT = 0;
+    window.__achvSyncT += dt;
+    if (window.__achvSyncT > 3) { window.__achvSyncT = 0; syncAchievementLog(true); }
     updatePerfHud(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
@@ -3466,6 +3527,8 @@
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
+    syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
+    achievementLog: function () { return (achievements.log || []).slice(-20); },
     tutorialInfo: function () { return { active: tutorial.active, step: tutorial.step, done: tutorial.done, total: TUTORIAL_STEPS.length }; },
     tutorialReset: tutorialReset,
     tutorialTick: function (dt) { updateTutorial(dt || 0.016); },

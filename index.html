@@ -315,6 +315,13 @@
   }
   .objarrow.show{display:block}
   body.photo .objmark, body.photo .objarrow{display:none !important}
+  /* ---------------- 成就通知 ---------------- */
+  .achv .loglist{margin-top:16px;padding-top:14px;border-top:1px solid rgba(216,180,95,.18)}
+  .achv .loglist .lbl{font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.4);margin-bottom:6px}
+  .achv .loglist .li{display:flex;justify-content:space-between;gap:12px;font-size:11px;letter-spacing:.5px;padding:3px 0;color:rgba(230,224,208,.75)}
+  .achv .loglist .li b{color:var(--gold);font-weight:400}
+  .achv .loglist .li span{color:rgba(230,224,208,.4);font-size:10px}
+
   /* ---------------- 氛围预设 ---------------- */
   .presets{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 4px}
   .presets button{
@@ -646,6 +653,7 @@
   <label class="check"><span>任务指引（目标标记）</span><input type="checkbox" id="optObjective"></label>
   <label class="check"><span>性能 HUD（F 键）</span><input type="checkbox" id="optPerfHud"></label>
   <label class="check"><span>环境音效</span><input type="checkbox" id="optAudio"></label>
+  <button class="presets-one" id="btnReplayTutorial" style="margin-top:8px;width:100%;padding:8px;background:rgba(216,180,95,.06);border:1px solid rgba(216,180,95,.3);color:rgba(230,224,208,.8);font-size:10.5px;letter-spacing:1px;cursor:pointer">重新体验新手引导</button>
   <div class="keyhint">
     <b>WASD</b> 移动 · <b>Shift</b> 疾行 · <b>空格</b> 跳跃 · <b>鼠标拖拽</b> 环视<br>
     <b>E</b> 互动 · <b>P</b> 拍照 · <b>G</b> 相册 · <b>H</b> 档案 · <b>O</b> 指引 · <b>F</b> 性能 · <b>X</b> 视角 · <b>R</b> 重置 · <b>Esc</b> 退出
