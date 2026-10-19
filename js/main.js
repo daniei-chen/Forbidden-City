@@ -1338,6 +1338,68 @@
     else el.classList.remove('show');
   }
 
+  /* =========================================================
+   *  行程总览（H）：探索 / 任务 / 收藏 / 称号
+   * ======================================================= */
+  function achvData() {
+    const disc = Object.keys(discSet).length;
+    const questsDone = QUESTS.filter(function (q) { return q.done; }).length;
+    const spots = Object.keys(photoSpots).length;
+    const feeds = achievements.catFeeds;
+    const titles = [
+      { name: '中轴行者', ok: QUESTS[0].done },
+      { name: '寻芳客', ok: QUESTS[1].done },
+      { name: '御猫之友', ok: QUESTS[2].done },
+      { name: '御用摄影师', ok: spots >= DISCOVERIES.length },
+      { name: '猫薄荷', ok: feeds >= 5 },
+      { name: '紫禁城居民', ok: disc >= 10 && questsDone >= 3 && spots >= 10 }
+    ];
+    const rows = [
+      { nm: '宫城探索', v: disc, max: DISCOVERIES.length },
+      { nm: '任务完成', v: questsDone, max: QUESTS.length },
+      { nm: '地标打卡', v: spots, max: DISCOVERIES.length },
+      { nm: '拍下照片', v: achievements.photos, max: 20 },
+      { nm: '投喂御猫', v: feeds, max: 5 }
+    ];
+    let pctSum = 0;
+    for (let i = 0; i < rows.length; i++) pctSum += Math.min(1, rows[i].v / rows[i].max);
+    const pct = Math.round(pctSum / rows.length * 100);
+    return { rows: rows, titles: titles, pct: pct };
+  }
+  function refreshAchievements() {
+    const d = achvData();
+    const rowsEl = $('achvRows');
+    if (rowsEl) {
+      let html = '';
+      for (let i = 0; i < d.rows.length; i++) {
+        const r = d.rows[i];
+        const p = Math.min(100, r.v / r.max * 100);
+        html += '<div class="row"><span class="nm">' + r.nm + '</span><span class="bar"><i style="width:' + p + '%"></i></span><span class="val">' + r.v + ' / ' + r.max + '</span></div>';
+      }
+      rowsEl.innerHTML = html;
+    }
+    const tt = $('achvTitles');
+    if (tt) {
+      let html = '';
+      for (let i = 0; i < d.titles.length; i++) {
+        html += '<span class="tt' + (d.titles[i].ok ? '' : ' off') + '">' + (d.titles[i].ok ? '★ ' : '☆ ') + d.titles[i].name + '</span>';
+      }
+      tt.innerHTML = html;
+    }
+    const tot = $('achvTotal');
+    if (tot) tot.innerHTML = '行程完成度<b>' + d.pct + '%</b> · 按 H 或 Esc 关闭';
+    return d;
+  }
+  function openAchievements(force) {
+    const el = $('achv');
+    if (!el) return null;
+    const on = force == null ? !el.classList.contains('show') : !!force;
+    if (!on) { el.classList.remove('show'); return null; }
+    const d = refreshAchievements();
+    el.classList.add('show');
+    return d;
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -1348,7 +1410,7 @@
       $('btnWalk').classList.add('on');
       refreshWalkGame();
       buildQuestHud();
-      showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · 拖拽环视 · Esc 退出', 3600);
+      showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · H 总览 · P 拍照 · Esc 退出', 4200);
     } else {
       WALK.exit();
       document.body.classList.remove('walking');
@@ -1568,6 +1630,7 @@
       if (k2 === 'e') { if (!e.repeat) doInteract(); return; }
       if (k2 === 'p') { if (!e.repeat) takePhoto(); return; }
       if (k2 === 'g') { if (!e.repeat) openAlbum(); return; }
+      if (k2 === 'h') { if (!e.repeat) openAchievements(); return; }
       if (k2 === 'x') { WALK.toggleView(); return; }
       if (k2 === 'r') {
         discSet = {}; saveDisc(); refreshWalkGame();
@@ -1578,6 +1641,8 @@
       if (e.key === 'Escape') {
         const ab = document.getElementById('album');
         if (ab && ab.classList.contains('show')) { openAlbum(false); return; }
+        const av = document.getElementById('achv');
+        if (av && av.classList.contains('show')) { openAchievements(false); return; }
         toggleWalk(false); return;
       }
       if (k2 === 'v') { toggleWalk(false); return; }
@@ -2030,6 +2095,10 @@
     });
     const ab = $('album');
     if (ab) ab.addEventListener('click', function (e) { if (e.target === ab) openAlbum(false); });
+    const ac = $('achvClose');
+    if (ac) ac.addEventListener('click', function () { openAchievements(false); });
+    const acv = $('achv');
+    if (acv) acv.addEventListener('click', function (e) { if (e.target === acv) openAchievements(false); });
   })();
       if (params.get('labels') === '1') toggleLabels(true);
       if (params.get('cinema') === '1') setCinema(true);
@@ -2148,6 +2217,8 @@
     takePhoto: takePhoto,
     albumInfo: function () { return { photos: album.length, spots: Object.keys(photoSpots).length, allDone: photoAllDone, names: album.map(function (a) { return a.name; }) }; },
     openAlbum: openAlbum,
+    openAchievements: openAchievements,
+    achievementsPanel: function () { return achvData(); },
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
     questTick: updateQuests,
     walkGameTick: updateWalkGame,

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.8.0.20261019.1051">
-<meta name="build-time" content="2026-10-19T10:51:18.840Z">
+<meta name="generator" content="forbidden-city-build 6.9.0.20261019.1124">
+<meta name="build-time" content="2026-10-19T11:24:29.699Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T10:51:18.840Z
-  version: 6.8.0.20261019.1051
+  build: 2026-10-19T11:24:29.699Z
+  version: 6.9.0.20261019.1124
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -276,6 +276,30 @@
   .album .spot{font-size:10.5px;letter-spacing:.5px;padding:3px 8px;border:1px solid rgba(216,180,95,.25);color:rgba(230,224,208,.5)}
   .album .spot.on{color:var(--gold);border-color:rgba(216,180,95,.7);background:rgba(216,180,95,.1)}
   #tbPhoto{right:92px;bottom:56px}
+  /* ---------------- 行程总览 ---------------- */
+  .achv{
+    position:fixed;inset:0;z-index:32;display:none;align-items:center;justify-content:center;
+    background:rgba(4,6,9,.82);backdrop-filter:blur(10px);
+  }
+  .achv.show{display:flex}
+  .achv .inner{
+    width:min(720px,92vw);max-height:86vh;overflow:auto;padding:26px 28px;
+    background:rgba(9,11,15,.92);border:1px solid rgba(216,180,95,.4);
+  }
+  .achv h3{margin:0 0 2px;font-weight:400;font-size:20px;letter-spacing:4px;color:var(--gold)}
+  .achv .sub{font-size:11px;color:rgba(230,224,208,.55);letter-spacing:1px;margin-bottom:18px}
+  .achv .row{display:flex;align-items:center;gap:12px;margin:11px 0;font-size:12px;letter-spacing:.6px}
+  .achv .row .nm{width:104px;color:rgba(230,224,208,.8)}
+  .achv .row .bar{flex:1;height:3px;background:rgba(216,180,95,.16)}
+  .achv .row .bar i{display:block;height:100%;background:var(--gold);width:0}
+  .achv .row .val{width:66px;text-align:right;color:var(--gold);font-size:11px;letter-spacing:.5px}
+  .achv .titles{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(216,180,95,.18)}
+  .achv .titles .tt{font-size:11px;letter-spacing:1px;padding:4px 10px;border:1px solid rgba(216,180,95,.45);color:var(--gold);background:rgba(216,180,95,.08)}
+  .achv .titles .tt.off{color:rgba(230,224,208,.28);border-color:rgba(216,180,95,.15);background:none}
+  .achv .total{margin-top:18px;font-size:12px;letter-spacing:1.5px;color:rgba(230,224,208,.75)}
+  .achv .total b{color:var(--gold);font-size:22px;font-weight:400;margin:0 4px}
+  .achv .close{position:absolute;right:26px;top:20px;width:40px;height:40px;border:1px solid rgba(216,180,95,.5);
+    background:rgba(9,11,15,.7);color:var(--gold);font-size:18px;cursor:pointer}
     font-size:9.5px;color:rgba(230,224,208,.38);letter-spacing:1.2px;white-space:nowrap}
   @media (max-height:520px){
     .touchui .stick{width:108px;height:108px}
@@ -419,6 +443,16 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="achv" id="achv">
+  <button class="close" id="achvClose">×</button>
+  <div class="inner">
+    <h3>行程总览</h3>
+    <div class="sub" id="achvSub">探索 · 任务 · 收藏 · 称号</div>
+    <div id="achvRows"></div>
+    <div class="titles" id="achvTitles"></div>
+    <div class="total" id="achvTotal"></div>
+  </div>
+</div>
 <div class="album" id="album">
   <button class="close" id="albumClose">×</button>
   <div class="inner">
@@ -515,7 +549,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.8.0',
+  version: '6.9.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -10489,6 +10523,68 @@ const ASSETS = {
     else el.classList.remove('show');
   }
 
+  /* =========================================================
+   *  行程总览（H）：探索 / 任务 / 收藏 / 称号
+   * ======================================================= */
+  function achvData() {
+    const disc = Object.keys(discSet).length;
+    const questsDone = QUESTS.filter(function (q) { return q.done; }).length;
+    const spots = Object.keys(photoSpots).length;
+    const feeds = achievements.catFeeds;
+    const titles = [
+      { name: '中轴行者', ok: QUESTS[0].done },
+      { name: '寻芳客', ok: QUESTS[1].done },
+      { name: '御猫之友', ok: QUESTS[2].done },
+      { name: '御用摄影师', ok: spots >= DISCOVERIES.length },
+      { name: '猫薄荷', ok: feeds >= 5 },
+      { name: '紫禁城居民', ok: disc >= 10 && questsDone >= 3 && spots >= 10 }
+    ];
+    const rows = [
+      { nm: '宫城探索', v: disc, max: DISCOVERIES.length },
+      { nm: '任务完成', v: questsDone, max: QUESTS.length },
+      { nm: '地标打卡', v: spots, max: DISCOVERIES.length },
+      { nm: '拍下照片', v: achievements.photos, max: 20 },
+      { nm: '投喂御猫', v: feeds, max: 5 }
+    ];
+    let pctSum = 0;
+    for (let i = 0; i < rows.length; i++) pctSum += Math.min(1, rows[i].v / rows[i].max);
+    const pct = Math.round(pctSum / rows.length * 100);
+    return { rows: rows, titles: titles, pct: pct };
+  }
+  function refreshAchievements() {
+    const d = achvData();
+    const rowsEl = $('achvRows');
+    if (rowsEl) {
+      let html = '';
+      for (let i = 0; i < d.rows.length; i++) {
+        const r = d.rows[i];
+        const p = Math.min(100, r.v / r.max * 100);
+        html += '<div class="row"><span class="nm">' + r.nm + '</span><span class="bar"><i style="width:' + p + '%"></i></span><span class="val">' + r.v + ' / ' + r.max + '</span></div>';
+      }
+      rowsEl.innerHTML = html;
+    }
+    const tt = $('achvTitles');
+    if (tt) {
+      let html = '';
+      for (let i = 0; i < d.titles.length; i++) {
+        html += '<span class="tt' + (d.titles[i].ok ? '' : ' off') + '">' + (d.titles[i].ok ? '★ ' : '☆ ') + d.titles[i].name + '</span>';
+      }
+      tt.innerHTML = html;
+    }
+    const tot = $('achvTotal');
+    if (tot) tot.innerHTML = '行程完成度<b>' + d.pct + '%</b> · 按 H 或 Esc 关闭';
+    return d;
+  }
+  function openAchievements(force) {
+    const el = $('achv');
+    if (!el) return null;
+    const on = force == null ? !el.classList.contains('show') : !!force;
+    if (!on) { el.classList.remove('show'); return null; }
+    const d = refreshAchievements();
+    el.classList.add('show');
+    return d;
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -10499,7 +10595,7 @@ const ASSETS = {
       $('btnWalk').classList.add('on');
       refreshWalkGame();
       buildQuestHud();
-      showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · 拖拽环视 · Esc 退出', 3600);
+      showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · H 总览 · P 拍照 · Esc 退出', 4200);
     } else {
       WALK.exit();
       document.body.classList.remove('walking');
@@ -10719,6 +10815,7 @@ const ASSETS = {
       if (k2 === 'e') { if (!e.repeat) doInteract(); return; }
       if (k2 === 'p') { if (!e.repeat) takePhoto(); return; }
       if (k2 === 'g') { if (!e.repeat) openAlbum(); return; }
+      if (k2 === 'h') { if (!e.repeat) openAchievements(); return; }
       if (k2 === 'x') { WALK.toggleView(); return; }
       if (k2 === 'r') {
         discSet = {}; saveDisc(); refreshWalkGame();
@@ -10729,6 +10826,8 @@ const ASSETS = {
       if (e.key === 'Escape') {
         const ab = document.getElementById('album');
         if (ab && ab.classList.contains('show')) { openAlbum(false); return; }
+        const av = document.getElementById('achv');
+        if (av && av.classList.contains('show')) { openAchievements(false); return; }
         toggleWalk(false); return;
       }
       if (k2 === 'v') { toggleWalk(false); return; }
@@ -11181,6 +11280,10 @@ const ASSETS = {
     });
     const ab = $('album');
     if (ab) ab.addEventListener('click', function (e) { if (e.target === ab) openAlbum(false); });
+    const ac = $('achvClose');
+    if (ac) ac.addEventListener('click', function () { openAchievements(false); });
+    const acv = $('achv');
+    if (acv) acv.addEventListener('click', function (e) { if (e.target === acv) openAchievements(false); });
   })();
       if (params.get('labels') === '1') toggleLabels(true);
       if (params.get('cinema') === '1') setCinema(true);
@@ -11299,6 +11402,8 @@ const ASSETS = {
     takePhoto: takePhoto,
     albumInfo: function () { return { photos: album.length, spots: Object.keys(photoSpots).length, allDone: photoAllDone, names: album.map(function (a) { return a.name; }) }; },
     openAlbum: openAlbum,
+    openAchievements: openAchievements,
+    achievementsPanel: function () { return achvData(); },
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
     questTick: updateQuests,
     walkGameTick: updateWalkGame,
@@ -11329,6 +11434,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.8.0.20261019.1051","time":"2026-10-19T10:51:18.840Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.9.0.20261019.1124","time":"2026-10-19T11:24:29.699Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

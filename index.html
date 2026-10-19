@@ -267,6 +267,30 @@
   .album .spot{font-size:10.5px;letter-spacing:.5px;padding:3px 8px;border:1px solid rgba(216,180,95,.25);color:rgba(230,224,208,.5)}
   .album .spot.on{color:var(--gold);border-color:rgba(216,180,95,.7);background:rgba(216,180,95,.1)}
   #tbPhoto{right:92px;bottom:56px}
+  /* ---------------- 行程总览 ---------------- */
+  .achv{
+    position:fixed;inset:0;z-index:32;display:none;align-items:center;justify-content:center;
+    background:rgba(4,6,9,.82);backdrop-filter:blur(10px);
+  }
+  .achv.show{display:flex}
+  .achv .inner{
+    width:min(720px,92vw);max-height:86vh;overflow:auto;padding:26px 28px;
+    background:rgba(9,11,15,.92);border:1px solid rgba(216,180,95,.4);
+  }
+  .achv h3{margin:0 0 2px;font-weight:400;font-size:20px;letter-spacing:4px;color:var(--gold)}
+  .achv .sub{font-size:11px;color:rgba(230,224,208,.55);letter-spacing:1px;margin-bottom:18px}
+  .achv .row{display:flex;align-items:center;gap:12px;margin:11px 0;font-size:12px;letter-spacing:.6px}
+  .achv .row .nm{width:104px;color:rgba(230,224,208,.8)}
+  .achv .row .bar{flex:1;height:3px;background:rgba(216,180,95,.16)}
+  .achv .row .bar i{display:block;height:100%;background:var(--gold);width:0}
+  .achv .row .val{width:66px;text-align:right;color:var(--gold);font-size:11px;letter-spacing:.5px}
+  .achv .titles{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(216,180,95,.18)}
+  .achv .titles .tt{font-size:11px;letter-spacing:1px;padding:4px 10px;border:1px solid rgba(216,180,95,.45);color:var(--gold);background:rgba(216,180,95,.08)}
+  .achv .titles .tt.off{color:rgba(230,224,208,.28);border-color:rgba(216,180,95,.15);background:none}
+  .achv .total{margin-top:18px;font-size:12px;letter-spacing:1.5px;color:rgba(230,224,208,.75)}
+  .achv .total b{color:var(--gold);font-size:22px;font-weight:400;margin:0 4px}
+  .achv .close{position:absolute;right:26px;top:20px;width:40px;height:40px;border:1px solid rgba(216,180,95,.5);
+    background:rgba(9,11,15,.7);color:var(--gold);font-size:18px;cursor:pointer}
     font-size:9.5px;color:rgba(230,224,208,.38);letter-spacing:1.2px;white-space:nowrap}
   @media (max-height:520px){
     .touchui .stick{width:108px;height:108px}
@@ -409,6 +433,16 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="achv" id="achv">
+  <button class="close" id="achvClose">×</button>
+  <div class="inner">
+    <h3>行程总览</h3>
+    <div class="sub" id="achvSub">探索 · 任务 · 收藏 · 称号</div>
+    <div id="achvRows"></div>
+    <div class="titles" id="achvTitles"></div>
+    <div class="total" id="achvTotal"></div>
+  </div>
+</div>
 <div class="album" id="album">
   <button class="close" id="albumClose">×</button>
   <div class="inner">
