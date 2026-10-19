@@ -40,7 +40,7 @@
   const DEFAULTS = {
     quality: 'auto', fps: false, shadows: true, clouds: true,
     cinema: false, labels: false, theme: 'day', photoFilter: 0, ssao: true,
-    minimap: true, autoCycle: false, objective: true
+    minimap: true, autoCycle: false, objective: true, festival: false
   };
   function loadSettings() {
     try {
@@ -2109,6 +2109,85 @@
     }
   }
 
+  /* =========================================================
+   *  节庆灯会：主轴上挂红灯笼与幡旗（可开关）
+   * ======================================================= */
+  let festivalGroup = null;
+  let festivalCount = 0;
+  function buildFestival() {
+    if (festivalGroup) return;
+    const g = new THREE.Group();
+    g.name = 'festival';
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1e, roughness: 0.9 });
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0xc8322a, roughness: 0.55, metalness: 0.05,
+      emissive: 0xff3a22, emissiveIntensity: 0.55
+    });
+    const capMat = new THREE.MeshStandardMaterial({ color: 0xd8b45f, roughness: 0.5, metalness: 0.5 });
+    const spots = [];
+    /* 外朝：御道两侧（午门 → 太和门） */
+    for (let z = 300; z <= 450; z += 9) {
+      spots.push([-7.6, z]); spots.push([7.6, z]);
+    }
+    /* 内廷：乾清门 → 坤宁宫 */
+    for (let z = -260; z <= -130; z += 9) {
+      spots.push([-6.2, z]); spots.push([6.2, z]);
+    }
+    /* 御花园入口 */
+    for (let x = -30; x <= 30; x += 10) spots.push([x, -300]);
+    festivalCount = spots.length;
+    const poleGeo = new THREE.CylinderGeometry(0.055, 0.07, 2.7, 6);
+    const bodyGeo = new THREE.SphereGeometry(0.26, 10, 8);
+    bodyGeo.scale(1, 1.15, 1);
+    const capGeo = new THREE.CylinderGeometry(0.11, 0.16, 0.08, 8);
+    const poles = new THREE.InstancedMesh(poleGeo, poleMat, spots.length);
+    const bodies = new THREE.InstancedMesh(bodyGeo, bodyMat, spots.length);
+    const caps = new THREE.InstancedMesh(capGeo, capMat, spots.length);
+    const m4 = new THREE.Matrix4();
+    for (let i = 0; i < spots.length; i++) {
+      const x = spots[i][0], z = spots[i][1];
+      m4.makeTranslation(x, 1.35, z);
+      poles.setMatrixAt(i, m4);
+      m4.makeTranslation(x, 2.85, z);
+      bodies.setMatrixAt(i, m4);
+      m4.makeTranslation(x, 3.14, z);
+      caps.setMatrixAt(i, m4);
+    }
+    poles.castShadow = true;
+    bodies.castShadow = false;
+    poles.instanceMatrix.needsUpdate = true;
+    bodies.instanceMatrix.needsUpdate = true;
+    caps.instanceMatrix.needsUpdate = true;
+    g.add(poles, bodies, caps);
+    /* 幡旗：沿御道交叉悬挂（简化为扁平长条） */
+    const flagMat = new THREE.MeshStandardMaterial({ color: 0xb3271f, roughness: 0.8, side: THREE.DoubleSide });
+    const flagGeo = new THREE.PlaneGeometry(0.5, 1.1);
+    const flags = new THREE.InstancedMesh(flagGeo, flagMat, 12);
+    const e = new THREE.Euler(0, 0, 0.12);
+    const q = new THREE.Quaternion().setFromEuler(e);
+    const s = new THREE.Vector3(1, 1, 1);
+    const v = new THREE.Vector3();
+    for (let i = 0; i < 12; i++) {
+      v.set((i % 2 === 0 ? -7.6 : 7.6), 2.2, 310 + Math.floor(i / 2) * 24);
+      m4.compose(v, q, s);
+      flags.setMatrixAt(i, m4);
+    }
+    flags.instanceMatrix.needsUpdate = true;
+    g.add(flags);
+    g.visible = !!settings.festival;
+    scene.add(g);
+    festivalGroup = g;
+  }
+  function setFestival(on, silent) {
+    settings.festival = !!on;
+    buildFestival();
+    festivalGroup.visible = !!settings.festival;
+    const cb = $('optFestival');
+    if (cb) cb.checked = !!settings.festival;
+    saveSettings();
+    if (!silent) showToast(settings.festival ? '节庆灯会：开启（主轴红灯笼）' : '节庆灯会：关闭', 2600);
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -2137,6 +2216,8 @@
         const name = this.getAttribute('data-theme');
         if (settings.autoCycle) {
           settings.autoCycle = false;
+        settings.festival = false;
+        if (festivalGroup) festivalGroup.visible = false;
         weather.rain = 0; weather.cloud = 0; weather.mode = 'clear'; settings.weatherAuto = false;
           const oc = $('optAutoCycle');
           if (oc) oc.checked = false;
@@ -2225,6 +2306,13 @@
       optAutoCycle.checked = !!settings.autoCycle;
       optAutoCycle.addEventListener('change', function (e) {
         setDayCycle(e.target.checked);
+      });
+    }
+    const optFestival = $('optFestival');
+    if (optFestival) {
+      optFestival.checked = !!settings.festival;
+      optFestival.addEventListener('change', function (e) {
+        setFestival(e.target.checked);
       });
     }
     const optWeather = $('optWeather');
@@ -2855,6 +2943,8 @@
       if (params.get('daycycle') === '1') setDayCycle(true);
   if (params.get('weather')) setWeather(params.get('weather'), true);
   else if (settings.weather && WEATHER_MODES[settings.weather]) { weather.mode = settings.weather; }
+  if (params.get('festival') === '1') setFestival(true, true);
+  else buildFestival();
   weather.rain = WEATHER_MODES[weather.mode].rain * 0.001;
   weather.cloud = WEATHER_MODES[weather.mode].cloud * 0.001;
   if (params.get('walk') === '1') toggleWalk(true);
@@ -2959,6 +3049,8 @@
     setWeather: function (m) { setWeather(m); return weather; },
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
+    setFestival: function (on) { setFestival(on); return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
+    festivalInfo: function () { return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     objectiveInfo: function () { const tg = getObjectiveTarget(); const mk = $('objMarker'), ar = $('objArrow'); return { target: tg, markerShown: !!(mk && mk.classList.contains('show')), arrowShown: !!(ar && ar.classList.contains('show')), label: ($('objLabel') || {}).textContent, arrowTransform: ar ? ar.style.transform : null, enabled: settings.objective !== false }; },
     objectiveTick: function () { updateObjectiveGuide(); },
     setTravel: function (d, t2, j) { travel.dist = d; travel.time = t2; travel.jumps = j == null ? travel.jumps : j; checkTravelMilestones(); },
