@@ -4,7 +4,7 @@
 
 | 画质 | 渲染器 | FPS | ms/帧 | draw calls | 三角面 |
 | --- | --- | --- | --- | --- | --- |
-| high | ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11) | 220 | 4.54 | 1255 | 3.59 M |
-| medium | ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11) | 112.7 | 8.87 | 1172 | 3.06 M |
-| low | ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11) | 117.1 | 8.54 | 1251 | 3.59 M |
-| high@1.5x | ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11) | 114 | 8.77 | 1175 | 3.06 M |
+| high | ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11) | 148.5 | 6.74 | 1256 | 3.58 M |
+| medium | ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11) | 129.3 | 7.73 | 1173 | 3.05 M |
+| low | ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11) | 103 | 9.7 | 1252 | 3.58 M |
+| high@1.5x | ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0, D3D11) | 103 | 9.71 | 1176 | 3.05 M |
