@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.25.0.20261019.1810">
-<meta name="build-time" content="2026-10-19T18:10:40.713Z">
+<meta name="generator" content="forbidden-city-build 6.26.0.20261019.1829">
+<meta name="build-time" content="2026-10-19T18:29:56.393Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T18:10:40.713Z
-  version: 6.25.0.20261019.1810
+  build: 2026-10-19T18:29:56.393Z
+  version: 6.26.0.20261019.1829
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -313,6 +313,27 @@
   }
   .objarrow.show{display:block}
   body.photo .objmark, body.photo .objarrow{display:none !important}
+  /* 漫游性能 HUD */
+  .perfhud{
+    position:fixed;left:18px;bottom:18px;z-index:9;display:none;
+    padding:7px 11px;background:rgba(9,11,15,.62);border:1px solid rgba(216,180,95,.25);
+    font-size:10.5px;letter-spacing:.8px;color:rgba(230,224,208,.75);
+    font-family:ui-monospace,Consolas,monospace;line-height:1.7;pointer-events:none;
+    backdrop-filter:blur(6px);
+  }
+  body.walking.perfshow .perfhud{display:block}
+  .perfhud b{color:var(--gold);font-weight:400}
+  body.photo .perfhud{display:none !important}
+
+  /* 移动端：安全区与触控优化 */
+  .touchui .stick, .touchui .tbtn{ touch-action:none; -webkit-user-select:none; user-select:none; }
+  @supports (padding: max(0px)) {
+    .touchui .stick{ left: max(20px, env(safe-area-inset-left)); bottom: max(24px, env(safe-area-inset-bottom)); }
+    .touchui .tbtn{ right: max(20px, env(safe-area-inset-right)); }
+    .touchui .tbtn#tbInteract{ bottom: max(58px, calc(env(safe-area-inset-bottom) + 34px)); }
+    .perfhud{ left: max(18px, env(safe-area-inset-left)); bottom: max(18px, env(safe-area-inset-bottom)); }
+  }
+  html, body{ overscroll-behavior:none; }
 
   /* ---------------- 灯谜 ---------------- */
   .riddle{
@@ -518,6 +539,8 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="perfhud" id="perfhud"></div>
+
 <div class="objmark" id="objMarker"><div class="dia"></div><div class="lbl" id="objLabel"></div></div>
 <div class="objarrow" id="objArrow">➤</div>
 
@@ -644,7 +667,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.25.0',
+  version: '6.26.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -9849,7 +9872,7 @@ const ASSETS = {
   const DEFAULTS = {
     quality: 'auto', fps: false, shadows: true, clouds: true,
     cinema: false, labels: false, theme: 'day', photoFilter: 0, ssao: true,
-    minimap: true, autoCycle: false, objective: true, festival: false
+    minimap: true, autoCycle: false, objective: true, perfhud: false, festival: false
   };
   function loadSettings() {
     try {
@@ -12076,6 +12099,38 @@ const ASSETS = {
     return n;
   }
 
+  /* =========================================================
+   *  漫游性能 HUD（FPS / draw calls / 三角面 / 画质 / 区域）
+   * ======================================================= */
+  const ZONE_LABELS = { plaza: '广场', garden: '御花园', interior: '殿内' };
+  let perfAcc = 0, perfFps = 0, perfTimer = 0;
+  function updatePerfHud(dt) {
+    const el = $('perfhud');
+    if (!el) return;
+    const on = !!settings.perfhud;
+    document.body.classList.toggle('perfshow', on);
+    if (!on || !WALK.active) return;
+    if (dt > 0) {
+      const fps = 1 / Math.max(1e-4, dt);
+      perfFps = perfFps ? perfFps * 0.9 + fps * 0.1 : fps;
+    }
+    perfTimer += dt;
+    if (perfTimer < 0.2) return;
+    perfTimer = 0;
+    const info = (renderer && renderer.info) ? renderer.info.render : { calls: 0, triangles: 0 };
+    const zone = (WALK.zoneAt && WALK.zoneAt(WALK.pos.x, WALK.pos.z)) || 'plaza';
+    el.innerHTML =
+      '<div>FPS <b>' + Math.round(perfFps) + '</b> · Draws <b>' + info.calls + '</b> · Tris <b>' + (info.triangles ? (info.triangles / 1e6).toFixed(2) + 'M' : '0') + '</b></div>' +
+      '<div>画质 <b>' + (settings.quality || 'auto') + '</b> · 区域 <b>' + (ZONE_LABELS[zone] || zone) + '</b> · 位置 <b>' + Math.round(WALK.pos.x) + ', ' + Math.round(WALK.pos.z) + '</b></div>';
+  }
+  function togglePerfHud() {
+    settings.perfhud = !settings.perfhud;
+    saveSettings();
+    if (!settings.perfhud) document.body.classList.remove('perfshow');
+    showToast(settings.perfhud ? '性能 HUD：开（F 键切换）' : '性能 HUD：关', 1800);
+    return settings.perfhud;
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -12090,6 +12145,7 @@ const ASSETS = {
     } else {
       WALK.exit();
       document.body.classList.remove('walking');
+      document.body.classList.remove('perfshow');
       $('walkhint').classList.remove('show');
       $('btnWalk').classList.remove('on');
       ctrl.syncFromCamera();
@@ -12347,6 +12403,7 @@ const ASSETS = {
       if (k2 === 'g') { if (!e.repeat) openAlbum(); return; }
       if (k2 === 'h') { if (!e.repeat) openAchievements(); return; }
       if (k2 === 'o') { if (!e.repeat) { settings.objective = settings.objective === false ? true : false; saveSettings(); showToast(settings.objective === false ? '任务指引：关' : '任务指引：开', 1800); } return; }
+      if (k2 === 'f') { if (!e.repeat) togglePerfHud(); return; }
       if (k2 === 'x') { WALK.toggleView(); return; }
       if (k2 === 'r') {
         discSet = {}; saveDisc(); refreshWalkGame();
@@ -12715,6 +12772,7 @@ const ASSETS = {
     updateWeather(dt);
     updateAmbientAudio(dt);
     updateTravel(dt);
+    updatePerfHud(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -12975,6 +13033,9 @@ const ASSETS = {
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
+    perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
+    togglePerfHud: togglePerfHud,
+    perfHudTick: function (dt) { updatePerfHud(dt || 0.016); },
     catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },
     setFestival: function (on) { setFestival(on); return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     festivalInfo: function () { return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
@@ -13037,6 +13098,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.25.0.20261019.1810","time":"2026-10-19T18:10:40.713Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.26.0.20261019.1829","time":"2026-10-19T18:29:56.393Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

@@ -1,5 +1,21 @@
 # 更新日志
 
+## v6.26.0 — 性能 HUD 与移动端优化
+
+**新增**
+- 漫游模式 **F 键**性能 HUD（左下角）：实时 FPS、draw calls、三角面数、当前画质、所在区域、世界坐标
+- 数据每 0.2 秒刷新，FPS 平滑处理；退出漫游自动隐藏
+- 调试图标 `__app.perfHud()` / `togglePerfHud()` / `perfHudTick()`
+
+**移动端优化**
+- 触屏摇杆/按钮适配 iOS 安全区（safe-area-inset）
+- 禁止页面过度滚动（overscroll-behavior: none）
+- 触控元素统一 touch-action / user-select 处理，避免误选中与双击缩放
+
+**验证**
+- HUD 显示「FPS 60 · Draws 916 · Tris 3.22M / 画质 low · 区域 广场 · 位置 0, 430」✓
+- 退出漫游 class 移除、HUD 隐藏 ✓
+- 冒烟 27/27；harness 对比 PASS
 ## v6.25.0 — 游戏档案（行程总览升级）
 
 **改进**

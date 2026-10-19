@@ -40,7 +40,7 @@
   const DEFAULTS = {
     quality: 'auto', fps: false, shadows: true, clouds: true,
     cinema: false, labels: false, theme: 'day', photoFilter: 0, ssao: true,
-    minimap: true, autoCycle: false, objective: true, festival: false
+    minimap: true, autoCycle: false, objective: true, perfhud: false, festival: false
   };
   function loadSettings() {
     try {
@@ -2267,6 +2267,38 @@
     return n;
   }
 
+  /* =========================================================
+   *  漫游性能 HUD（FPS / draw calls / 三角面 / 画质 / 区域）
+   * ======================================================= */
+  const ZONE_LABELS = { plaza: '广场', garden: '御花园', interior: '殿内' };
+  let perfAcc = 0, perfFps = 0, perfTimer = 0;
+  function updatePerfHud(dt) {
+    const el = $('perfhud');
+    if (!el) return;
+    const on = !!settings.perfhud;
+    document.body.classList.toggle('perfshow', on);
+    if (!on || !WALK.active) return;
+    if (dt > 0) {
+      const fps = 1 / Math.max(1e-4, dt);
+      perfFps = perfFps ? perfFps * 0.9 + fps * 0.1 : fps;
+    }
+    perfTimer += dt;
+    if (perfTimer < 0.2) return;
+    perfTimer = 0;
+    const info = (renderer && renderer.info) ? renderer.info.render : { calls: 0, triangles: 0 };
+    const zone = (WALK.zoneAt && WALK.zoneAt(WALK.pos.x, WALK.pos.z)) || 'plaza';
+    el.innerHTML =
+      '<div>FPS <b>' + Math.round(perfFps) + '</b> · Draws <b>' + info.calls + '</b> · Tris <b>' + (info.triangles ? (info.triangles / 1e6).toFixed(2) + 'M' : '0') + '</b></div>' +
+      '<div>画质 <b>' + (settings.quality || 'auto') + '</b> · 区域 <b>' + (ZONE_LABELS[zone] || zone) + '</b> · 位置 <b>' + Math.round(WALK.pos.x) + ', ' + Math.round(WALK.pos.z) + '</b></div>';
+  }
+  function togglePerfHud() {
+    settings.perfhud = !settings.perfhud;
+    saveSettings();
+    if (!settings.perfhud) document.body.classList.remove('perfshow');
+    showToast(settings.perfhud ? '性能 HUD：开（F 键切换）' : '性能 HUD：关', 1800);
+    return settings.perfhud;
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -2281,6 +2313,7 @@
     } else {
       WALK.exit();
       document.body.classList.remove('walking');
+      document.body.classList.remove('perfshow');
       $('walkhint').classList.remove('show');
       $('btnWalk').classList.remove('on');
       ctrl.syncFromCamera();
@@ -2538,6 +2571,7 @@
       if (k2 === 'g') { if (!e.repeat) openAlbum(); return; }
       if (k2 === 'h') { if (!e.repeat) openAchievements(); return; }
       if (k2 === 'o') { if (!e.repeat) { settings.objective = settings.objective === false ? true : false; saveSettings(); showToast(settings.objective === false ? '任务指引：关' : '任务指引：开', 1800); } return; }
+      if (k2 === 'f') { if (!e.repeat) togglePerfHud(); return; }
       if (k2 === 'x') { WALK.toggleView(); return; }
       if (k2 === 'r') {
         discSet = {}; saveDisc(); refreshWalkGame();
@@ -2906,6 +2940,7 @@
     updateWeather(dt);
     updateAmbientAudio(dt);
     updateTravel(dt);
+    updatePerfHud(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -3166,6 +3201,9 @@
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
+    perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
+    togglePerfHud: togglePerfHud,
+    perfHudTick: function (dt) { updatePerfHud(dt || 0.016); },
     catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },
     setFestival: function (on) { setFestival(on); return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     festivalInfo: function () { return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },

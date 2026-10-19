@@ -304,6 +304,27 @@
   }
   .objarrow.show{display:block}
   body.photo .objmark, body.photo .objarrow{display:none !important}
+  /* 漫游性能 HUD */
+  .perfhud{
+    position:fixed;left:18px;bottom:18px;z-index:9;display:none;
+    padding:7px 11px;background:rgba(9,11,15,.62);border:1px solid rgba(216,180,95,.25);
+    font-size:10.5px;letter-spacing:.8px;color:rgba(230,224,208,.75);
+    font-family:ui-monospace,Consolas,monospace;line-height:1.7;pointer-events:none;
+    backdrop-filter:blur(6px);
+  }
+  body.walking.perfshow .perfhud{display:block}
+  .perfhud b{color:var(--gold);font-weight:400}
+  body.photo .perfhud{display:none !important}
+
+  /* 移动端：安全区与触控优化 */
+  .touchui .stick, .touchui .tbtn{ touch-action:none; -webkit-user-select:none; user-select:none; }
+  @supports (padding: max(0px)) {
+    .touchui .stick{ left: max(20px, env(safe-area-inset-left)); bottom: max(24px, env(safe-area-inset-bottom)); }
+    .touchui .tbtn{ right: max(20px, env(safe-area-inset-right)); }
+    .touchui .tbtn#tbInteract{ bottom: max(58px, calc(env(safe-area-inset-bottom) + 34px)); }
+    .perfhud{ left: max(18px, env(safe-area-inset-left)); bottom: max(18px, env(safe-area-inset-bottom)); }
+  }
+  html, body{ overscroll-behavior:none; }
 
   /* ---------------- 灯谜 ---------------- */
   .riddle{
@@ -508,6 +529,8 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="perfhud" id="perfhud"></div>
+
 <div class="objmark" id="objMarker"><div class="dia"></div><div class="lbl" id="objLabel"></div></div>
 <div class="objarrow" id="objArrow">➤</div>
 
