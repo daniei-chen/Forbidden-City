@@ -233,7 +233,7 @@ const NPC = {
       g.add(cat.group);
       let len3 = 0;
       for (let i = 1; i < r.pts.length; i++) len3 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0 });
+      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0, chaseT: 0, chaseCd: 6 + Math.random() * 8 });
     }
 
     this.group = g;
@@ -305,6 +305,15 @@ const NPC = {
       });
     }
   },
+  chaseStats: function () {
+    const out = [];
+    for (let i = 0; i < (this.cats || []).length; i++) {
+      const c = this.cats[i];
+      if (c.chaseT > 0) out.push({ i: i, left: Math.round(c.chaseT * 100) / 100 });
+    }
+    return out;
+  },
+
   updateSparrows: function (dt) {
     const inst = this.sparrows;
     const data = this.sparrowData;
@@ -427,6 +436,71 @@ const NPC = {
       const cur0 = this.pathPos(cat.pts, cat.t);
       let dist = 1e9;
       if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
+
+      /* 追蝴蝶：猫的日常小剧场 */
+      if (cat.chaseT > 0) {
+        cat.chaseT -= dt;
+        const cpos = cat.obj.group.position;
+        let bp = null, bd = 1e9;
+        if (typeof EFFECTS !== 'undefined' && EFFECTS.butterflyPos) {
+          for (let bi = 0; bi < EFFECTS.butterflyPos.length; bi++) {
+            const bb = EFFECTS.butterflyPos[bi];
+            if (!bb) continue;
+            const dd = Math.hypot(bb.x - cpos.x, bb.z - cpos.z);
+            if (dd < bd) { bd = dd; bp = bb; }
+          }
+        }
+        if (bp) {
+          const dxb = bp.x - cpos.x, dzb = bp.z - cpos.z;
+          const dl = Math.hypot(dxb, dzb) || 1;
+          if (dl > 1.0) {
+            cat.obj.group.position.set(cpos.x + dxb / dl * 3.9 * dt, 0, cpos.z + dzb / dl * 3.9 * dt);
+          }
+          cat.obj.group.rotation.y = Math.atan2(dxb, dzb);
+          cat.legPhase += dt * 15;
+          const scb = Math.sin(cat.legPhase);
+          cat.obj.parts.legs[0].rotation.x = scb * 1.0;
+          cat.obj.parts.legs[1].rotation.x = -scb * 1.0;
+          cat.obj.parts.legs[2].rotation.x = -scb * 1.0;
+          cat.obj.parts.legs[3].rotation.x = scb * 1.0;
+          cat.obj.parts.tail.rotation.z = 0.5 + Math.sin(this.time * 12) * 0.25;
+          /* 扑蝶：靠近时跃起 */
+          const hop = dl < 1.9 ? Math.abs(Math.sin(this.time * 14)) * 0.28 : Math.abs(scb) * 0.05;
+          cat.obj.parts.body.position.y = 0.3 + hop;
+        }
+        if (cat.chaseT <= 0) {
+          /* 回到最近巡逻路径点 */
+          let bestT2 = 0, bestD2 = 1e9;
+          for (let k2 = 0; k2 <= 12; k2++) {
+            const tt2 = (k2 / 12) * cat.len;
+            const pp2 = this.pathPos(cat.pts, tt2);
+            const dd3 = Math.hypot(pp2.x - cat.obj.group.position.x, pp2.z - cat.obj.group.position.z);
+            if (dd3 < bestD2) { bestD2 = dd3; bestT2 = tt2; }
+          }
+          cat.t = bestT2;
+          cat.chaseCd = 14 + Math.random() * 10;
+        }
+        continue;
+      }
+      cat.chaseCd = Math.max(0, cat.chaseCd - dt);
+      if (cat.chaseCd <= 0 && typeof EFFECTS !== 'undefined' && EFFECTS.butterflyPos && !cat.flee && cat.feedT <= 0) {
+        let bp0 = null, bd0 = 1e9;
+        const cpNow = cat.obj.group.position;
+        for (let bi0 = 0; bi0 < EFFECTS.butterflyPos.length; bi0++) {
+          const bb0 = EFFECTS.butterflyPos[bi0];
+          if (!bb0) continue;
+          const dd0 = Math.hypot(bb0.x - cpNow.x, bb0.z - cpNow.z);
+          if (dd0 < bd0) { bd0 = dd0; bp0 = bb0; }
+        }
+        if (bp0 && bd0 < 16) {
+          cat.chaseT = 3.4;
+          cat.curious = 0;
+          cat.look = 0;
+          cat.flee = 0;
+        } else {
+          cat.chaseCd = 5;
+        }
+      }
 
       /* 投喂跟随：走近玩家身边、冒爱心 */
       if (cat.feedT > 0) {

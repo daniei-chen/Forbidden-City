@@ -351,6 +351,7 @@ const EFFECTS = {
   /* ---------------- 蝴蝶（花园） ---------------- */
   butterflies: null,
   butterflyAnchors: null,
+  butterflyPos: null,
   butterflyTime: 0,
   initButterflies: function (scene) {
     const spots = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396], [-60, -300], [60, -300]];
@@ -396,6 +397,8 @@ const EFFECTS = {
       s.set(1, Math.abs(Math.sin(t * 14)) * 0.7 + 0.4, 1);
       m.compose(p, q, s);
       b.setMatrixAt(i, m);
+      if (!this.butterflyPos) this.butterflyPos = [];
+      this.butterflyPos[i] = { x: p.x, y: p.y, z: p.z };
     }
     b.instanceMatrix.needsUpdate = true;
   },

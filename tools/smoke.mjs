@@ -230,11 +230,15 @@ try {
   })()`);
   check('小人跳跃起跳', jumpRes && jumpRes.airborne === true, JSON.stringify(jumpRes));
   check('小人跳跃落地', jumpRes && jumpRes.landed === true, JSON.stringify(jumpRes));
-  await evaluate("WALK.keys['w'] = true");
-  await waitFor('WALK.pos.z < 429', 12000);
-  await evaluate("WALK.keys['w'] = false");
-  const walked = await evaluate('WALK.pos.z');
-  check('漫游移动', walked < 429, 'z=' + walked);
+  const moveRes = await evaluate(`(function(){
+    if (!window.__app || !window.__app.state.walking) return null;
+    var z0 = WALK.pos.z;
+    WALK.keys['w'] = true;
+    for (var i = 0; i < 120; i++) WALK.update(1 / 60);
+    WALK.keys['w'] = false;
+    return { z0: +z0.toFixed(2), z1: +WALK.pos.z.toFixed(2), dist: +(z0 - WALK.pos.z).toFixed(2) };
+  })()`);
+  check('漫游移动', moveRes && moveRes.dist > 3, JSON.stringify(moveRes));
   await screenshot('smoke-06-walk.png');
   await evaluate('window.__app.stopWalk()');
   await sleep(600);
