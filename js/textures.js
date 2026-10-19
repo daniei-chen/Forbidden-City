@@ -635,7 +635,18 @@ TEX.plaque = function (text) {
     g.font = 'bold ' + (H * 0.52) + 'px "KaiTi","STKaiti","SimSun",serif';
     g.shadowColor = 'rgba(0,0,0,0.6)';
     g.shadowBlur = 6;
-    g.fillText(text, W / 2, H / 2 + 4);
+    /* 传统匾额从右往左读：逐字排版，首字放最右 */
+    const chars2 = text.split('');
+    const n2 = chars2.length;
+    if (n2 <= 1) {
+      g.fillText(text, W / 2, H / 2 + 4);
+    } else {
+      const gapW = Math.min(H * 1.05, (W * 0.68) / n2);
+      for (let ci2 = 0; ci2 < n2; ci2++) {
+        const cxx = W / 2 + ((n2 - 1) / 2 - ci2) * gapW;
+        g.fillText(chars2[ci2], cxx, H / 2 + 4);
+      }
+    }
     return TEX.tex(cv, 1, 1);
   });
 };

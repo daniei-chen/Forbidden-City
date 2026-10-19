@@ -104,3 +104,4 @@ pm run smoke` → ④ 多机位截图 → ⑤ 更新文档/版本 → ⑥ 记录
 | R44 | 太阳圆盘 + 月亮/月晕 | 冒烟 + harness |
 | R45 | 真实 GPU 帧率实测（RTX 5060 Ti：high 90+ FPS）| gpu-bench + 冒烟 |
 | R46 | 远景树线双层 + 视觉 QA 巡检 | 冒烟 + harness |
+| R47 | 匾额右起排版 + 近景 QA | 冒烟 + harness |
