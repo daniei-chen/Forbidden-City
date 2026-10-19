@@ -1455,6 +1455,10 @@
       { name: '猫薄荷', ok: feeds >= 5 },
       { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
       { name: '灯谜雅士', ok: (achievements.riddles || []).length >= 3 },
+      { name: '千里之行', ok: travel.dist >= 1000 },
+      { name: '宫城常客', ok: travel.dist >= 5000 },
+      { name: '身轻如燕', ok: travel.jumps >= 50 },
+      { name: '流连忘返', ok: travel.time >= 600 },
       { name: '紫禁城居民', ok: disc >= 10 && questsDone >= 3 && spots >= 10 }
     ];
     const rows = [
@@ -1490,7 +1494,15 @@
       tt.innerHTML = html;
     }
     const tot = $('achvTotal');
-    if (tot) tot.innerHTML = '行程完成度<b>' + d.pct + '%</b> · 按 H 或 Esc 关闭';
+    if (tot) {
+      let th = '<div style="margin-bottom:10px;color:rgba(230,224,208,.55);font-size:11px;letter-spacing:1px">旅行日志</div>';
+      const rowsT = travelStatsRows();
+      for (let ti = 0; ti < rowsT.length; ti++) {
+        th += '<div style="display:flex;justify-content:space-between;gap:16px;font-size:11.5px;letter-spacing:.5px;color:rgba(230,224,208,.75);margin:4px 0"><span>' + rowsT[ti][0] + '</span><b style="color:var(--gold);font-weight:400">' + rowsT[ti][1] + '</b></div>';
+      }
+      th += '<div style="margin-top:12px">行程完成度<b>' + d.pct + '%</b> · 按 H 或 Esc 关闭</div>';
+      tot.innerHTML = th;
+    }
     return d;
   }
   function openAchievements(force) {
@@ -1955,6 +1967,68 @@
         if (AUDIO.drip) AUDIO.drip();
       }
     }
+  }
+
+  /* =========================================================
+   *  旅行日志：行走距离 / 游览时长 / 跳跃次数 / 里程碑
+   * ======================================================= */
+  const TRAVEL_KEY = 'forbidden-city-travel-v1';
+  const travel = { dist: 0, time: 0, jumps: 0, miles: {} };
+  try {
+    const savedTr = JSON.parse(localStorage.getItem(TRAVEL_KEY) || '{}');
+    if (savedTr && typeof savedTr === 'object') {
+      travel.dist = Number(savedTr.dist) || 0;
+      travel.time = Number(savedTr.time) || 0;
+      travel.jumps = Number(savedTr.jumps) || 0;
+      travel.miles = savedTr.miles && typeof savedTr.miles === 'object' ? savedTr.miles : {};
+    }
+  } catch (e) {}
+  function travelSave() {
+    try {
+      localStorage.setItem(TRAVEL_KEY, JSON.stringify({
+        dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: travel.miles
+      }));
+    } catch (e) {}
+  }
+  const TRAVEL_MILESTONES = [
+    { id: 'walk500', test: function () { return travel.dist >= 500; }, text: '已步行 500 米' },
+    { id: 'walk1000', test: function () { return travel.dist >= 1000; }, text: '里程碑：千里之行（步行 1 公里）', title: '千里之行' },
+    { id: 'walk5000', test: function () { return travel.dist >= 5000; }, text: '里程碑：宫城常客（步行 5 公里）', title: '宫城常客' },
+    { id: 'time600', test: function () { return travel.time >= 600; }, text: '已游览 10 分钟', title: '流连忘返' },
+    { id: 'jump50', test: function () { return travel.jumps >= 50; }, text: '已跳跃 50 次', title: '身轻如燕' }
+  ];
+  function checkTravelMilestones() {
+    for (let i = 0; i < TRAVEL_MILESTONES.length; i++) {
+      const m = TRAVEL_MILESTONES[i];
+      if (travel.miles[m.id]) continue;
+      if (!m.test()) continue;
+      travel.miles[m.id] = true;
+      travelSave();
+      showToast('旅行日志 · ' + m.text, 3200);
+      if (m.title && typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+    }
+  }
+  let lastTravelPos = null;
+  function updateTravel(dt) {
+    if (!WALK.active) { lastTravelPos = null; return; }
+    travel.time += dt;
+    if (lastTravelPos) {
+      travel.dist += lastTravelPos.distanceTo(WALK.pos);
+    }
+    lastTravelPos = WALK.pos.clone();
+    travel.jumps = WALK.jumps || travel.jumps;
+    checkTravelMilestones();
+  }
+  function travelStatsRows() {
+    const towns = travel.dist >= 1000 ? (travel.dist / 1000).toFixed(2) + ' km' : Math.round(travel.dist) + ' m';
+    const mins = Math.floor(travel.time / 60);
+    const secs = Math.floor(travel.time % 60);
+    return [
+      ['行走距离', towns],
+      ['游览时长', mins + ' 分 ' + secs + ' 秒'],
+      ['跳跃次数', String(travel.jumps)],
+      ['相册照片', String(achievements.photos || 0)]
+    ];
   }
 
   function toggleWalk(force) {
@@ -2547,6 +2621,7 @@
     }
     updateWeather(dt);
     updateAmbientAudio(dt);
+    updateTravel(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -2803,6 +2878,9 @@
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
+    travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
+    setTravel: function (d, t2, j) { travel.dist = d; travel.time = t2; travel.jumps = j == null ? travel.jumps : j; checkTravelMilestones(); },
+    travelTick: function (dt) { updateTravel(dt || 0.016); },
     ambientTick: function (dt) { updateAmbientAudio(dt || 0.016); },
     minigameInfo: function () { return { active: minigame.active, power: Math.round(minigame.power * 100) / 100, throws: minigame.throws, score: minigame.score, finished: minigame.finished, best: achievements.potBest || 0 }; },
     riddleInfo: function () { return { active: riddle.active, idx: riddle.riddleIdx, solved: (achievements.riddles || []).slice(), near: !!nearRiddle() }; },

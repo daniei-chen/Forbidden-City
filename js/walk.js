@@ -42,6 +42,7 @@ const WALK = {
   baseFov: 60,
   fovNow: 60,
   jumpHeld: false,
+  jumps: 0,
   pad: null,
   touchMove: null,
   walkSpeed: 5.2,
@@ -196,6 +197,7 @@ const WALK = {
     this.coyote = 0;
     this.jumpBuffer = 0;
     this.jumpHeld = true;
+    this.jumps = (this.jumps || 0) + 1;
     if (typeof AUDIO !== 'undefined') AUDIO.jump();
     return true;
   },
