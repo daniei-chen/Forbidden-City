@@ -233,6 +233,93 @@ const AUDIO = {
     }
   },
 
+  /* 钟声：低频多分音，长衰减 */
+  bell: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.02;
+    const partials = [[110, 0.12], [164.8, 0.07], [220, 0.05], [277.2, 0.03], [329.6, 0.018]];
+    for (let i = 0; i < partials.length; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      o.frequency.value = partials[i][0];
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(partials[i][1], t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 5.5 + i * 0.4);
+      o.connect(g); g.connect(this.master);
+      o.start(t0); o.stop(t0 + 6.2);
+    }
+  },
+
+  /* 鸽哨：短促上扬哨音 */
+  pigeon: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.02;
+    const n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      const f = 900 + Math.random() * 500;
+      const s = t0 + i * (0.16 + Math.random() * 0.1);
+      o.frequency.setValueAtTime(f, s);
+      o.frequency.exponentialRampToValueAtTime(f * 1.5, s + 0.1);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.022, s + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.16);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 0.2);
+    }
+  },
+
+  /* 猫叫：下滑音 + 轻微颤音 */
+  meow: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.02;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(720, t0);
+    o.frequency.linearRampToValueAtTime(520, t0 + 0.32);
+    o.frequency.linearRampToValueAtTime(380, t0 + 0.55);
+    const lfo = c.createOscillator();
+    const lg = c.createGain();
+    lfo.frequency.value = 7;
+    lg.gain.value = 14;
+    lfo.connect(lg); lg.connect(o.frequency);
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 900;
+    bp.Q.value = 2.2;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.035, t0 + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6);
+    o.connect(bp); bp.connect(g); g.connect(this.master);
+    o.start(t0); o.stop(t0 + 0.65);
+    lfo.start(t0); lfo.stop(t0 + 0.65);
+  },
+
+  /* 雨停滴水：高频短促 */
+  drip: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sine';
+    const f = 900 + Math.random() * 700;
+    o.frequency.setValueAtTime(f, t0);
+    o.frequency.exponentialRampToValueAtTime(f * 0.55, t0 + 0.09);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.03, t0 + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+    o.connect(g); g.connect(this.master);
+    o.start(t0); o.stop(t0 + 0.14);
+  },
+
   setRain: function (v) {
     this.rainAmt = v;
     if (!this.ready || !this.rainGain) return;

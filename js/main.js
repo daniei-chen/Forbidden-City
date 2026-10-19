@@ -1899,6 +1899,64 @@
     return { ok: ok, solved: solved.length };
   }
 
+  /* =========================================================
+   *  环境音调度：钟声 / 鸽哨 / 猫叫 / 雨停滴水
+   * ======================================================= */
+  const AMBIENT = {
+    bell: { t: 40 + Math.random() * 60, n: 0 },
+    pigeon: { t: 18 + Math.random() * 30, n: 0 },
+    meow: { t: 15 + Math.random() * 20, n: 0 },
+    drip: { t: 1, n: 0 }
+  };
+  function updateAmbientAudio(dt) {
+    if (typeof AUDIO === 'undefined' || !AUDIO.ready) return;
+    if (!WALK.active) return;
+    const zone = WALK._zone || 'plaza';
+    const rain = (typeof weather !== 'undefined') ? weather.rain : 0;
+
+    AMBIENT.bell.t -= dt;
+    if (AMBIENT.bell.t <= 0) {
+      AMBIENT.bell.t = 75 + Math.random() * 70;
+      AMBIENT.bell.n++;
+      if (AUDIO.bell) AUDIO.bell();
+    }
+
+    AMBIENT.pigeon.t -= dt;
+    if (AMBIENT.pigeon.t <= 0) {
+      AMBIENT.pigeon.t = 22 + Math.random() * 38;
+      if (rain < 0.4 && zone !== 'interior') {
+        AMBIENT.pigeon.n++;
+        if (AUDIO.pigeon) AUDIO.pigeon();
+      }
+    }
+
+    AMBIENT.meow.t -= dt;
+    if (AMBIENT.meow.t <= 0) {
+      AMBIENT.meow.t = 18 + Math.random() * 30;
+      let near = 1e9;
+      if (typeof NPC !== 'undefined' && NPC.cats) {
+        for (let i = 0; i < NPC.cats.length; i++) {
+          const cp = NPC.cats[i].obj.group.position;
+          const d = Math.hypot(cp.x - WALK.pos.x, cp.z - WALK.pos.z);
+          if (d < near) near = d;
+        }
+      }
+      if (near < 12) {
+        AMBIENT.meow.n++;
+        if (AUDIO.meow) AUDIO.meow();
+      }
+    }
+
+    AMBIENT.drip.t -= dt;
+    if (AMBIENT.drip.t <= 0) {
+      AMBIENT.drip.t = 0.6 + Math.random() * 2.2;
+      if (rain > 0.03 && rain < 0.3) {
+        AMBIENT.drip.n++;
+        if (AUDIO.drip) AUDIO.drip();
+      }
+    }
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -2488,6 +2546,7 @@
       else ctrl.update(dt);
     }
     updateWeather(dt);
+    updateAmbientAudio(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -2743,6 +2802,8 @@
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
+    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
+    ambientTick: function (dt) { updateAmbientAudio(dt || 0.016); },
     minigameInfo: function () { return { active: minigame.active, power: Math.round(minigame.power * 100) / 100, throws: minigame.throws, score: minigame.score, finished: minigame.finished, best: achievements.potBest || 0 }; },
     riddleInfo: function () { return { active: riddle.active, idx: riddle.riddleIdx, solved: (achievements.riddles || []).slice(), near: !!nearRiddle() }; },
     openRiddle: function () { return openRiddle(); },

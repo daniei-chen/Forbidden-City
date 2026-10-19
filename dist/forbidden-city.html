@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.16.0.20261019.1523">
-<meta name="build-time" content="2026-10-19T15:23:08.080Z">
+<meta name="generator" content="forbidden-city-build 6.17.0.20261019.1539">
+<meta name="build-time" content="2026-10-19T15:39:51.378Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T15:23:08.080Z
-  version: 6.16.0.20261019.1523
+  build: 2026-10-19T15:39:51.378Z
+  version: 6.17.0.20261019.1539
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -620,7 +620,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.16.0',
+  version: '6.17.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -4397,6 +4397,93 @@ const AUDIO = {
       o.connect(g); g.connect(this.master);
       o.start(s); o.stop(s + 0.75);
     }
+  },
+
+  /* 钟声：低频多分音，长衰减 */
+  bell: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.02;
+    const partials = [[110, 0.12], [164.8, 0.07], [220, 0.05], [277.2, 0.03], [329.6, 0.018]];
+    for (let i = 0; i < partials.length; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      o.frequency.value = partials[i][0];
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(partials[i][1], t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 5.5 + i * 0.4);
+      o.connect(g); g.connect(this.master);
+      o.start(t0); o.stop(t0 + 6.2);
+    }
+  },
+
+  /* 鸽哨：短促上扬哨音 */
+  pigeon: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.02;
+    const n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      const f = 900 + Math.random() * 500;
+      const s = t0 + i * (0.16 + Math.random() * 0.1);
+      o.frequency.setValueAtTime(f, s);
+      o.frequency.exponentialRampToValueAtTime(f * 1.5, s + 0.1);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.022, s + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.16);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 0.2);
+    }
+  },
+
+  /* 猫叫：下滑音 + 轻微颤音 */
+  meow: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.02;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(720, t0);
+    o.frequency.linearRampToValueAtTime(520, t0 + 0.32);
+    o.frequency.linearRampToValueAtTime(380, t0 + 0.55);
+    const lfo = c.createOscillator();
+    const lg = c.createGain();
+    lfo.frequency.value = 7;
+    lg.gain.value = 14;
+    lfo.connect(lg); lg.connect(o.frequency);
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 900;
+    bp.Q.value = 2.2;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.035, t0 + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6);
+    o.connect(bp); bp.connect(g); g.connect(this.master);
+    o.start(t0); o.stop(t0 + 0.65);
+    lfo.start(t0); lfo.stop(t0 + 0.65);
+  },
+
+  /* 雨停滴水：高频短促 */
+  drip: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sine';
+    const f = 900 + Math.random() * 700;
+    o.frequency.setValueAtTime(f, t0);
+    o.frequency.exponentialRampToValueAtTime(f * 0.55, t0 + 0.09);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.03, t0 + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+    o.connect(g); g.connect(this.master);
+    o.start(t0); o.stop(t0 + 0.14);
   },
 
   setRain: function (v) {
@@ -11386,6 +11473,64 @@ const ASSETS = {
     return { ok: ok, solved: solved.length };
   }
 
+  /* =========================================================
+   *  环境音调度：钟声 / 鸽哨 / 猫叫 / 雨停滴水
+   * ======================================================= */
+  const AMBIENT = {
+    bell: { t: 40 + Math.random() * 60, n: 0 },
+    pigeon: { t: 18 + Math.random() * 30, n: 0 },
+    meow: { t: 15 + Math.random() * 20, n: 0 },
+    drip: { t: 1, n: 0 }
+  };
+  function updateAmbientAudio(dt) {
+    if (typeof AUDIO === 'undefined' || !AUDIO.ready) return;
+    if (!WALK.active) return;
+    const zone = WALK._zone || 'plaza';
+    const rain = (typeof weather !== 'undefined') ? weather.rain : 0;
+
+    AMBIENT.bell.t -= dt;
+    if (AMBIENT.bell.t <= 0) {
+      AMBIENT.bell.t = 75 + Math.random() * 70;
+      AMBIENT.bell.n++;
+      if (AUDIO.bell) AUDIO.bell();
+    }
+
+    AMBIENT.pigeon.t -= dt;
+    if (AMBIENT.pigeon.t <= 0) {
+      AMBIENT.pigeon.t = 22 + Math.random() * 38;
+      if (rain < 0.4 && zone !== 'interior') {
+        AMBIENT.pigeon.n++;
+        if (AUDIO.pigeon) AUDIO.pigeon();
+      }
+    }
+
+    AMBIENT.meow.t -= dt;
+    if (AMBIENT.meow.t <= 0) {
+      AMBIENT.meow.t = 18 + Math.random() * 30;
+      let near = 1e9;
+      if (typeof NPC !== 'undefined' && NPC.cats) {
+        for (let i = 0; i < NPC.cats.length; i++) {
+          const cp = NPC.cats[i].obj.group.position;
+          const d = Math.hypot(cp.x - WALK.pos.x, cp.z - WALK.pos.z);
+          if (d < near) near = d;
+        }
+      }
+      if (near < 12) {
+        AMBIENT.meow.n++;
+        if (AUDIO.meow) AUDIO.meow();
+      }
+    }
+
+    AMBIENT.drip.t -= dt;
+    if (AMBIENT.drip.t <= 0) {
+      AMBIENT.drip.t = 0.6 + Math.random() * 2.2;
+      if (rain > 0.03 && rain < 0.3) {
+        AMBIENT.drip.n++;
+        if (AUDIO.drip) AUDIO.drip();
+      }
+    }
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -11975,6 +12120,7 @@ const ASSETS = {
       else ctrl.update(dt);
     }
     updateWeather(dt);
+    updateAmbientAudio(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -12230,6 +12376,8 @@ const ASSETS = {
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
+    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
+    ambientTick: function (dt) { updateAmbientAudio(dt || 0.016); },
     minigameInfo: function () { return { active: minigame.active, power: Math.round(minigame.power * 100) / 100, throws: minigame.throws, score: minigame.score, finished: minigame.finished, best: achievements.potBest || 0 }; },
     riddleInfo: function () { return { active: riddle.active, idx: riddle.riddleIdx, solved: (achievements.riddles || []).slice(), near: !!nearRiddle() }; },
     openRiddle: function () { return openRiddle(); },
@@ -12284,6 +12432,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.16.0.20261019.1523","time":"2026-10-19T15:23:08.080Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.17.0.20261019.1539","time":"2026-10-19T15:39:51.378Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
