@@ -1418,7 +1418,7 @@
       if (!photoSpots[spot]) { photoSpots[spot] = true; isNewSpot = true; }
     }
     achievements.photos++;
-    album.push({ url: full, thumb: thumb, name: spotName, t: Date.now() });
+    album.push({ url: full, thumb: thumb, name: spotName, spot: spot, t: Date.now() });
     if (album.length > 24) album.shift();
     photoSave();
     if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
@@ -1436,17 +1436,54 @@
     return { name: spotName, isNewSpot: isNewSpot, done: done, total: DISCOVERIES.length, count: achievements.photos };
   }
   let photoAllDone = Object.keys(photoSpots).length >= DISCOVERIES.length;
+  let albumFilter = 'all';
+  function albumFilterOk(ph) {
+    if (albumFilter === 'all') return true;
+    return ph.spot === albumFilter;
+  }
+  function buildAlbumFilter() {
+    const box = $('albumFilter');
+    if (!box) return;
+    const counts = {};
+    for (let i = 0; i < album.length; i++) {
+      const sp = album[i].spot;
+      if (sp == null || sp < 0) continue;
+      counts[sp] = (counts[sp] || 0) + 1;
+    }
+    let html = '<span class="fchip' + (albumFilter === 'all' ? ' on' : '') + '" data-f="all">全部 ' + album.length + '</span>';
+    const keys = Object.keys(counts);
+    for (let i = 0; i < keys.length; i++) {
+      const idx = Number(keys[i]);
+      const d = DISCOVERIES[idx];
+      if (!d) continue;
+      html += '<span class="fchip' + (albumFilter === idx ? ' on' : '') + '" data-f="' + idx + '">' + d.name + ' ' + counts[idx] + '</span>';
+    }
+    box.innerHTML = html;
+    const chips = box.querySelectorAll('.fchip');
+    for (let c = 0; c < chips.length; c++) {
+      chips[c].addEventListener('click', function () {
+        const f = this.getAttribute('data-f');
+        albumFilter = f === 'all' ? 'all' : Number(f);
+        refreshAlbum();
+      });
+    }
+  }
   function refreshAlbum() {
     const grid = $('albumGrid');
     const spots = $('albumSpots');
     const sub = $('albumSub');
     if (!grid) return;
-    let html = '';
+    buildAlbumFilter();
+    const list = [];
     for (let i = album.length - 1; i >= 0; i--) {
-      const ph = album[i];
-      html += '<div class="ph" data-i="' + i + '"><img src="' + (ph.thumb || ph.url) + '"><span>' + ph.name + '</span></div>';
+      if (albumFilterOk(album[i])) list.push({ i: i, ph: album[i] });
     }
-    if (!album.length) html = '<div class="empty">还没有照片，进入漫游后按 P 拍照</div>';
+    let html = '';
+    for (let k = 0; k < list.length; k++) {
+      const ph = list[k].ph;
+      html += '<div class="ph" data-i="' + list[k].i + '"><img src="' + (ph.thumb || ph.url) + '"><span>' + ph.name + '</span></div>';
+    }
+    if (!list.length) html = '<div class="empty">' + (album.length ? '当前筛选没有照片' : '还没有照片，进入漫游后按 P 拍照') + '</div>';
     grid.innerHTML = html;
     if (spots) {
       let sh = '';
@@ -1455,9 +1492,23 @@
       }
       spots.innerHTML = sh;
     }
-    if (sub) sub.textContent = '共 ' + achievements.photos + ' 张 · 地标打卡 ' + Object.keys(photoSpots).length + '/' + DISCOVERIES.length + ' · 点击照片下载原图 · P 拍照 · G / Esc 关闭';
+    if (sub) sub.textContent = '显示 ' + list.length + ' / ' + album.length + ' 张 · 地标打卡 ' + Object.keys(photoSpots).length + '/' + DISCOVERIES.length + ' · 点击照片下载原图 · P 拍照 · G / Esc 关闭';
   }
-  function downloadPhoto(i) {
+  function setAlbumFilter(f) {
+    albumFilter = f === 'all' || f == null ? 'all' : Number(f);
+    refreshAlbum();
+    return albumFilter;
+  }
+  function albumInfoEx() {
+    const bySpot = {};
+    for (let i = 0; i < album.length; i++) {
+      const s2 = album[i].spot == null ? -1 : album[i].spot;
+      bySpot[s2] = (bySpot[s2] || 0) + 1;
+    }
+    return { total: album.length, filter: albumFilter, bySpot: bySpot, shown: album.filter(albumFilterOk).length };
+  }
+
+    function downloadPhoto(i) {
     const ph = album[i];
     if (!ph) return;
     try {
@@ -3307,6 +3358,8 @@
     takePhoto: takePhoto,
     albumInfo: function () { return { photos: album.length, spots: Object.keys(photoSpots).length, allDone: photoAllDone, names: album.map(function (a) { return a.name; }) }; },
     openAlbum: openAlbum,
+    setAlbumFilter: setAlbumFilter,
+    albumFilterInfo: albumInfoEx,
     openAchievements: openAchievements,
     achievementsPanel: function () { return achvData(); },
     npcBubbleTick: function (dt) { updateNpcBubble(dt || 0.016); },
