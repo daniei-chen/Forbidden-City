@@ -45,6 +45,8 @@ const WALK = {
   jumps: 0,
   pad: null,
   touchMove: null,
+  lookScale: 1,
+  touchMoveScale: 1,
   walkSpeed: 5.2,
   runSpeed: 11.5,
 
@@ -184,10 +186,11 @@ const WALK = {
   },
 
   look: function (dx, dy) {
-    this.yaw -= dx * 0.0032;
+    const ls = this.lookScale || 1;
+    this.yaw -= dx * 0.0032 * ls;
     const lo = this.thirdPerson ? -0.25 : -1.1;
     const hi = this.thirdPerson ? 1.15 : 1.1;
-    this.pitch = Math.max(lo, Math.min(hi, this.pitch - dy * 0.0028));
+    this.pitch = Math.max(lo, Math.min(hi, this.pitch - dy * 0.0028 * ls));
   },
 
   /* 跳跃：土狼时间 + 缓冲 + 可变跳高 */
@@ -289,7 +292,12 @@ const WALK = {
     let fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
     let strafe = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
     if (this.pad) { fwd += this.pad.y; strafe += this.pad.x; }
-    if (this.touchMove) { fwd += this.touchMove.y; strafe += this.touchMove.x; }
+    if (this.touchMove) {
+      const tms = this.touchMoveScale || 1;
+      const tx = this.touchMove.x * tms, ty = this.touchMove.y * tms;
+      if (Math.abs(tx) > 0.08) strafe += tx;
+      if (Math.abs(ty) > 0.08) fwd += ty;
+    }
     fwd = Math.max(-1, Math.min(1, fwd));
     strafe = Math.max(-1, Math.min(1, strafe));
     const run = !!k['shift'];
@@ -308,7 +316,8 @@ const WALK = {
     }
 
     /* 加速度 / 惯性 */
-    const targetSpeed = hasInput ? (run ? this.runSpeed : this.walkSpeed) : 0;
+    const inputMag = Math.min(1, Math.hypot(fwd, strafe));
+    const targetSpeed = hasInput ? (run ? this.runSpeed : this.walkSpeed) * inputMag : 0;
     const targetVX = dirX * targetSpeed;
     const targetVZ = dirZ * targetSpeed;
     const accel = this.onGround ? (hasInput ? 36 : 28) : (hasInput ? 12 : 6);

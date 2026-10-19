@@ -40,7 +40,7 @@
   const DEFAULTS = {
     quality: 'auto', fps: false, shadows: true, clouds: true,
     cinema: false, labels: false, theme: 'day', photoFilter: 0, ssao: true,
-    minimap: true, autoCycle: false, objective: true, perfhud: false, audio: true, festival: false
+    minimap: true, autoCycle: false, objective: true, perfhud: false, audio: true, moveSens: 1, lookSens: 1, festival: false
   };
   function loadSettings() {
     try {
@@ -2762,6 +2762,31 @@
         showToast(settings.perfhud ? '性能 HUD：开' : '性能 HUD：关', 1800);
       });
     }
+    function applySensitivity() {
+      const ms = Number(settings.moveSens == null ? 1 : settings.moveSens);
+      const ls = Number(settings.lookSens == null ? 1 : settings.lookSens);
+      if (WALK) { WALK.touchMoveScale = ms; WALK.lookScale = ls; }
+      const mv = $('optMoveSens'), lv = $('optLookSens');
+      if (mv) mv.value = String(ms);
+      if (lv) lv.value = String(ls);
+    }
+    const optMoveSens = $('optMoveSens');
+    if (optMoveSens) {
+      optMoveSens.addEventListener('input', function (e) {
+        settings.moveSens = Number(e.target.value) || 1;
+        applySensitivity();
+        saveSettings();
+      });
+    }
+    const optLookSens = $('optLookSens');
+    if (optLookSens) {
+      optLookSens.addEventListener('input', function (e) {
+        settings.lookSens = Number(e.target.value) || 1;
+        applySensitivity();
+        saveSettings();
+      });
+    }
+    applySensitivity();
     const optAudioEl = $('optAudio');
     if (optAudioEl) {
       optAudioEl.checked = settings.audio !== false;
@@ -3588,7 +3613,7 @@
     incenseInfo: function () { return { count: achievements.incense || 0, smokeActive: (typeof EFFECTS !== 'undefined' && EFFECTS.incensePool) ? EFFECTS.incensePool.filter(function (s) { return s.life > 0; }).length : -1 }; },
     wishInfo: function () { return { wishes: achievements.wishes || 0, coinsActive: (typeof EFFECTS !== 'undefined' && EFFECTS.coinPool) ? EFFECTS.coinPool.filter(function (c) { return c.life > 0; }).length : -1 }; },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
-    settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle }; },
+    settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle, moveSens: settings.moveSens == null ? 1 : settings.moveSens, lookSens: settings.lookSens == null ? 1 : settings.lookSens }; },
     togglePerfHud: togglePerfHud,
     perfHudTick: function (dt) { updatePerfHud(dt || 0.016); },
     catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },

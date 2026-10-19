@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.39.0.20261019.2208">
-<meta name="build-time" content="2026-10-19T22:08:47.437Z">
+<meta name="generator" content="forbidden-city-build 6.40.0.20261019.2225">
+<meta name="build-time" content="2026-10-19T22:25:05.918Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T22:08:47.437Z
-  version: 6.39.0.20261019.2208
+  build: 2026-10-19T22:25:05.918Z
+  version: 6.40.0.20261019.2225
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -198,6 +198,9 @@
   body.walking .crosshair{display:block}
   /* ---------------- 设置分组 ---------------- */
   .setgroup{margin:10px 0 4px;font-size:10px;letter-spacing:3px;color:rgba(216,180,95,.55);border-bottom:1px solid rgba(216,180,95,.14);padding-bottom:4px}
+  .check.rangewrap{display:flex;align-items:center;gap:10px}
+  .check.rangewrap span{flex:1}
+  .check.rangewrap input[type=range]{width:120px;accent-color:#d8b45f}
   .keyhint{margin-top:12px;padding:9px 10px;background:rgba(216,180,95,.05);border:1px solid rgba(216,180,95,.14);
     font-size:10px;line-height:1.9;letter-spacing:.4px;color:rgba(230,224,208,.5)}
   .keyhint b{color:var(--gold);font-weight:500}
@@ -694,6 +697,8 @@
   <label class="check"><span>任务指引（目标标记）</span><input type="checkbox" id="optObjective"></label>
   <label class="check"><span>性能 HUD（F 键）</span><input type="checkbox" id="optPerfHud"></label>
   <label class="check"><span>环境音效</span><input type="checkbox" id="optAudio"></label>
+  <label class="check rangewrap"><span>摇杆灵敏度</span><input type="range" id="optMoveSens" min="0.7" max="1.5" step="0.1" value="1"></label>
+  <label class="check rangewrap"><span>视角灵敏度</span><input type="range" id="optLookSens" min="0.6" max="1.6" step="0.1" value="1"></label>
   <button class="presets-one" id="btnReplayTutorial" style="margin-top:8px;width:100%;padding:8px;background:rgba(216,180,95,.06);border:1px solid rgba(216,180,95,.3);color:rgba(230,224,208,.8);font-size:10.5px;letter-spacing:1px;cursor:pointer">重新体验新手引导</button>
   <div class="keyhint">
     <b>WASD</b> 移动 · <b>Shift</b> 疾行 · <b>空格</b> 跳跃 · <b>鼠标拖拽</b> 环视<br>
@@ -768,7 +773,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.39.0',
+  version: '6.40.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -8319,6 +8324,8 @@ const WALK = {
   jumps: 0,
   pad: null,
   touchMove: null,
+  lookScale: 1,
+  touchMoveScale: 1,
   walkSpeed: 5.2,
   runSpeed: 11.5,
 
@@ -8458,10 +8465,11 @@ const WALK = {
   },
 
   look: function (dx, dy) {
-    this.yaw -= dx * 0.0032;
+    const ls = this.lookScale || 1;
+    this.yaw -= dx * 0.0032 * ls;
     const lo = this.thirdPerson ? -0.25 : -1.1;
     const hi = this.thirdPerson ? 1.15 : 1.1;
-    this.pitch = Math.max(lo, Math.min(hi, this.pitch - dy * 0.0028));
+    this.pitch = Math.max(lo, Math.min(hi, this.pitch - dy * 0.0028 * ls));
   },
 
   /* 跳跃：土狼时间 + 缓冲 + 可变跳高 */
@@ -8563,7 +8571,12 @@ const WALK = {
     let fwd = (k['w'] || k['arrowup'] ? 1 : 0) - (k['s'] || k['arrowdown'] ? 1 : 0);
     let strafe = (k['d'] || k['arrowright'] ? 1 : 0) - (k['a'] || k['arrowleft'] ? 1 : 0);
     if (this.pad) { fwd += this.pad.y; strafe += this.pad.x; }
-    if (this.touchMove) { fwd += this.touchMove.y; strafe += this.touchMove.x; }
+    if (this.touchMove) {
+      const tms = this.touchMoveScale || 1;
+      const tx = this.touchMove.x * tms, ty = this.touchMove.y * tms;
+      if (Math.abs(tx) > 0.08) strafe += tx;
+      if (Math.abs(ty) > 0.08) fwd += ty;
+    }
     fwd = Math.max(-1, Math.min(1, fwd));
     strafe = Math.max(-1, Math.min(1, strafe));
     const run = !!k['shift'];
@@ -8582,7 +8595,8 @@ const WALK = {
     }
 
     /* 加速度 / 惯性 */
-    const targetSpeed = hasInput ? (run ? this.runSpeed : this.walkSpeed) : 0;
+    const inputMag = Math.min(1, Math.hypot(fwd, strafe));
+    const targetSpeed = hasInput ? (run ? this.runSpeed : this.walkSpeed) * inputMag : 0;
     const targetVX = dirX * targetSpeed;
     const targetVZ = dirZ * targetSpeed;
     const accel = this.onGround ? (hasInput ? 36 : 28) : (hasInput ? 12 : 6);
@@ -10421,7 +10435,7 @@ const ASSETS = {
   const DEFAULTS = {
     quality: 'auto', fps: false, shadows: true, clouds: true,
     cinema: false, labels: false, theme: 'day', photoFilter: 0, ssao: true,
-    minimap: true, autoCycle: false, objective: true, perfhud: false, audio: true, festival: false
+    minimap: true, autoCycle: false, objective: true, perfhud: false, audio: true, moveSens: 1, lookSens: 1, festival: false
   };
   function loadSettings() {
     try {
@@ -13143,6 +13157,31 @@ const ASSETS = {
         showToast(settings.perfhud ? '性能 HUD：开' : '性能 HUD：关', 1800);
       });
     }
+    function applySensitivity() {
+      const ms = Number(settings.moveSens == null ? 1 : settings.moveSens);
+      const ls = Number(settings.lookSens == null ? 1 : settings.lookSens);
+      if (WALK) { WALK.touchMoveScale = ms; WALK.lookScale = ls; }
+      const mv = $('optMoveSens'), lv = $('optLookSens');
+      if (mv) mv.value = String(ms);
+      if (lv) lv.value = String(ls);
+    }
+    const optMoveSens = $('optMoveSens');
+    if (optMoveSens) {
+      optMoveSens.addEventListener('input', function (e) {
+        settings.moveSens = Number(e.target.value) || 1;
+        applySensitivity();
+        saveSettings();
+      });
+    }
+    const optLookSens = $('optLookSens');
+    if (optLookSens) {
+      optLookSens.addEventListener('input', function (e) {
+        settings.lookSens = Number(e.target.value) || 1;
+        applySensitivity();
+        saveSettings();
+      });
+    }
+    applySensitivity();
     const optAudioEl = $('optAudio');
     if (optAudioEl) {
       optAudioEl.checked = settings.audio !== false;
@@ -13969,7 +14008,7 @@ const ASSETS = {
     incenseInfo: function () { return { count: achievements.incense || 0, smokeActive: (typeof EFFECTS !== 'undefined' && EFFECTS.incensePool) ? EFFECTS.incensePool.filter(function (s) { return s.life > 0; }).length : -1 }; },
     wishInfo: function () { return { wishes: achievements.wishes || 0, coinsActive: (typeof EFFECTS !== 'undefined' && EFFECTS.coinPool) ? EFFECTS.coinPool.filter(function (c) { return c.life > 0; }).length : -1 }; },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
-    settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle }; },
+    settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle, moveSens: settings.moveSens == null ? 1 : settings.moveSens, lookSens: settings.lookSens == null ? 1 : settings.lookSens }; },
     togglePerfHud: togglePerfHud,
     perfHudTick: function (dt) { updatePerfHud(dt || 0.016); },
     catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },
@@ -14042,6 +14081,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.39.0.20261019.2208","time":"2026-10-19T22:08:47.437Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.40.0.20261019.2225","time":"2026-10-19T22:25:05.918Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
