@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.28.0.20261019.1903">
-<meta name="build-time" content="2026-10-19T19:03:27.979Z">
+<meta name="generator" content="forbidden-city-build 6.29.0.20261019.1919">
+<meta name="build-time" content="2026-10-19T19:19:06.247Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T19:03:27.979Z
-  version: 6.28.0.20261019.1903
+  build: 2026-10-19T19:19:06.247Z
+  version: 6.29.0.20261019.1919
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -196,6 +196,12 @@
     background:rgba(216,180,95,.8);box-shadow:0 0 8px rgba(0,0,0,.7);z-index:7;display:none;pointer-events:none;
   }
   body.walking .crosshair{display:block}
+  /* ---------------- 设置分组 ---------------- */
+  .setgroup{margin:10px 0 4px;font-size:10px;letter-spacing:3px;color:rgba(216,180,95,.55);border-bottom:1px solid rgba(216,180,95,.14);padding-bottom:4px}
+  .keyhint{margin-top:12px;padding:9px 10px;background:rgba(216,180,95,.05);border:1px solid rgba(216,180,95,.14);
+    font-size:10px;line-height:1.9;letter-spacing:.4px;color:rgba(230,224,208,.5)}
+  .keyhint b{color:var(--gold);font-weight:500}
+
   /* ---------------- 漫游 · 宫城探索 HUD ---------------- */
   .walkgame{
     position:fixed;right:26px;top:292px;z-index:6;display:none;width:196px;
@@ -598,6 +604,14 @@
   <label class="check"><span>日照流转（约 4 分钟一昼夜）</span><input type="checkbox" id="optAutoCycle"></label>
     <label class="check"><span>天气变化（晴 / 阴 / 雨）</span><input type="checkbox" id="optWeather"></label>
   <label class="check"><span>节庆灯会（红灯笼）</span><input type="checkbox" id="optFestival"></label>
+  <div class="setgroup">漫游</div>
+  <label class="check"><span>任务指引（目标标记）</span><input type="checkbox" id="optObjective"></label>
+  <label class="check"><span>性能 HUD（F 键）</span><input type="checkbox" id="optPerfHud"></label>
+  <label class="check"><span>环境音效</span><input type="checkbox" id="optAudio"></label>
+  <div class="keyhint">
+    <b>WASD</b> 移动 · <b>Shift</b> 疾行 · <b>空格</b> 跳跃 · <b>鼠标拖拽</b> 环视<br>
+    <b>E</b> 互动 · <b>P</b> 拍照 · <b>G</b> 相册 · <b>H</b> 档案 · <b>O</b> 指引 · <b>F</b> 性能 · <b>X</b> 视角 · <b>R</b> 重置 · <b>Esc</b> 退出
+  </div>
   <label class="check"><span>沉浸模式（自动巡礼 + 字幕）</span><input type="checkbox" id="optCinema"></label>
   <div class="field" style="margin-top:14px">
     <label>导出</label>
@@ -667,7 +681,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.28.0',
+  version: '6.29.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -4458,6 +4472,7 @@ const AUDIO = {
     rsrc.connect(rbp); rbp.connect(this.rainGain); this.rainGain.connect(this.master);
     rsrc.start();
 
+    if (this.muted) this.setMuted(true);
     this.ready = true;
     this.scheduleBird();
   },
@@ -9952,7 +9967,7 @@ const ASSETS = {
   const DEFAULTS = {
     quality: 'auto', fps: false, shadows: true, clouds: true,
     cinema: false, labels: false, theme: 'day', photoFilter: 0, ssao: true,
-    minimap: true, autoCycle: false, objective: true, perfhud: false, festival: false
+    minimap: true, autoCycle: false, objective: true, perfhud: false, audio: true, festival: false
   };
   function loadSettings() {
     try {
@@ -12342,6 +12357,42 @@ const ASSETS = {
         setDayCycle(e.target.checked);
       });
     }
+    const optObjective = $('optObjective');
+    if (optObjective) {
+      optObjective.checked = settings.objective !== false;
+      optObjective.addEventListener('change', function (e) {
+        settings.objective = !!e.target.checked;
+        saveSettings();
+        showToast(settings.objective ? '任务指引：开' : '任务指引：关', 1800);
+        if (!settings.objective) {
+          const om = $('objMarker'), oa = $('objArrow');
+          if (om) om.classList.remove('show');
+          if (oa) oa.classList.remove('show');
+        }
+      });
+    }
+    const optPerfHud = $('optPerfHud');
+    if (optPerfHud) {
+      optPerfHud.checked = !!settings.perfhud;
+      optPerfHud.addEventListener('change', function (e) {
+        settings.perfhud = !!e.target.checked;
+        saveSettings();
+        document.body.classList.toggle('perfshow', settings.perfhud);
+        showToast(settings.perfhud ? '性能 HUD：开' : '性能 HUD：关', 1800);
+      });
+    }
+    const optAudioEl = $('optAudio');
+    if (optAudioEl) {
+      optAudioEl.checked = settings.audio !== false;
+      optAudioEl.addEventListener('change', function (e) {
+        settings.audio = !!e.target.checked;
+        saveSettings();
+        if (typeof AUDIO !== 'undefined') {
+          if (settings.audio) { AUDIO.setMuted(false); } else { AUDIO.setMuted(true); }
+        }
+        showToast(settings.audio ? '环境音效：开' : '环境音效：关', 1800);
+      });
+    }
     const optFestival = $('optFestival');
     if (optFestival) {
       optFestival.checked = !!settings.festival;
@@ -12982,6 +13033,7 @@ const ASSETS = {
         if (!isNaN(n) && n >= 0 && n < VIEWS.length) idx = n;
       }
       bindUI();
+  if (settings.audio === false && typeof AUDIO !== 'undefined') AUDIO.setMuted(true);
   initTouch();
   buildPot();
   (function bindAlbum() {
@@ -13124,6 +13176,7 @@ const ASSETS = {
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
+    settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle }; },
     togglePerfHud: togglePerfHud,
     perfHudTick: function (dt) { updatePerfHud(dt || 0.016); },
     catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },
@@ -13188,6 +13241,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.28.0.20261019.1903","time":"2026-10-19T19:03:27.979Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.29.0.20261019.1919","time":"2026-10-19T19:19:06.247Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

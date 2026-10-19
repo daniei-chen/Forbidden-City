@@ -40,7 +40,7 @@
   const DEFAULTS = {
     quality: 'auto', fps: false, shadows: true, clouds: true,
     cinema: false, labels: false, theme: 'day', photoFilter: 0, ssao: true,
-    minimap: true, autoCycle: false, objective: true, perfhud: false, festival: false
+    minimap: true, autoCycle: false, objective: true, perfhud: false, audio: true, festival: false
   };
   function loadSettings() {
     try {
@@ -2430,6 +2430,42 @@
         setDayCycle(e.target.checked);
       });
     }
+    const optObjective = $('optObjective');
+    if (optObjective) {
+      optObjective.checked = settings.objective !== false;
+      optObjective.addEventListener('change', function (e) {
+        settings.objective = !!e.target.checked;
+        saveSettings();
+        showToast(settings.objective ? '任务指引：开' : '任务指引：关', 1800);
+        if (!settings.objective) {
+          const om = $('objMarker'), oa = $('objArrow');
+          if (om) om.classList.remove('show');
+          if (oa) oa.classList.remove('show');
+        }
+      });
+    }
+    const optPerfHud = $('optPerfHud');
+    if (optPerfHud) {
+      optPerfHud.checked = !!settings.perfhud;
+      optPerfHud.addEventListener('change', function (e) {
+        settings.perfhud = !!e.target.checked;
+        saveSettings();
+        document.body.classList.toggle('perfshow', settings.perfhud);
+        showToast(settings.perfhud ? '性能 HUD：开' : '性能 HUD：关', 1800);
+      });
+    }
+    const optAudioEl = $('optAudio');
+    if (optAudioEl) {
+      optAudioEl.checked = settings.audio !== false;
+      optAudioEl.addEventListener('change', function (e) {
+        settings.audio = !!e.target.checked;
+        saveSettings();
+        if (typeof AUDIO !== 'undefined') {
+          if (settings.audio) { AUDIO.setMuted(false); } else { AUDIO.setMuted(true); }
+        }
+        showToast(settings.audio ? '环境音效：开' : '环境音效：关', 1800);
+      });
+    }
     const optFestival = $('optFestival');
     if (optFestival) {
       optFestival.checked = !!settings.festival;
@@ -3070,6 +3106,7 @@
         if (!isNaN(n) && n >= 0 && n < VIEWS.length) idx = n;
       }
       bindUI();
+  if (settings.audio === false && typeof AUDIO !== 'undefined') AUDIO.setMuted(true);
   initTouch();
   buildPot();
   (function bindAlbum() {
@@ -3212,6 +3249,7 @@
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
+    settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle }; },
     togglePerfHud: togglePerfHud,
     perfHudTick: function (dt) { updatePerfHud(dt || 0.016); },
     catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },

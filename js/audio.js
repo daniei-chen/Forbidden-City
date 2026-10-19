@@ -89,6 +89,7 @@ const AUDIO = {
     rsrc.connect(rbp); rbp.connect(this.rainGain); this.rainGain.connect(this.master);
     rsrc.start();
 
+    if (this.muted) this.setMuted(true);
     this.ready = true;
     this.scheduleBird();
   },
