@@ -1031,7 +1031,7 @@
     { x: 26, z: -372, r: 2.8, title: '石桌石凳', text: '御花园中的石桌石凳，供帝王后妃游憩小坐。' },
     { x: -26, z: -372, r: 2.8, title: '石桌石凳', text: '御花园中的石桌石凳，供帝王后妃游憩小坐。' },
     { x: 7.5, z: 176, r: 2.6, title: '品级山', text: '大朝时文武百官按品级立于山形石标之后，故称品级山。' },
-    { x: 20, z: 100, r: 3.2, title: '月台铜鼎', text: '太和殿月台陈设铜鼎，象征江山永固。' }
+    { x: 20, z: 100, r: 3.2, title: '月台铜鼎', incense: true, text: '太和殿月台陈设铜鼎，象征江山永固。' }
   ];
   let nearInteractive = null;
   let lastInteractT = 0;
@@ -1080,7 +1080,7 @@
     nearInteractive = it;
     if (it) {
       el.classList.add('show');
-      if (lab) lab.textContent = (it.wish ? '投币许愿 · ' : '查看 · ') + it.title;
+      if (lab) lab.textContent = (it.wish ? '投币许愿 · ' : (it.incense ? '上香祈福 · ' : '查看 · ')) + it.title;
     } else {
       el.classList.remove('show');
     }
@@ -1097,6 +1097,7 @@
       achievements.riddles = Array.isArray(savedA.riddles) ? savedA.riddles : [];
       achievements.catPlays = savedA.catPlays || 0;
       achievements.wishes = savedA.wishes || 0;
+      achievements.incense = savedA.incense || 0;
     }
   } catch (e) {}
   function achievementsSave() {
@@ -1129,6 +1130,20 @@
     return achievements.wishes;
   }
 
+  const INCENSE_TEXT = ['一炷清香，愿山河安定', '香火不绝，愿岁月静好', '青烟起处，愿所念皆安'];
+  function burnIncense(it) {
+    const y = WALK.groundAt(it.x, it.z) + 1.35;
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.spawnIncense) EFFECTS.spawnIncense(it.x, y, it.z, 8);
+    achievements.incense = (achievements.incense || 0) + 1;
+    achievementsSave();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    showToast('上香祈福 · ' + INCENSE_TEXT[Math.floor(Math.random() * INCENSE_TEXT.length)] + '（上香 ' + achievements.incense + ' 次）', 3800);
+    if (achievements.incense >= 3) {
+      setTimeout(function () { showToast('称号达成 · 心香一瓣（上香 3 次）', 4600); }, 3900);
+    }
+    return achievements.incense;
+  }
+
   function doInteract() {
     if (!WALK.active) return;
     achievements.interacts = (achievements.interacts || 0) + 1;
@@ -1153,6 +1168,13 @@
       if (nowW - lastInteractT < 800) return;
       lastInteractT = nowW;
       tossWish(it);
+      return;
+    }
+    if (it.incense) {
+      const nowI = performance.now();
+      if (nowI - lastInteractT < 900) return;
+      lastInteractT = nowI;
+      burnIncense(it);
       return;
     }
     const now = performance.now();
@@ -1548,6 +1570,7 @@
       { name: '灯谜雅士', cat: '趣味', ok: riddleN >= 3 },
       { name: '御猫团宠', cat: '趣味', ok: plays >= 3 },
       { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
+      { name: '心香一瓣', cat: '趣味', ok: (achievements.incense || 0) >= 3 },
       { name: '千里之行', cat: '里程碑', ok: travel.dist >= 1000 },
       { name: '宫城常客', cat: '里程碑', ok: travel.dist >= 5000 },
       { name: '身轻如燕', cat: '里程碑', ok: travel.jumps >= 50 },
@@ -3415,6 +3438,7 @@
     tutorialInfo: function () { return { active: tutorial.active, step: tutorial.step, done: tutorial.done, total: TUTORIAL_STEPS.length }; },
     tutorialReset: tutorialReset,
     tutorialTick: function (dt) { updateTutorial(dt || 0.016); },
+    incenseInfo: function () { return { count: achievements.incense || 0, smokeActive: (typeof EFFECTS !== 'undefined' && EFFECTS.incensePool) ? EFFECTS.incensePool.filter(function (s) { return s.life > 0; }).length : -1 }; },
     wishInfo: function () { return { wishes: achievements.wishes || 0, coinsActive: (typeof EFFECTS !== 'undefined' && EFFECTS.coinPool) ? EFFECTS.coinPool.filter(function (c) { return c.life > 0; }).length : -1 }; },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
     settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle }; },

@@ -110,6 +110,7 @@ const EFFECTS = {
     this.initSplashes(scene);
     this.initDripDrops(scene);
     this.initCoins(scene);
+    this.initIncense(scene);
   },
 
   /* ---------------- 雨（雨丝线段） ---------------- */
@@ -727,6 +728,69 @@ const EFFECTS = {
     }
   },
 
+  /* ---------------- 上香青烟 ---------------- */
+  incensePool: null,
+  initIncense: function (scene) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const g2 = cv.getContext('2d');
+    const grd = g2.createRadialGradient(32, 32, 2, 32, 32, 30);
+    grd.addColorStop(0, 'rgba(230,235,240,0.85)');
+    grd.addColorStop(1, 'rgba(210,220,230,0)');
+    g2.fillStyle = grd;
+    g2.fillRect(0, 0, 64, 64);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.needsUpdate = true;
+    const pool = [];
+    for (let i = 0; i < 18; i++) {
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false });
+      const sp = new THREE.Sprite(mat);
+      sp.scale.set(0.4, 0.4, 1);
+      sp.visible = false;
+      scene.add(sp);
+      pool.push({ sp: sp, life: 0, ttl: 1, vx: 0, vy: 0, vz: 0, ph: 0 });
+    }
+    this.incensePool = pool;
+  },
+  spawnIncense: function (x, y, z, n) {
+    if (!this.incensePool) { if (!this.scene) return; this.initIncense(this.scene); }
+    const pool = this.incensePool;
+    let count = 0;
+    for (let i = 0; i < pool.length && count < (n || 6); i++) {
+      const s2 = pool[i];
+      if (s2.life > 0) continue;
+      s2.life = s2.ttl = 2.2 + Math.random() * 0.8;
+      s2.sp.position.set(x + (Math.random() - 0.5) * 0.25, y, z + (Math.random() - 0.5) * 0.25);
+      s2.sp.scale.set(0.28, 0.28, 1);
+      s2.sp.material.opacity = 0.55;
+      s2.sp.visible = true;
+      s2.vx = (Math.random() - 0.5) * 0.18;
+      s2.vy = 0.55 + Math.random() * 0.3;
+      s2.vz = (Math.random() - 0.5) * 0.18;
+      s2.ph = Math.random() * 6.28;
+      count++;
+    }
+    return count;
+  },
+  updateIncense: function (dt) {
+    const pool = this.incensePool;
+    if (!pool) return;
+    for (let i = 0; i < pool.length; i++) {
+      const s2 = pool[i];
+      if (s2.life <= 0) continue;
+      s2.life -= dt;
+      if (s2.life <= 0) { s2.sp.visible = false; s2.sp.material.opacity = 0; continue; }
+      s2.ph += dt * 1.6;
+      s2.sp.position.x += (s2.vx + Math.sin(s2.ph) * 0.12) * dt;
+      s2.sp.position.y += s2.vy * dt;
+      s2.sp.position.z += (s2.vz + Math.cos(s2.ph * 0.8) * 0.1) * dt;
+      const k = s2.life / s2.ttl;
+      s2.sp.material.opacity = Math.min(0.5, k * 0.9);
+      const sc = 0.28 + (1 - k) * 0.85;
+      s2.sp.scale.set(sc, sc, 1);
+    }
+  },
+
   /* ---------------- 许愿金币（抛物线落入铜缸） ---------------- */
   coinPool: null,
   initCoins: function (scene) {
@@ -883,6 +947,7 @@ const EFFECTS = {
     this.snowAmount = st.snow;
     this.updateHearts(dt);
     this.updateCoins(dt);
+    this.updateIncense(dt);
     var camRef = (window.__app && window.__app.camera) ? window.__app.camera : null;
     this.updateRain(dt, camRef);
     this.updateSplashes(dt, camRef);

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.33.0.20261019.2034">
-<meta name="build-time" content="2026-10-19T20:34:06.736Z">
+<meta name="generator" content="forbidden-city-build 6.34.0.20261019.2049">
+<meta name="build-time" content="2026-10-19T20:49:14.601Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T20:34:06.736Z
-  version: 6.33.0.20261019.2034
+  build: 2026-10-19T20:49:14.601Z
+  version: 6.34.0.20261019.2049
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -713,7 +713,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.33.0',
+  version: '6.34.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -8599,6 +8599,7 @@ const EFFECTS = {
     this.initSplashes(scene);
     this.initDripDrops(scene);
     this.initCoins(scene);
+    this.initIncense(scene);
   },
 
   /* ---------------- 雨（雨丝线段） ---------------- */
@@ -9216,6 +9217,69 @@ const EFFECTS = {
     }
   },
 
+  /* ---------------- 上香青烟 ---------------- */
+  incensePool: null,
+  initIncense: function (scene) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const g2 = cv.getContext('2d');
+    const grd = g2.createRadialGradient(32, 32, 2, 32, 32, 30);
+    grd.addColorStop(0, 'rgba(230,235,240,0.85)');
+    grd.addColorStop(1, 'rgba(210,220,230,0)');
+    g2.fillStyle = grd;
+    g2.fillRect(0, 0, 64, 64);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.needsUpdate = true;
+    const pool = [];
+    for (let i = 0; i < 18; i++) {
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false });
+      const sp = new THREE.Sprite(mat);
+      sp.scale.set(0.4, 0.4, 1);
+      sp.visible = false;
+      scene.add(sp);
+      pool.push({ sp: sp, life: 0, ttl: 1, vx: 0, vy: 0, vz: 0, ph: 0 });
+    }
+    this.incensePool = pool;
+  },
+  spawnIncense: function (x, y, z, n) {
+    if (!this.incensePool) { if (!this.scene) return; this.initIncense(this.scene); }
+    const pool = this.incensePool;
+    let count = 0;
+    for (let i = 0; i < pool.length && count < (n || 6); i++) {
+      const s2 = pool[i];
+      if (s2.life > 0) continue;
+      s2.life = s2.ttl = 2.2 + Math.random() * 0.8;
+      s2.sp.position.set(x + (Math.random() - 0.5) * 0.25, y, z + (Math.random() - 0.5) * 0.25);
+      s2.sp.scale.set(0.28, 0.28, 1);
+      s2.sp.material.opacity = 0.55;
+      s2.sp.visible = true;
+      s2.vx = (Math.random() - 0.5) * 0.18;
+      s2.vy = 0.55 + Math.random() * 0.3;
+      s2.vz = (Math.random() - 0.5) * 0.18;
+      s2.ph = Math.random() * 6.28;
+      count++;
+    }
+    return count;
+  },
+  updateIncense: function (dt) {
+    const pool = this.incensePool;
+    if (!pool) return;
+    for (let i = 0; i < pool.length; i++) {
+      const s2 = pool[i];
+      if (s2.life <= 0) continue;
+      s2.life -= dt;
+      if (s2.life <= 0) { s2.sp.visible = false; s2.sp.material.opacity = 0; continue; }
+      s2.ph += dt * 1.6;
+      s2.sp.position.x += (s2.vx + Math.sin(s2.ph) * 0.12) * dt;
+      s2.sp.position.y += s2.vy * dt;
+      s2.sp.position.z += (s2.vz + Math.cos(s2.ph * 0.8) * 0.1) * dt;
+      const k = s2.life / s2.ttl;
+      s2.sp.material.opacity = Math.min(0.5, k * 0.9);
+      const sc = 0.28 + (1 - k) * 0.85;
+      s2.sp.scale.set(sc, sc, 1);
+    }
+  },
+
   /* ---------------- 许愿金币（抛物线落入铜缸） ---------------- */
   coinPool: null,
   initCoins: function (scene) {
@@ -9372,6 +9436,7 @@ const EFFECTS = {
     this.snowAmount = st.snow;
     this.updateHearts(dt);
     this.updateCoins(dt);
+    this.updateIncense(dt);
     var camRef = (window.__app && window.__app.camera) ? window.__app.camera : null;
     this.updateRain(dt, camRef);
     this.updateSplashes(dt, camRef);
@@ -11155,7 +11220,7 @@ const ASSETS = {
     { x: 26, z: -372, r: 2.8, title: '石桌石凳', text: '御花园中的石桌石凳，供帝王后妃游憩小坐。' },
     { x: -26, z: -372, r: 2.8, title: '石桌石凳', text: '御花园中的石桌石凳，供帝王后妃游憩小坐。' },
     { x: 7.5, z: 176, r: 2.6, title: '品级山', text: '大朝时文武百官按品级立于山形石标之后，故称品级山。' },
-    { x: 20, z: 100, r: 3.2, title: '月台铜鼎', text: '太和殿月台陈设铜鼎，象征江山永固。' }
+    { x: 20, z: 100, r: 3.2, title: '月台铜鼎', incense: true, text: '太和殿月台陈设铜鼎，象征江山永固。' }
   ];
   let nearInteractive = null;
   let lastInteractT = 0;
@@ -11204,7 +11269,7 @@ const ASSETS = {
     nearInteractive = it;
     if (it) {
       el.classList.add('show');
-      if (lab) lab.textContent = (it.wish ? '投币许愿 · ' : '查看 · ') + it.title;
+      if (lab) lab.textContent = (it.wish ? '投币许愿 · ' : (it.incense ? '上香祈福 · ' : '查看 · ')) + it.title;
     } else {
       el.classList.remove('show');
     }
@@ -11221,6 +11286,7 @@ const ASSETS = {
       achievements.riddles = Array.isArray(savedA.riddles) ? savedA.riddles : [];
       achievements.catPlays = savedA.catPlays || 0;
       achievements.wishes = savedA.wishes || 0;
+      achievements.incense = savedA.incense || 0;
     }
   } catch (e) {}
   function achievementsSave() {
@@ -11253,6 +11319,20 @@ const ASSETS = {
     return achievements.wishes;
   }
 
+  const INCENSE_TEXT = ['一炷清香，愿山河安定', '香火不绝，愿岁月静好', '青烟起处，愿所念皆安'];
+  function burnIncense(it) {
+    const y = WALK.groundAt(it.x, it.z) + 1.35;
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.spawnIncense) EFFECTS.spawnIncense(it.x, y, it.z, 8);
+    achievements.incense = (achievements.incense || 0) + 1;
+    achievementsSave();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    showToast('上香祈福 · ' + INCENSE_TEXT[Math.floor(Math.random() * INCENSE_TEXT.length)] + '（上香 ' + achievements.incense + ' 次）', 3800);
+    if (achievements.incense >= 3) {
+      setTimeout(function () { showToast('称号达成 · 心香一瓣（上香 3 次）', 4600); }, 3900);
+    }
+    return achievements.incense;
+  }
+
   function doInteract() {
     if (!WALK.active) return;
     achievements.interacts = (achievements.interacts || 0) + 1;
@@ -11277,6 +11357,13 @@ const ASSETS = {
       if (nowW - lastInteractT < 800) return;
       lastInteractT = nowW;
       tossWish(it);
+      return;
+    }
+    if (it.incense) {
+      const nowI = performance.now();
+      if (nowI - lastInteractT < 900) return;
+      lastInteractT = nowI;
+      burnIncense(it);
       return;
     }
     const now = performance.now();
@@ -11672,6 +11759,7 @@ const ASSETS = {
       { name: '灯谜雅士', cat: '趣味', ok: riddleN >= 3 },
       { name: '御猫团宠', cat: '趣味', ok: plays >= 3 },
       { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
+      { name: '心香一瓣', cat: '趣味', ok: (achievements.incense || 0) >= 3 },
       { name: '千里之行', cat: '里程碑', ok: travel.dist >= 1000 },
       { name: '宫城常客', cat: '里程碑', ok: travel.dist >= 5000 },
       { name: '身轻如燕', cat: '里程碑', ok: travel.jumps >= 50 },
@@ -13539,6 +13627,7 @@ const ASSETS = {
     tutorialInfo: function () { return { active: tutorial.active, step: tutorial.step, done: tutorial.done, total: TUTORIAL_STEPS.length }; },
     tutorialReset: tutorialReset,
     tutorialTick: function (dt) { updateTutorial(dt || 0.016); },
+    incenseInfo: function () { return { count: achievements.incense || 0, smokeActive: (typeof EFFECTS !== 'undefined' && EFFECTS.incensePool) ? EFFECTS.incensePool.filter(function (s) { return s.life > 0; }).length : -1 }; },
     wishInfo: function () { return { wishes: achievements.wishes || 0, coinsActive: (typeof EFFECTS !== 'undefined' && EFFECTS.coinPool) ? EFFECTS.coinPool.filter(function (c) { return c.life > 0; }).length : -1 }; },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
     settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle }; },
@@ -13608,6 +13697,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.33.0.20261019.2034","time":"2026-10-19T20:34:06.736Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.34.0.20261019.2049","time":"2026-10-19T20:49:14.601Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
