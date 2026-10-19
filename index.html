@@ -267,6 +267,22 @@
   .album .spot{font-size:10.5px;letter-spacing:.5px;padding:3px 8px;border:1px solid rgba(216,180,95,.25);color:rgba(230,224,208,.5)}
   .album .spot.on{color:var(--gold);border-color:rgba(216,180,95,.7);background:rgba(216,180,95,.1)}
   #tbPhoto{right:92px;bottom:56px}
+  /* ---------------- NPC 对话气泡 ---------------- */
+  .npcbubble{
+    position:fixed;z-index:9;display:none;max-width:250px;
+    transform:translate(-50%,-100%);pointer-events:none;
+    padding:9px 13px;background:rgba(9,11,15,.82);
+    border:1px solid rgba(216,180,95,.45);border-radius:2px;
+    font-size:11.5px;letter-spacing:.6px;line-height:1.55;color:var(--text);
+    backdrop-filter:blur(8px);box-shadow:0 8px 26px rgba(0,0,0,.45);
+  }
+  .npcbubble.show{display:block}
+  .npcbubble::after{
+    content:'';position:absolute;left:50%;bottom:-7px;margin-left:-6px;
+    border:6px solid transparent;border-top-color:rgba(216,180,95,.45);border-bottom:0;
+  }
+  .npcbubble .who{display:block;font-size:9.5px;letter-spacing:2px;color:var(--gold);margin-bottom:2px}
+  body.photo .npcbubble{display:none !important}
   /* ---------------- 行程总览 ---------------- */
   .achv{
     position:fixed;inset:0;z-index:32;display:none;align-items:center;justify-content:center;
@@ -433,6 +449,7 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="npcbubble" id="npcBubble"><span class="who" id="npcWho">侍卫</span><span id="npcLine"></span></div>
 <div class="achv" id="achv">
   <button class="close" id="achvClose">×</button>
   <div class="inner">

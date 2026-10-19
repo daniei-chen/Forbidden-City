@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.9.0.20261019.1124">
-<meta name="build-time" content="2026-10-19T11:24:29.699Z">
+<meta name="generator" content="forbidden-city-build 6.10.0.20261019.1159">
+<meta name="build-time" content="2026-10-19T11:59:47.245Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T11:24:29.699Z
-  version: 6.9.0.20261019.1124
+  build: 2026-10-19T11:59:47.245Z
+  version: 6.10.0.20261019.1159
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -276,6 +276,22 @@
   .album .spot{font-size:10.5px;letter-spacing:.5px;padding:3px 8px;border:1px solid rgba(216,180,95,.25);color:rgba(230,224,208,.5)}
   .album .spot.on{color:var(--gold);border-color:rgba(216,180,95,.7);background:rgba(216,180,95,.1)}
   #tbPhoto{right:92px;bottom:56px}
+  /* ---------------- NPC 对话气泡 ---------------- */
+  .npcbubble{
+    position:fixed;z-index:9;display:none;max-width:250px;
+    transform:translate(-50%,-100%);pointer-events:none;
+    padding:9px 13px;background:rgba(9,11,15,.82);
+    border:1px solid rgba(216,180,95,.45);border-radius:2px;
+    font-size:11.5px;letter-spacing:.6px;line-height:1.55;color:var(--text);
+    backdrop-filter:blur(8px);box-shadow:0 8px 26px rgba(0,0,0,.45);
+  }
+  .npcbubble.show{display:block}
+  .npcbubble::after{
+    content:'';position:absolute;left:50%;bottom:-7px;margin-left:-6px;
+    border:6px solid transparent;border-top-color:rgba(216,180,95,.45);border-bottom:0;
+  }
+  .npcbubble .who{display:block;font-size:9.5px;letter-spacing:2px;color:var(--gold);margin-bottom:2px}
+  body.photo .npcbubble{display:none !important}
   /* ---------------- 行程总览 ---------------- */
   .achv{
     position:fixed;inset:0;z-index:32;display:none;align-items:center;justify-content:center;
@@ -443,6 +459,7 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="npcbubble" id="npcBubble"><span class="who" id="npcWho">侍卫</span><span id="npcLine"></span></div>
 <div class="achv" id="achv">
   <button class="close" id="achvClose">×</button>
   <div class="inner">
@@ -549,7 +566,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.9.0',
+  version: '6.10.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -9851,6 +9868,7 @@ const ASSETS = {
       this.paused = false;
       $('tourbar').classList.remove('show');
       $('btnTour').classList.remove('on');
+      const nb = $('npcBubble'); if (nb) nb.classList.remove('show');
       ctrl.syncFromCamera();
       if (restore !== false) ctrl.setView(VIEWS[currentView], false);
     },
@@ -10585,6 +10603,111 @@ const ASSETS = {
     return d;
   }
 
+  /* =========================================================
+   *  NPC 对话气泡（靠近侍卫/宫女触发，按宫区讲典故）
+   * ======================================================= */
+  const NPC_LINES = {
+    gate: [
+      '午门是紫禁城正门，五凤楼与雁翅楼东西相拥。',
+      '过午门，前方就是太和门广场。',
+      '宫中出入皆由午门，礼制森严。'
+    ],
+    taihe: [
+      '太和殿俗称金銮殿，是大朝典礼之所。',
+      '殿顶重檐庑殿，檐角走兽有十只，天下无双。',
+      '丹陛上的日晷与嘉量，象征授时与统一。'
+    ],
+    backpalace: [
+      '乾清宫是内廷正殿，殿内高悬「正大光明」匾。',
+      '坤宁宫为皇后中宫，位正坤元。',
+      '后三宫是帝后起居之处，闲人免进。'
+    ],
+    garden: [
+      '御花园里有万春亭、千秋亭，四季皆有景致。',
+      '堆秀山上御景亭，是重阳登高的地方。',
+      '园中古柏奇石，都是几百年光景。'
+    ],
+    wall: [
+      '角楼九梁十八柱七十二条脊，是宫城最精巧的楼。',
+      '城墙高十米，护城河环绕宫城一周。',
+      '马道可登城巡视，寻常人不可上。'
+    ],
+    maids: [
+      '御花园的花开了，我带你去看看吧。',
+      '宫里规矩多，走路要轻些。',
+      '听说今晚宫灯会亮起来。'
+    ],
+    guards: [
+      '宫中重地，请勿喧哗。',
+      '这位客人，前面是太和殿广场。',
+      '天色不早了，早些出宫吧。'
+    ]
+  };
+  const bubbleEl = function () { return $('npcBubble'); };
+  let bubbleLineIdx = 0;
+  let bubbleTimer = 0;
+  let bubbleNpcIdx = -1;
+  function npcZoneKey() {
+    const z = WALK.pos.z;
+    if (z < -290) return 'garden';
+    if (z < -110) return 'backpalace';
+    if (z < 120) return 'taihe';
+    if (Math.abs(WALK.pos.x) > 120) return 'wall';
+    return 'gate';
+  }
+  function updateNpcBubble(dt) {
+    const el = bubbleEl();
+    if (!el) return;
+    if (!WALK.active || typeof NPC === 'undefined') { el.classList.remove('show'); bubbleNpcIdx = -1; return; }
+    /* 找最近的侍卫/宫女（巡逻 + 宫女） */
+    let best = null, bestD = 7.5, bestName = '侍卫', bestId = -1;
+    for (let i = 0; i < NPC.patrols.length; i++) {
+      const o = NPC.patrols[i].obj.group;
+      const d = Math.hypot(o.position.x - WALK.pos.x, o.position.z - WALK.pos.z);
+      if (d < bestD) { bestD = d; best = NPC.patrols[i]; bestName = '侍卫'; bestId = i; }
+    }
+    for (let i = 0; i < NPC.maids.length; i++) {
+      const o = NPC.maids[i].obj.group;
+      const d = Math.hypot(o.position.x - WALK.pos.x, o.position.z - WALK.pos.z);
+      if (d < bestD) { bestD = d; best = NPC.maids[i]; bestName = '宫女'; bestId = 100 + i; }
+    }
+    if (!best) { el.classList.remove('show'); bubbleNpcIdx = -1; bubbleTimer = 0; return; }
+    /* 换 NPC 立即换台词；同一 NPC 每 7 秒换一句 */
+    if (bestId !== bubbleNpcIdx) { bubbleNpcIdx = bestId; bubbleTimer = 0; }
+    bubbleTimer -= dt;
+    if (bubbleTimer <= 0) {
+      bubbleTimer = 7;
+      let pool;
+      if (bestName === '宫女') pool = NPC_LINES.maids;
+      else {
+        const zoneKey = npcZoneKey();
+        pool = NPC_LINES.guards.slice(0);
+        const zl = NPC_LINES[zoneKey];
+        if (zl) pool = zl.concat(pool);
+      }
+      bubbleLineIdx = (bubbleLineIdx + 1 + Math.floor(Math.random() * 2)) % pool.length;
+      const who = $('npcWho'), line = $('npcLine');
+      if (who) who.textContent = bestName;
+      if (line) line.textContent = pool[bubbleLineIdx];
+    }
+    /* 3D 头顶投影到屏幕 */
+    const p3 = new THREE.Vector3(
+      best.obj.group.position.x,
+      2.25,
+      best.obj.group.position.z
+    ).project(camera);
+    if (p3.z > 1 || p3.z < -1) { el.classList.remove('show'); return; }
+    const sx = (p3.x * 0.5 + 0.5) * window.innerWidth;
+    const sy = (-p3.y * 0.5 + 0.5) * window.innerHeight;
+    if (sx < -80 || sx > window.innerWidth + 80 || sy < -40 || sy > window.innerHeight + 40) {
+      el.classList.remove('show');
+      return;
+    }
+    el.style.left = sx.toFixed(1) + 'px';
+    el.style.top = (sy - 26).toFixed(1) + 'px';
+    el.classList.add('show');
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -11142,6 +11265,7 @@ const ASSETS = {
       updateWalkGame();
       updateInteractPrompt();
       updateQuests();
+      updateNpcBubble(dt);
       $('crosshair').style.display = WALK.thirdPerson ? 'none' : 'block';
     } else {
       AVATAR.setVisible(false);
@@ -11404,6 +11528,8 @@ const ASSETS = {
     openAlbum: openAlbum,
     openAchievements: openAchievements,
     achievementsPanel: function () { return achvData(); },
+    npcBubbleTick: function (dt) { updateNpcBubble(dt || 0.016); },
+    npcBubbleInfo: function () { const el = $('npcBubble'); return el && el.classList.contains('show') ? { who: $('npcWho').textContent, line: $('npcLine').textContent, left: el.style.left, top: el.style.top } : null; },
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
     questTick: updateQuests,
     walkGameTick: updateWalkGame,
@@ -11434,6 +11560,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.9.0.20261019.1124","time":"2026-10-19T11:24:29.699Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.10.0.20261019.1159","time":"2026-10-19T11:59:47.245Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

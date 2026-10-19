@@ -666,6 +666,7 @@
       this.paused = false;
       $('tourbar').classList.remove('show');
       $('btnTour').classList.remove('on');
+      const nb = $('npcBubble'); if (nb) nb.classList.remove('show');
       ctrl.syncFromCamera();
       if (restore !== false) ctrl.setView(VIEWS[currentView], false);
     },
@@ -1400,6 +1401,111 @@
     return d;
   }
 
+  /* =========================================================
+   *  NPC 对话气泡（靠近侍卫/宫女触发，按宫区讲典故）
+   * ======================================================= */
+  const NPC_LINES = {
+    gate: [
+      '午门是紫禁城正门，五凤楼与雁翅楼东西相拥。',
+      '过午门，前方就是太和门广场。',
+      '宫中出入皆由午门，礼制森严。'
+    ],
+    taihe: [
+      '太和殿俗称金銮殿，是大朝典礼之所。',
+      '殿顶重檐庑殿，檐角走兽有十只，天下无双。',
+      '丹陛上的日晷与嘉量，象征授时与统一。'
+    ],
+    backpalace: [
+      '乾清宫是内廷正殿，殿内高悬「正大光明」匾。',
+      '坤宁宫为皇后中宫，位正坤元。',
+      '后三宫是帝后起居之处，闲人免进。'
+    ],
+    garden: [
+      '御花园里有万春亭、千秋亭，四季皆有景致。',
+      '堆秀山上御景亭，是重阳登高的地方。',
+      '园中古柏奇石，都是几百年光景。'
+    ],
+    wall: [
+      '角楼九梁十八柱七十二条脊，是宫城最精巧的楼。',
+      '城墙高十米，护城河环绕宫城一周。',
+      '马道可登城巡视，寻常人不可上。'
+    ],
+    maids: [
+      '御花园的花开了，我带你去看看吧。',
+      '宫里规矩多，走路要轻些。',
+      '听说今晚宫灯会亮起来。'
+    ],
+    guards: [
+      '宫中重地，请勿喧哗。',
+      '这位客人，前面是太和殿广场。',
+      '天色不早了，早些出宫吧。'
+    ]
+  };
+  const bubbleEl = function () { return $('npcBubble'); };
+  let bubbleLineIdx = 0;
+  let bubbleTimer = 0;
+  let bubbleNpcIdx = -1;
+  function npcZoneKey() {
+    const z = WALK.pos.z;
+    if (z < -290) return 'garden';
+    if (z < -110) return 'backpalace';
+    if (z < 120) return 'taihe';
+    if (Math.abs(WALK.pos.x) > 120) return 'wall';
+    return 'gate';
+  }
+  function updateNpcBubble(dt) {
+    const el = bubbleEl();
+    if (!el) return;
+    if (!WALK.active || typeof NPC === 'undefined') { el.classList.remove('show'); bubbleNpcIdx = -1; return; }
+    /* 找最近的侍卫/宫女（巡逻 + 宫女） */
+    let best = null, bestD = 7.5, bestName = '侍卫', bestId = -1;
+    for (let i = 0; i < NPC.patrols.length; i++) {
+      const o = NPC.patrols[i].obj.group;
+      const d = Math.hypot(o.position.x - WALK.pos.x, o.position.z - WALK.pos.z);
+      if (d < bestD) { bestD = d; best = NPC.patrols[i]; bestName = '侍卫'; bestId = i; }
+    }
+    for (let i = 0; i < NPC.maids.length; i++) {
+      const o = NPC.maids[i].obj.group;
+      const d = Math.hypot(o.position.x - WALK.pos.x, o.position.z - WALK.pos.z);
+      if (d < bestD) { bestD = d; best = NPC.maids[i]; bestName = '宫女'; bestId = 100 + i; }
+    }
+    if (!best) { el.classList.remove('show'); bubbleNpcIdx = -1; bubbleTimer = 0; return; }
+    /* 换 NPC 立即换台词；同一 NPC 每 7 秒换一句 */
+    if (bestId !== bubbleNpcIdx) { bubbleNpcIdx = bestId; bubbleTimer = 0; }
+    bubbleTimer -= dt;
+    if (bubbleTimer <= 0) {
+      bubbleTimer = 7;
+      let pool;
+      if (bestName === '宫女') pool = NPC_LINES.maids;
+      else {
+        const zoneKey = npcZoneKey();
+        pool = NPC_LINES.guards.slice(0);
+        const zl = NPC_LINES[zoneKey];
+        if (zl) pool = zl.concat(pool);
+      }
+      bubbleLineIdx = (bubbleLineIdx + 1 + Math.floor(Math.random() * 2)) % pool.length;
+      const who = $('npcWho'), line = $('npcLine');
+      if (who) who.textContent = bestName;
+      if (line) line.textContent = pool[bubbleLineIdx];
+    }
+    /* 3D 头顶投影到屏幕 */
+    const p3 = new THREE.Vector3(
+      best.obj.group.position.x,
+      2.25,
+      best.obj.group.position.z
+    ).project(camera);
+    if (p3.z > 1 || p3.z < -1) { el.classList.remove('show'); return; }
+    const sx = (p3.x * 0.5 + 0.5) * window.innerWidth;
+    const sy = (-p3.y * 0.5 + 0.5) * window.innerHeight;
+    if (sx < -80 || sx > window.innerWidth + 80 || sy < -40 || sy > window.innerHeight + 40) {
+      el.classList.remove('show');
+      return;
+    }
+    el.style.left = sx.toFixed(1) + 'px';
+    el.style.top = (sy - 26).toFixed(1) + 'px';
+    el.classList.add('show');
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -1957,6 +2063,7 @@
       updateWalkGame();
       updateInteractPrompt();
       updateQuests();
+      updateNpcBubble(dt);
       $('crosshair').style.display = WALK.thirdPerson ? 'none' : 'block';
     } else {
       AVATAR.setVisible(false);
@@ -2219,6 +2326,8 @@
     openAlbum: openAlbum,
     openAchievements: openAchievements,
     achievementsPanel: function () { return achvData(); },
+    npcBubbleTick: function (dt) { updateNpcBubble(dt || 0.016); },
+    npcBubbleInfo: function () { const el = $('npcBubble'); return el && el.classList.contains('show') ? { who: $('npcWho').textContent, line: $('npcLine').textContent, left: el.style.left, top: el.style.top } : null; },
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
     questTick: updateQuests,
     walkGameTick: updateWalkGame,
