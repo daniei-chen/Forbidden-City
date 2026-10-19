@@ -331,9 +331,15 @@ const WALK = {
     this.stepDist += moved;
     this.stepSound += moved;
     this.bobPhase += moved * 2.2;
-    if (this.stepSound > 0.66 && this.onGround && typeof AUDIO !== 'undefined') {
+    if (this.stepSound > 0.66 && this.onGround && (typeof AUDIO !== 'undefined' || typeof EFFECTS !== 'undefined')) {
       this.stepSound = 0;
-      AUDIO.step(this.speed > 8, this.surfaceAt(this.pos.x, this.pos.z));
+      const surf = this.surfaceAt(this.pos.x, this.pos.z);
+      const wet = (typeof EFFECTS !== 'undefined' && EFFECTS.rainAmt > 0.25 && surf !== 'grass' && surf !== 'snow');
+      if (typeof AUDIO !== 'undefined') AUDIO.step(this.speed > 8, wet ? 'wet' : surf);
+      if (wet && typeof EFFECTS !== 'undefined' && EFFECTS.spawnSplash) {
+        /* 踩水花：每步 2 个 */
+        EFFECTS.spawnSplash(this.pos.x + (Math.random() - 0.5) * 0.5, this.pos.z + (Math.random() - 0.5) * 0.5, 0.8);
+      }
     }
     this.moving = moved > 1e-4;
     if (this.moving) {

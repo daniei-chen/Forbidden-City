@@ -156,6 +156,9 @@ const AUDIO = {
       this._noiseBurst(0.05, (running ? 1400 : 1650) + Math.random() * 400, 0.03 * v, 'bandpass');
     } else if (s === 'grass') {
       this._noiseBurst(0.11, 260 + Math.random() * 120, 0.036 * v, 'lowpass');
+    } else if (s === 'wet') {
+      this._noiseBurst(0.1, 700 + Math.random() * 300, 0.05 * v, 'bandpass');
+      this._noiseBurst(0.06, 1800 + Math.random() * 500, 0.018 * v, 'bandpass');
     } else if (s === 'snow') {
       this._noiseBurst(0.13, 900 + Math.random() * 500, 0.042 * v, 'bandpass');
     } else {

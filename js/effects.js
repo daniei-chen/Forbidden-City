@@ -108,6 +108,7 @@ const EFFECTS = {
     this.initCloudShadows(scene);
     this.initRain(scene);
     this.initSplashes(scene);
+    this.initDripDrops(scene);
   },
 
   /* ---------------- 雨（雨丝线段） ---------------- */
@@ -196,6 +197,82 @@ const EFFECTS = {
     }
     this.splashPool = pool;
   },
+  splashSpawns: 0,
+  dripSpawns: 0,
+  spawnSplash: function (x, z, scale) {
+    this.splashSpawns = (this.splashSpawns || 0) + 1;
+    const pool = this.splashPool;
+    if (!pool) return;
+    for (let i = 0; i < pool.length; i++) {
+      const h = pool[i];
+      if (h.life > 0) continue;
+      h.life = h.ttl = 0.3 + Math.random() * 0.18;
+      h.sp.position.set(x, 0.06, z);
+      h.sp.material.opacity = 0.6;
+      h.sp.scale.set(0.5, 0.3, 1);
+      if (scale != null) h.sp.scale.multiplyScalar(scale);
+      h.sp.visible = true;
+      return;
+    }
+  },
+
+  /* 檐口滴水：雨停后从屋檐滴落的小水珠 */
+  dripDrops: null,
+  initDripDrops: function (scene) {
+    const geo = new THREE.BufferGeometry();
+    const N = 60;
+    const pos = new Float32Array(N * 3);
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0xcfe6f2, size: 0.16, transparent: true, opacity: 0, depthWrite: false
+    });
+    const pts = new THREE.Points(geo, mat);
+    pts.frustumCulled = false;
+    pts.visible = false;
+    scene.add(pts);
+    this.dripDrops = { mesh: pts, data: [] };
+    for (let i = 0; i < N; i++) {
+      this.dripDrops.data.push({ x: 0, y: -10, z: 0, v: 0, alive: false });
+    }
+  },
+  spawnDrip: function (x, y, z) {
+    this.dripSpawns = (this.dripSpawns || 0) + 1;
+    if (!this.dripDrops) return;
+    const arr = this.dripDrops.data;
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i].alive) continue;
+      arr[i].x = x; arr[i].y = y; arr[i].z = z;
+      arr[i].v = -2.5 - Math.random() * 2.0;
+      arr[i].alive = true;
+      return;
+    }
+  },
+  updateDripDrops: function (dt) {
+    const d = this.dripDrops;
+    if (!d) return;
+    const show = this.rainAmt > 0.02 && this.rainAmt < 0.45;
+    d.mesh.visible = show;
+    if (!show) return;
+    d.mesh.material.opacity = 0.6;
+    const attr = d.mesh.geometry.attributes.position.array;
+    for (let i = 0; i < d.data.length; i++) {
+      const p = d.data[i];
+      if (!p.alive) { attr[i * 3 + 1] = -100; continue; }
+      p.y += p.v * dt * 3.2;
+      p.v -= 9 * dt;
+      if (p.y < 0.05) {
+        p.alive = false;
+        attr[i * 3 + 1] = -100;
+        this.spawnSplash(p.x, p.z, 0.55);
+        continue;
+      }
+      attr[i * 3] = p.x;
+      attr[i * 3 + 1] = p.y;
+      attr[i * 3 + 2] = p.z;
+    }
+    d.mesh.geometry.attributes.position.needsUpdate = true;
+  },
+
   updateSplashes: function (dt, camera) {
     const pool = this.splashPool;
     if (!pool) return;
@@ -743,6 +820,25 @@ const EFFECTS = {
     var camRef = (window.__app && window.__app.camera) ? window.__app.camera : null;
     this.updateRain(dt, camRef);
     this.updateSplashes(dt, camRef);
+    this.updateDripDrops(dt);
+    if (this.rainAmt > 0.02 && this.rainAmt < 0.45 && camRef) {
+      if (!this._dripSpawnT) this._dripSpawnT = 0;
+      this._dripSpawnT += dt;
+      if (this._dripSpawnT > 0.12) {
+        this._dripSpawnT = 0;
+        /* 太和殿/保和殿檐口附近随机滴落 */
+        const sets = [
+          { x0: -26, x1: 26, z0: 38, z1: 80, y: 19 },
+          { x0: -32, x1: 32, z0: -70, z1: -44, y: 16 }
+        ];
+        const s2 = sets[Math.floor(Math.random() * sets.length)];
+        const dx2 = s2.x0 + Math.random() * (s2.x1 - s2.x0);
+        const dz2 = s2.z0 + Math.random() * (s2.z1 - s2.z0);
+        if (Math.hypot(dx2 - camRef.position.x, dz2 - camRef.position.z) < 90) {
+          this.spawnDrip(dx2, s2.y, dz2);
+        }
+      }
+    }
     this.updateBirds(dt, st);
     this.updateLeaves(dt, st);
     this.updateLanterns(dt);
