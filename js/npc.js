@@ -230,6 +230,17 @@ const NPC = {
       { pts: [[24, -182], [44, -192], [22, -204]], speed: 0.45, phase: 0.55 }
     ];
     this.cats = [];
+    /* ---- 午门换岗仪式侍卫（两名） ---- */
+    this.ceremonyGuards = [];
+    for (const csx of [-1, 1]) {
+      const cgd = this.makeGuard();
+      cgd.group.position.set(csx * 16, 0, 440);
+      cgd.group.rotation.y = csx > 0 ? -Math.PI / 2 : Math.PI / 2;
+      g.add(cgd.group);
+      this.ceremonyGuards.push(cgd);
+    }
+    this.ceremony = { active: false, t: 0, phase: 0, cooldown: 30, cycles: 0 };
+
     this._pendingSparrows = true;
     for (const r of catRoutes) {
       const cat = this.makeCat();
@@ -421,6 +432,93 @@ const NPC = {
     inst.instanceMatrix.needsUpdate = true;
   },
 
+  /* ---------------- 午门换岗仪式 ---------------- */
+  startCeremony: function () {
+    if (this.ceremony) { this.ceremony.cooldown = 0; }
+  },
+  ceremonyStats: function () {
+    const c = this.ceremony;
+    if (!c) return { active: false };
+    return {
+      active: c.active, phase: c.phase, t: Math.round(c.t * 100) / 100,
+      cycles: c.cycles, cooldown: Math.round(c.cooldown * 10) / 10,
+      posA: this.ceremonyGuards ? [Math.round(this.ceremonyGuards[0].group.position.x), Math.round(this.ceremonyGuards[0].group.position.z)] : null,
+      posB: this.ceremonyGuards ? [Math.round(this.ceremonyGuards[1].group.position.x), Math.round(this.ceremonyGuards[1].group.position.z)] : null
+    };
+  },
+  updateCeremony: function (dt) {
+    const c = this.ceremony;
+    if (!c || !this.ceremonyGuards || this.ceremonyGuards.length < 2) return;
+    const g1 = this.ceremonyGuards[0], g2 = this.ceremonyGuards[1];
+    const self = this;
+    function stance(gd, sway) {
+      gd.parts.legL.rotation.x = sway;
+      gd.parts.legR.rotation.x = -sway;
+      gd.parts.armL.rotation.x = -sway * 1.2;
+      gd.parts.armR.rotation.x = sway * 1.2;
+    }
+    if (!c.active) {
+      c.cooldown -= dt;
+      g1.group.position.set(-16, 0, 440);
+      g2.group.position.set(16, 0, 440);
+      g1.group.rotation.y = Math.PI / 2;
+      g2.group.rotation.y = -Math.PI / 2;
+      stance(g1, Math.sin(self.time * 1.4) * 0.02);
+      stance(g2, Math.sin(self.time * 1.4 + 1) * 0.02);
+      g1.parts.body.position.y = 0.52;
+      g2.parts.body.position.y = 0.52;
+      if (c.cooldown <= 0) {
+        c.active = true;
+        c.t = 0;
+        c.phase = 0;
+        c.cycles = (c.cycles || 0) + 1;
+      }
+      return;
+    }
+    c.t += dt;
+    const ease = function (k) { return k * k * (3 - 2 * k); };
+    if (c.phase === 0) {
+      const k = Math.min(1, c.t / 2.2);
+      const e = ease(k);
+      g1.group.position.set(-16 + 10 * e, 0, 440);
+      g2.group.position.set(16 - 10 * e, 0, 440);
+      g1.group.rotation.y = Math.PI / 2;
+      g2.group.rotation.y = -Math.PI / 2;
+      const sw = Math.sin(self.time * 9) * 0.5;
+      stance(g1, sw);
+      stance(g2, -sw);
+      g1.parts.body.position.y = 0.52 + Math.abs(Math.sin(self.time * 9)) * 0.02;
+      g2.parts.body.position.y = 0.52 + Math.abs(Math.sin(self.time * 9 + 0.4)) * 0.02;
+      if (c.t >= 2.2) { c.t -= 2.2; c.phase = 1; }
+    } else if (c.phase === 1) {
+      const k = Math.min(1, c.t / 1.7);
+      const dip = Math.sin(k * Math.PI) * 0.05;
+      g1.parts.body.position.y = 0.52 - dip;
+      g2.parts.body.position.y = 0.52 - dip;
+      stance(g1, 0.02);
+      stance(g2, 0.02);
+      if (c.t >= 1.7) { c.t -= 1.7; c.phase = 2; }
+    } else {
+      const k = Math.min(1, c.t / 2.2);
+      const e = ease(k);
+      g1.group.position.set(-6 - 10 * e, 0, 440);
+      g2.group.position.set(6 + 10 * e, 0, 440);
+      g1.group.rotation.y = Math.PI / 2;
+      g2.group.rotation.y = -Math.PI / 2;
+      const sw = Math.sin(self.time * 9) * 0.5;
+      stance(g1, -sw);
+      stance(g2, sw);
+      g1.parts.body.position.y = 0.52 + Math.abs(Math.sin(self.time * 9)) * 0.02;
+      g2.parts.body.position.y = 0.52 + Math.abs(Math.sin(self.time * 9 + 0.4)) * 0.02;
+      if (c.t >= 2.2) {
+        c.active = false;
+        c.t = 0;
+        c.phase = 0;
+        c.cooldown = 80 + Math.random() * 50;
+      }
+    }
+  },
+
   /* 折线路径取点 */
   pathPos: function (pts, dist) {
     let d = dist, ax = pts[0][0], az = pts[0][1], bx = pts[1][0], bz = pts[1][1], fx = 0, fz = 1;
@@ -449,6 +547,7 @@ const NPC = {
     if (!this.group) return;
     this.updateSparrows(dt);
     this.time += dt;
+    this.updateCeremony(dt);
     const pl = this._player();
 
     /* ---- 宫女：靠近驻足转身目送 ---- */
