@@ -1458,32 +1458,47 @@
     const questsDone = QUESTS.filter(function (q) { return q.done; }).length;
     const spots = Object.keys(photoSpots).length;
     const feeds = achievements.catFeeds;
+    const plays = achievements.catPlays || 0;
+    const potBest = achievements.potBest || 0;
+    const riddleN = (achievements.riddles || []).length;
     const titles = [
-      { name: '中轴行者', ok: QUESTS[0].done },
-      { name: '寻芳客', ok: QUESTS[1].done },
-      { name: '御猫之友', ok: QUESTS[2].done },
-      { name: '御用摄影师', ok: spots >= DISCOVERIES.length },
-      { name: '猫薄荷', ok: feeds >= 5 },
-      { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
-      { name: '灯谜雅士', ok: (achievements.riddles || []).length >= 3 },
-      { name: '御猫团宠', ok: (achievements.catPlays || 0) >= 3 },
-      { name: '千里之行', ok: travel.dist >= 1000 },
-      { name: '宫城常客', ok: travel.dist >= 5000 },
-      { name: '身轻如燕', ok: travel.jumps >= 50 },
-      { name: '流连忘返', ok: travel.time >= 600 },
-      { name: '紫禁城居民', ok: disc >= 10 && questsDone >= 3 && spots >= 10 }
+      { name: '中轴行者', cat: '任务', ok: QUESTS[0].done },
+      { name: '寻芳客', cat: '任务', ok: QUESTS[1].done },
+      { name: '御猫之友', cat: '任务', ok: QUESTS[2].done },
+      { name: '御用摄影师', cat: '探索', ok: spots >= DISCOVERIES.length },
+      { name: '猫薄荷', cat: '趣味', ok: feeds >= 5 },
+      { name: '投壶高手', cat: '趣味', ok: potBest >= 5 },
+      { name: '灯谜雅士', cat: '趣味', ok: riddleN >= 3 },
+      { name: '御猫团宠', cat: '趣味', ok: plays >= 3 },
+      { name: '千里之行', cat: '里程碑', ok: travel.dist >= 1000 },
+      { name: '宫城常客', cat: '里程碑', ok: travel.dist >= 5000 },
+      { name: '身轻如燕', cat: '里程碑', ok: travel.jumps >= 50 },
+      { name: '流连忘返', cat: '里程碑', ok: travel.time >= 600 },
+      { name: '紫禁城居民', cat: '综合', ok: disc >= 10 && questsDone >= 3 && spots >= 10 }
     ];
+    const titleDone = titles.filter(function (x) { return x.ok; }).length;
     const rows = [
       { nm: '宫城探索', v: disc, max: DISCOVERIES.length },
       { nm: '任务完成', v: questsDone, max: QUESTS.length },
       { nm: '地标打卡', v: spots, max: DISCOVERIES.length },
       { nm: '拍下照片', v: achievements.photos, max: 20 },
-      { nm: '投喂御猫', v: feeds, max: 5 }
+      { nm: '投喂御猫', v: feeds, max: 5 },
+      { nm: '逗猫玩耍', v: plays, max: 3 },
+      { nm: '投壶最佳', v: Math.min(potBest, 6), max: 6 },
+      { nm: '灯谜解谜', v: riddleN, max: 3 },
+      { nm: '称号收集', v: titleDone, max: titles.length }
     ];
     let pctSum = 0;
     for (let i = 0; i < rows.length; i++) pctSum += Math.min(1, rows[i].v / rows[i].max);
     const pct = Math.round(pctSum / rows.length * 100);
-    return { rows: rows, titles: titles, pct: pct };
+    const groups = [];
+    const groupOrder = ['任务', '探索', '趣味', '里程碑', '综合'];
+    for (let gi = 0; gi < groupOrder.length; gi++) {
+      const gname = groupOrder[gi];
+      const arr = titles.filter(function (x) { return x.cat === gname; });
+      if (arr.length) groups.push({ name: gname, items: arr });
+    }
+    return { rows: rows, titles: titles, groups: groups, titleDone: titleDone, titleTotal: titles.length, pct: pct };
   }
   function refreshAchievements() {
     const d = achvData();
@@ -1500,8 +1515,14 @@
     const tt = $('achvTitles');
     if (tt) {
       let html = '';
-      for (let i = 0; i < d.titles.length; i++) {
-        html += '<span class="tt' + (d.titles[i].ok ? '' : ' off') + '">' + (d.titles[i].ok ? '★ ' : '☆ ') + d.titles[i].name + '</span>';
+      html += '<div style="width:100%;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:11px;letter-spacing:1px;color:rgba(230,224,208,.55)">称号收集</span><b style="color:var(--gold);font-weight:400;font-size:12px">' + d.titleDone + ' / ' + d.titleTotal + '</b></div>';
+      for (let gi = 0; gi < d.groups.length; gi++) {
+        const g = d.groups[gi];
+        html += '<div style="width:100%;font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.38);margin:8px 0 4px">' + g.name + '</div>';
+        for (let i = 0; i < g.items.length; i++) {
+          const it = g.items[i];
+          html += '<span class="tt' + (it.ok ? '' : ' off') + '">' + (it.ok ? '★ ' : '☆ ') + it.name + '</span>';
+        }
       }
       tt.innerHTML = html;
     }
@@ -1512,7 +1533,7 @@
       for (let ti = 0; ti < rowsT.length; ti++) {
         th += '<div style="display:flex;justify-content:space-between;gap:16px;font-size:11.5px;letter-spacing:.5px;color:rgba(230,224,208,.75);margin:4px 0"><span>' + rowsT[ti][0] + '</span><b style="color:var(--gold);font-weight:400">' + rowsT[ti][1] + '</b></div>';
       }
-      th += '<div style="margin-top:12px">行程完成度<b>' + d.pct + '%</b> · 按 H 或 Esc 关闭</div>';
+      th += '<div style="margin-top:12px">行程完成度<b>' + d.pct + '%</b> · 称号 <b>' + d.titleDone + '/' + d.titleTotal + '</b> · 按 H 或 Esc 关闭</div>';
       tot.innerHTML = th;
     }
     return d;
