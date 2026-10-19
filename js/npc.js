@@ -227,6 +227,7 @@ const NPC = {
       { pts: [[24, -182], [44, -192], [22, -204]], speed: 0.45, phase: 0.55 }
     ];
     this.cats = [];
+    this._pendingSparrows = true;
     for (const r of catRoutes) {
       const cat = this.makeCat();
       g.add(cat.group);
@@ -236,12 +237,114 @@ const NPC = {
     }
 
     this.group = g;
+    if (this._pendingSparrows) { this._pendingSparrows = false; this.initSparrows(); }
     scene.add(g);
     return g;
   },
 
+  /* ---------------- 广场麻雀（啄食，小人靠近飞走） ---------------- */
+  sparrows: null,
+  sparrowData: null,
+  sparrowTime: 0,
+  initSparrows: function () {
+    const body = new THREE.SphereGeometry(0.11, 7, 6);
+    body.scale(1, 0.85, 1.35);
+    body.translate(0, 0.09, 0);
+    const head = new THREE.SphereGeometry(0.07, 7, 6);
+    head.translate(0, 0.2, 0.11);
+    const beak = new THREE.ConeGeometry(0.025, 0.07, 5);
+    beak.rotateX(Math.PI / 2);
+    beak.translate(0, 0.2, 0.2);
+    const tail = new THREE.BoxGeometry(0.06, 0.02, 0.14);
+    tail.rotateX(-0.35);
+    tail.translate(0, 0.12, -0.16);
+    const geo = GEOM.merge([body, head, beak, tail]);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x8a6a44, roughness: 0.9, metalness: 0.0 });
+    const count = 18;
+    const inst = new THREE.InstancedMesh(geo, mat, count);
+    inst.frustumCulled = false;
+    inst.castShadow = false;
+    inst.receiveShadow = false;
+    this.group.add(inst);
+    this.sparrows = inst;
+    const anchors = [
+      [40, 180], [-40, 182], [26, 250], [-26, 252], [18, -60], [-18, -62],
+      [44, -150], [-44, -152], [20, -330], [-20, -332]
+    ];
+    this.sparrowData = [];
+    for (let i = 0; i < count; i++) {
+      const a = anchors[i % anchors.length];
+      this.sparrowData.push({
+        ax: a[0], az: a[1],
+        x: a[0] + (Math.random() - 0.5) * 4,
+        z: a[1] + (Math.random() - 0.5) * 4,
+        yaw: Math.random() * 6.28,
+        phase: Math.random() * 6.28,
+        state: 'ground',
+        flyT: 0,
+        dx: 0, dz: 1
+      });
+    }
+  },
+  updateSparrows: function (dt) {
+    const inst = this.sparrows;
+    const data = this.sparrowData;
+    if (!inst || !data) return;
+    this.sparrowTime += dt;
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const e = new THREE.Euler();
+    const pos = new THREE.Vector3();
+    const scl = new THREE.Vector3(1, 1, 1);
+    const walkOn = (typeof WALK !== 'undefined') && WALK.active;
+    const ax = walkOn ? WALK.pos.x : 1e9;
+    const az = walkOn ? WALK.pos.z : 1e9;
+    for (let i = 0; i < data.length; i++) {
+      const s = data[i];
+      if (s.state === 'ground') {
+        const d = Math.hypot(ax - s.x, az - s.z);
+        if (walkOn && d < 7) {
+          s.state = 'fly';
+          s.flyT = 0;
+          const dx = s.x - ax, dz = s.z - az;
+          const dl = Math.hypot(dx, dz) || 1;
+          s.dx = dx / dl; s.dz = dz / dl;
+        } else {
+          const t = this.sparrowTime + s.phase;
+          const peck = Math.max(0, Math.sin(t * 2.2)) > 0.82 ? 0.5 : 0;
+          s.yaw += Math.sin(t * 0.7 + i) * dt * 0.6;
+          pos.set(s.x, 0.09 + Math.abs(Math.sin(t * 5)) * 0.015, s.z);
+          e.set(peck, s.yaw, 0);
+          q.setFromEuler(e);
+          m.compose(pos, q, scl);
+          inst.setMatrixAt(i, m);
+          continue;
+        }
+      }
+      /* 飞走 → 2.2s 后在其他位置落下 */
+      s.flyT += dt;
+      s.x += s.dx * dt * 3.2;
+      s.z += s.dz * dt * 3.2;
+      const h = Math.max(0, 0.4 + s.flyT * 1.6 - s.flyT * s.flyT * 0.45);
+      pos.set(s.x, 0.09 + h, s.z);
+      e.set(-0.3, Math.atan2(s.dx, s.dz), Math.sin(s.flyT * 20) * 0.5);
+      q.setFromEuler(e);
+      m.compose(pos, q, scl);
+      inst.setMatrixAt(i, m);
+      if (s.flyT > 2.2) {
+        s.state = 'ground';
+        s.ax = s.ax; s.az = s.az;
+        s.x = s.ax + (Math.random() - 0.5) * 5;
+        s.z = s.az + (Math.random() - 0.5) * 5;
+        s.yaw = Math.random() * 6.28;
+      }
+    }
+    inst.instanceMatrix.needsUpdate = true;
+  },
+
   update: function (dt) {
     if (!this.group) return;
+    this.updateSparrows(dt);
     this.time += dt;
     for (let mi = 0; mi < (this.maids || []).length; mi++) {
       const mw = this.maids[mi];
