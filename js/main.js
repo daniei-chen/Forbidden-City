@@ -1131,6 +1131,7 @@
 
   function doInteract() {
     if (!WALK.active) return;
+    achievements.interacts = (achievements.interacts || 0) + 1;
     if (nearCatNest()) { playWithCats(); return; }
     if (nearPot()) { startMinigame(); return; }
     if (nearRiddle()) { openRiddle(); return; }
@@ -2386,6 +2387,87 @@
     return settings.perfhud;
   }
 
+  /* =========================================================
+   *  新手引导（首次漫游分步教学）
+   * ======================================================= */
+  const TUTORIAL_KEY = 'forbidden-city-tutorial-v1';
+  const TUTORIAL_STEPS = [
+    { text: '用 <b>W A S D</b> 在宫中走动，视角可用鼠标拖拽环视。', hint: '走两步试试' },
+    { text: '按 <b>空格</b> 跳跃；按住 <b>Shift</b> 可疾行。', hint: '跳一下' },
+    { text: '走近陈设或御猫，按 <b>E</b> 互动（查看/投喂/逗猫）。', hint: '找最近的互动点' },
+    { text: '按 <b>P</b> 拍照留念，<b>G</b> 打开相册。', hint: '拍一张照片' }
+  ];
+  const tutorial = {
+    active: false, step: 0, done: false,
+    baseDist: 0, baseJumps: 0, basePhotos: 0
+  };
+  try { tutorial.done = localStorage.getItem(TUTORIAL_KEY) === '1'; } catch (e) {}
+  function tutorialSave() {
+    try { localStorage.setItem(TUTORIAL_KEY, '1'); } catch (e) {}
+  }
+  function tutorialShow() {
+    const el = $('tutorial');
+    if (!el || tutorial.done) return;
+    tutorial.active = true;
+    tutorial.step = 0;
+    tutorial.baseDist = travel.dist;
+    tutorial.baseJumps = WALK.jumps || 0;
+    tutorial.basePhotos = achievements.photos || 0;
+    el.classList.add('show');
+    tutorialRender();
+  }
+  function tutorialHide(skipped) {
+    tutorial.active = false;
+    const el = $('tutorial');
+    if (el) el.classList.remove('show');
+    if (skipped) { tutorial.done = true; tutorialSave(); showToast('已跳过新手引导（可在设置中重新体验）', 2600); }
+  }
+  function tutorialRender() {
+    const text = $('tuText'), dots = $('tuDots'), stepEl = $('tuStep');
+    if (!text) return;
+    text.innerHTML = TUTORIAL_STEPS[tutorial.step].text;
+    if (dots) {
+      let html = '';
+      for (let i = 0; i < TUTORIAL_STEPS.length; i++) html += '<i class="' + (i <= tutorial.step ? 'on' : '') + '"></i>';
+      dots.innerHTML = html;
+    }
+    if (stepEl) stepEl.textContent = (tutorial.step + 1) + ' / ' + TUTORIAL_STEPS.length;
+  }
+  function tutorialCompleteStep() {
+    if (!tutorial.active) return;
+    tutorial.step++;
+    if (tutorial.step >= TUTORIAL_STEPS.length) {
+      tutorial.active = false;
+      tutorial.done = true;
+      tutorialSave();
+      const el = $('tutorial');
+      if (el) el.classList.remove('show');
+      showToast('新手引导完成 · 开始你的紫禁城之旅！', 3600);
+      if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+      return;
+    }
+    tutorialRender();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+  }
+  function updateTutorial(dt) {
+    if (!tutorial.active || !WALK.active) return;
+    if (tutorial.step === 0) {
+      if (travel.dist - tutorial.baseDist > 2.2) tutorialCompleteStep();
+    } else if (tutorial.step === 1) {
+      if ((WALK.jumps || 0) - tutorial.baseJumps >= 1) tutorialCompleteStep();
+    } else if (tutorial.step === 2) {
+      if (achievements.interacts && achievements.interacts > 0) tutorialCompleteStep();
+    } else if (tutorial.step === 3) {
+      if ((achievements.photos || 0) - tutorial.basePhotos >= 1) tutorialCompleteStep();
+    }
+  }
+  function tutorialReset() {
+    tutorial.done = false;
+    try { localStorage.removeItem(TUTORIAL_KEY); } catch (e) {}
+    tutorialShow();
+    return tutorial.step;
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -2396,6 +2478,7 @@
       $('btnWalk').classList.add('on');
       refreshWalkGame();
       buildQuestHud();
+      tutorialShow();
       showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · H 总览 · P 拍照 · Esc 退出', 4200);
     } else {
       WALK.exit();
@@ -2703,6 +2786,7 @@
         return;
       }
       if (e.key === 'Escape') {
+        if (tutorial.active) { tutorialHide(true); return; }
         if (minigame.active) { stopMinigame(); return; }
         const ab = document.getElementById('album');
         if (ab && ab.classList.contains('show')) { openAlbum(false); return; }
@@ -3063,6 +3147,7 @@
     updateWeather(dt);
     updateAmbientAudio(dt);
     updateTravel(dt);
+    updateTutorial(dt);
     updatePerfHud(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
@@ -3184,6 +3269,8 @@
       }
       bindUI();
   if (settings.audio === false && typeof AUDIO !== 'undefined') AUDIO.setMuted(true);
+  const tuSkip = $('tuSkip');
+  if (tuSkip) tuSkip.addEventListener('click', function () { tutorialHide(true); });
   initTouch();
   buildPot();
   (function bindAlbum() {
@@ -3325,6 +3412,9 @@
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
+    tutorialInfo: function () { return { active: tutorial.active, step: tutorial.step, done: tutorial.done, total: TUTORIAL_STEPS.length }; },
+    tutorialReset: tutorialReset,
+    tutorialTick: function (dt) { updateTutorial(dt || 0.016); },
     wishInfo: function () { return { wishes: achievements.wishes || 0, coinsActive: (typeof EFFECTS !== 'undefined' && EFFECTS.coinPool) ? EFFECTS.coinPool.filter(function (c) { return c.life > 0; }).length : -1 }; },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
     settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle }; },

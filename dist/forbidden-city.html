@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.32.0.20261019.2013">
-<meta name="build-time" content="2026-10-19T20:13:46.613Z">
+<meta name="generator" content="forbidden-city-build 6.33.0.20261019.2034">
+<meta name="build-time" content="2026-10-19T20:34:06.736Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T20:13:46.613Z
-  version: 6.32.0.20261019.2013
+  build: 2026-10-19T20:34:06.736Z
+  version: 6.33.0.20261019.2034
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -324,7 +324,27 @@
   }
   .objarrow.show{display:block}
   body.photo .objmark, body.photo .objarrow{display:none !important}
-  /* 漫游性能 HUD */
+  /* ---------------- 新手引导 ---------------- */
+  .tutorial{
+    position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:12;display:none;
+    width:min(420px,88vw);padding:16px 20px 14px;
+    background:rgba(9,11,15,.86);border:1px solid rgba(216,180,95,.5);backdrop-filter:blur(10px);
+    text-align:left;
+  }
+  .tutorial.show{display:block}
+  .tutorial .tu-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  .tutorial .tu-title{font-size:12px;letter-spacing:3px;color:var(--gold)}
+  .tutorial .tu-dots{display:flex;gap:5px}
+  .tutorial .tu-dots i{width:6px;height:6px;border-radius:50%;background:rgba(216,180,95,.25)}
+  .tutorial .tu-dots i.on{background:var(--gold)}
+  .tutorial .tu-text{font-size:12.5px;line-height:1.8;letter-spacing:.6px;color:rgba(240,234,220,.92);min-height:44px}
+  .tutorial .tu-text b{color:var(--gold);font-weight:500;border:1px solid rgba(216,180,95,.5);border-radius:2px;padding:0 5px;margin:0 2px}
+  .tutorial .tu-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:10px;letter-spacing:1px;color:rgba(230,224,208,.4)}
+  .tutorial .tu-skip{cursor:pointer;color:rgba(230,224,208,.55);border-bottom:1px dashed rgba(230,224,208,.3)}
+  .tutorial .tu-skip:hover{color:var(--gold)}
+  body.photo .tutorial{display:none !important}
+
+  /* ---------------- 漫游性能 HUD ---------------- */
   .perfhud{
     position:fixed;left:18px;bottom:18px;z-index:9;display:none;
     padding:7px 11px;background:rgba(9,11,15,.62);border:1px solid rgba(216,180,95,.25);
@@ -550,6 +570,12 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="tutorial" id="tutorial">
+  <div class="tu-head"><span class="tu-title">漫游指引</span><span class="tu-dots" id="tuDots"></span></div>
+  <div class="tu-text" id="tuText"></div>
+  <div class="tu-foot"><span id="tuStep">1 / 4</span><span class="tu-skip" id="tuSkip">跳过引导</span></div>
+</div>
+
 <div class="perfhud" id="perfhud"></div>
 
 <div class="objmark" id="objMarker"><div class="dia"></div><div class="lbl" id="objLabel"></div></div>
@@ -687,7 +713,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.32.0',
+  version: '6.33.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -11229,6 +11255,7 @@ const ASSETS = {
 
   function doInteract() {
     if (!WALK.active) return;
+    achievements.interacts = (achievements.interacts || 0) + 1;
     if (nearCatNest()) { playWithCats(); return; }
     if (nearPot()) { startMinigame(); return; }
     if (nearRiddle()) { openRiddle(); return; }
@@ -12484,6 +12511,87 @@ const ASSETS = {
     return settings.perfhud;
   }
 
+  /* =========================================================
+   *  新手引导（首次漫游分步教学）
+   * ======================================================= */
+  const TUTORIAL_KEY = 'forbidden-city-tutorial-v1';
+  const TUTORIAL_STEPS = [
+    { text: '用 <b>W A S D</b> 在宫中走动，视角可用鼠标拖拽环视。', hint: '走两步试试' },
+    { text: '按 <b>空格</b> 跳跃；按住 <b>Shift</b> 可疾行。', hint: '跳一下' },
+    { text: '走近陈设或御猫，按 <b>E</b> 互动（查看/投喂/逗猫）。', hint: '找最近的互动点' },
+    { text: '按 <b>P</b> 拍照留念，<b>G</b> 打开相册。', hint: '拍一张照片' }
+  ];
+  const tutorial = {
+    active: false, step: 0, done: false,
+    baseDist: 0, baseJumps: 0, basePhotos: 0
+  };
+  try { tutorial.done = localStorage.getItem(TUTORIAL_KEY) === '1'; } catch (e) {}
+  function tutorialSave() {
+    try { localStorage.setItem(TUTORIAL_KEY, '1'); } catch (e) {}
+  }
+  function tutorialShow() {
+    const el = $('tutorial');
+    if (!el || tutorial.done) return;
+    tutorial.active = true;
+    tutorial.step = 0;
+    tutorial.baseDist = travel.dist;
+    tutorial.baseJumps = WALK.jumps || 0;
+    tutorial.basePhotos = achievements.photos || 0;
+    el.classList.add('show');
+    tutorialRender();
+  }
+  function tutorialHide(skipped) {
+    tutorial.active = false;
+    const el = $('tutorial');
+    if (el) el.classList.remove('show');
+    if (skipped) { tutorial.done = true; tutorialSave(); showToast('已跳过新手引导（可在设置中重新体验）', 2600); }
+  }
+  function tutorialRender() {
+    const text = $('tuText'), dots = $('tuDots'), stepEl = $('tuStep');
+    if (!text) return;
+    text.innerHTML = TUTORIAL_STEPS[tutorial.step].text;
+    if (dots) {
+      let html = '';
+      for (let i = 0; i < TUTORIAL_STEPS.length; i++) html += '<i class="' + (i <= tutorial.step ? 'on' : '') + '"></i>';
+      dots.innerHTML = html;
+    }
+    if (stepEl) stepEl.textContent = (tutorial.step + 1) + ' / ' + TUTORIAL_STEPS.length;
+  }
+  function tutorialCompleteStep() {
+    if (!tutorial.active) return;
+    tutorial.step++;
+    if (tutorial.step >= TUTORIAL_STEPS.length) {
+      tutorial.active = false;
+      tutorial.done = true;
+      tutorialSave();
+      const el = $('tutorial');
+      if (el) el.classList.remove('show');
+      showToast('新手引导完成 · 开始你的紫禁城之旅！', 3600);
+      if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+      return;
+    }
+    tutorialRender();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+  }
+  function updateTutorial(dt) {
+    if (!tutorial.active || !WALK.active) return;
+    if (tutorial.step === 0) {
+      if (travel.dist - tutorial.baseDist > 2.2) tutorialCompleteStep();
+    } else if (tutorial.step === 1) {
+      if ((WALK.jumps || 0) - tutorial.baseJumps >= 1) tutorialCompleteStep();
+    } else if (tutorial.step === 2) {
+      if (achievements.interacts && achievements.interacts > 0) tutorialCompleteStep();
+    } else if (tutorial.step === 3) {
+      if ((achievements.photos || 0) - tutorial.basePhotos >= 1) tutorialCompleteStep();
+    }
+  }
+  function tutorialReset() {
+    tutorial.done = false;
+    try { localStorage.removeItem(TUTORIAL_KEY); } catch (e) {}
+    tutorialShow();
+    return tutorial.step;
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -12494,6 +12602,7 @@ const ASSETS = {
       $('btnWalk').classList.add('on');
       refreshWalkGame();
       buildQuestHud();
+      tutorialShow();
       showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · H 总览 · P 拍照 · Esc 退出', 4200);
     } else {
       WALK.exit();
@@ -12801,6 +12910,7 @@ const ASSETS = {
         return;
       }
       if (e.key === 'Escape') {
+        if (tutorial.active) { tutorialHide(true); return; }
         if (minigame.active) { stopMinigame(); return; }
         const ab = document.getElementById('album');
         if (ab && ab.classList.contains('show')) { openAlbum(false); return; }
@@ -13161,6 +13271,7 @@ const ASSETS = {
     updateWeather(dt);
     updateAmbientAudio(dt);
     updateTravel(dt);
+    updateTutorial(dt);
     updatePerfHud(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
@@ -13282,6 +13393,8 @@ const ASSETS = {
       }
       bindUI();
   if (settings.audio === false && typeof AUDIO !== 'undefined') AUDIO.setMuted(true);
+  const tuSkip = $('tuSkip');
+  if (tuSkip) tuSkip.addEventListener('click', function () { tutorialHide(true); });
   initTouch();
   buildPot();
   (function bindAlbum() {
@@ -13423,6 +13536,9 @@ const ASSETS = {
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
+    tutorialInfo: function () { return { active: tutorial.active, step: tutorial.step, done: tutorial.done, total: TUTORIAL_STEPS.length }; },
+    tutorialReset: tutorialReset,
+    tutorialTick: function (dt) { updateTutorial(dt || 0.016); },
     wishInfo: function () { return { wishes: achievements.wishes || 0, coinsActive: (typeof EFFECTS !== 'undefined' && EFFECTS.coinPool) ? EFFECTS.coinPool.filter(function (c) { return c.life > 0; }).length : -1 }; },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
     settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle }; },
@@ -13492,6 +13608,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.32.0.20261019.2013","time":"2026-10-19T20:13:46.613Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.33.0.20261019.2034","time":"2026-10-19T20:34:06.736Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

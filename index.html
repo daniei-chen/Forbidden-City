@@ -315,7 +315,27 @@
   }
   .objarrow.show{display:block}
   body.photo .objmark, body.photo .objarrow{display:none !important}
-  /* 漫游性能 HUD */
+  /* ---------------- 新手引导 ---------------- */
+  .tutorial{
+    position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:12;display:none;
+    width:min(420px,88vw);padding:16px 20px 14px;
+    background:rgba(9,11,15,.86);border:1px solid rgba(216,180,95,.5);backdrop-filter:blur(10px);
+    text-align:left;
+  }
+  .tutorial.show{display:block}
+  .tutorial .tu-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  .tutorial .tu-title{font-size:12px;letter-spacing:3px;color:var(--gold)}
+  .tutorial .tu-dots{display:flex;gap:5px}
+  .tutorial .tu-dots i{width:6px;height:6px;border-radius:50%;background:rgba(216,180,95,.25)}
+  .tutorial .tu-dots i.on{background:var(--gold)}
+  .tutorial .tu-text{font-size:12.5px;line-height:1.8;letter-spacing:.6px;color:rgba(240,234,220,.92);min-height:44px}
+  .tutorial .tu-text b{color:var(--gold);font-weight:500;border:1px solid rgba(216,180,95,.5);border-radius:2px;padding:0 5px;margin:0 2px}
+  .tutorial .tu-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:10px;letter-spacing:1px;color:rgba(230,224,208,.4)}
+  .tutorial .tu-skip{cursor:pointer;color:rgba(230,224,208,.55);border-bottom:1px dashed rgba(230,224,208,.3)}
+  .tutorial .tu-skip:hover{color:var(--gold)}
+  body.photo .tutorial{display:none !important}
+
+  /* ---------------- 漫游性能 HUD ---------------- */
   .perfhud{
     position:fixed;left:18px;bottom:18px;z-index:9;display:none;
     padding:7px 11px;background:rgba(9,11,15,.62);border:1px solid rgba(216,180,95,.25);
@@ -540,6 +560,12 @@
 <canvas id="minimap" width="336" height="336"></canvas>
 <div class="toast" id="toast"></div>
 <div id="photoFlash"></div>
+<div class="tutorial" id="tutorial">
+  <div class="tu-head"><span class="tu-title">漫游指引</span><span class="tu-dots" id="tuDots"></span></div>
+  <div class="tu-text" id="tuText"></div>
+  <div class="tu-foot"><span id="tuStep">1 / 4</span><span class="tu-skip" id="tuSkip">跳过引导</span></div>
+</div>
+
 <div class="perfhud" id="perfhud"></div>
 
 <div class="objmark" id="objMarker"><div class="dia"></div><div class="lbl" id="objLabel"></div></div>
