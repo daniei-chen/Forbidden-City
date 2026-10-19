@@ -185,7 +185,9 @@ const NPC = {
       { pts: [[-38, -100], [-38, -190]], speed: 1.0, phase: 0.4 },
       { pts: [[38, -190], [38, -100]], speed: 1.0, phase: 0.8 },
       { pts: [[-120, 120], [-120, 260]], speed: 0.95, phase: 0.2 },
-      { pts: [[120, 260], [120, 120]], speed: 0.95, phase: 0.7 }
+      { pts: [[120, 260], [120, 120]], speed: 0.95, phase: 0.7 },
+      { pts: [[-26, -146], [26, -146]], speed: 0.85, phase: 0.05 },
+      { pts: [[26, -146], [-26, -146]], speed: 0.85, phase: 0.55 }
     ];
     for (const r of routes) {
       const guard = this.makeGuard();
@@ -196,7 +198,8 @@ const NPC = {
       }
       this.patrols.push({
         obj: guard, pts: r.pts, len: len, speed: r.speed,
-        t: r.phase * len, legPhase: Math.random() * 6.28, alert: 0
+        t: r.phase * len, legPhase: Math.random() * 6.28, alert: 0,
+        greetT: 0, greetCd: 0, greetWith: null
       });
     }
 
@@ -213,7 +216,7 @@ const NPC = {
       g.add(maid.group);
       let len2 = 0;
       for (let i = 1; i < r.pts.length; i++) len2 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.maids.push({ obj: maid, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0 });
+      this.maids.push({ obj: maid, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0, greetT: 0, greetCd: 0, greetWith: null });
     }
 
     /* 御猫三只 */
@@ -305,6 +308,20 @@ const NPC = {
       });
     }
   },
+  greetStats: function () {
+    let active = 0;
+    const list = [];
+    for (let i = 0; i < this.patrols.length; i++) {
+      const p = this.patrols[i];
+      if (p.greetT > 0) { active++; list.push({ kind: 'guard', i: i, left: Math.round(p.greetT * 100) / 100 }); }
+    }
+    for (let j = 0; j < this.maids.length; j++) {
+      const m = this.maids[j];
+      if (m.greetT > 0) { active++; list.push({ kind: 'maid', i: j, left: Math.round(m.greetT * 100) / 100 }); }
+    }
+    return { active: active, events: this.greetEvents || 0, list: list };
+  },
+
   chaseStats: function () {
     const out = [];
     for (let i = 0; i < (this.cats || []).length; i++) {
@@ -404,6 +421,27 @@ const NPC = {
     for (let mi = 0; mi < (this.maids || []).length; mi++) {
       const mw = this.maids[mi];
       const cur0 = this.pathPos(mw.pts, mw.t);
+      if (mw.greetCd > 0) mw.greetCd -= dt;
+      if (mw.greetT > 0) {
+        mw.greetT -= dt;
+        const curG = this.pathPos(mw.pts, mw.t);
+        mw.obj.group.position.set(curG.x, 0, curG.z);
+        if (mw.greetWith) {
+          const tp = mw.greetWith;
+          const tyg = Math.atan2(tp.x - curG.x, tp.z - curG.z);
+          let dyg = tyg - mw.obj.group.rotation.y;
+          dyg = Math.atan2(Math.sin(dyg), Math.cos(dyg));
+          mw.obj.group.rotation.y += dyg * Math.min(1, dt * 7);
+        }
+        mw.legPhase += dt * 1.4;
+        const sgg = Math.sin(mw.legPhase) * 0.08;
+        mw.obj.parts.legL.rotation.x = sgg;
+        mw.obj.parts.legR.rotation.x = -sgg;
+        mw.obj.parts.armL.rotation.x = -0.12;
+        mw.obj.parts.armR.rotation.x = 0.12;
+        mw.obj.parts.body.position.y = 0.52 - Math.abs(Math.sin(this.time * 2.4)) * 0.02;
+        continue;
+      }
       let dist = 1e9;
       if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
       if (dist < 6.0) mw.alert = Math.min(1, mw.alert + dt * 4.5);
@@ -625,6 +663,27 @@ const NPC = {
     for (let i = 0; i < this.patrols.length; i++) {
       const p = this.patrols[i];
       const cur0 = this.pathPos(p.pts, p.t);
+      if (p.greetCd > 0) p.greetCd -= dt;
+      if (p.greetT > 0) {
+        p.greetT -= dt;
+        const curG = this.pathPos(p.pts, p.t);
+        p.obj.group.position.set(curG.x, 0, curG.z);
+        if (p.greetWith) {
+          const tp = p.greetWith;
+          const tyg = Math.atan2(tp.x - curG.x, tp.z - curG.z);
+          let dyg = tyg - p.obj.group.rotation.y;
+          dyg = Math.atan2(Math.sin(dyg), Math.cos(dyg));
+          p.obj.group.rotation.y += dyg * Math.min(1, dt * 7);
+        }
+        p.legPhase += dt * 1.4;
+        const sgg = Math.sin(p.legPhase) * 0.08;
+        p.obj.parts.legL.rotation.x = sgg;
+        p.obj.parts.legR.rotation.x = -sgg;
+        p.obj.parts.armL.rotation.x = -0.12;
+        p.obj.parts.armR.rotation.x = 0.12;
+        p.obj.parts.body.position.y = 0.52 - Math.abs(Math.sin(this.time * 2.4)) * 0.02;
+        continue;
+      }
       let dist = 1e9;
       if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
       if (dist < 6.5) p.alert = Math.min(1, p.alert + dt * 5);
@@ -650,6 +709,24 @@ const NPC = {
       p.obj.parts.armL.rotation.x = -s * 0.42;
       p.obj.parts.armR.rotation.x = s * 0.3;
       p.obj.parts.body.position.y = 0.52 + (paused ? Math.sin(this.time * 1.6 + i) * 0.008 : Math.abs(Math.sin(p.legPhase)) * 0.025);
+    }
+
+    /* ---- 相遇寒暄：两名行走 NPC 靠近时停步对视 2.8 秒 ---- */
+    const walkers = [];
+    for (let wi = 0; wi < this.patrols.length; wi++) walkers.push(this.patrols[wi]);
+    for (let wi2 = 0; wi2 < this.maids.length; wi2++) walkers.push(this.maids[wi2]);
+    for (let a = 0; a < walkers.length; a++) {
+      for (let b = a + 1; b < walkers.length; b++) {
+        const A2 = walkers[a], B2 = walkers[b];
+        if (A2.greetT > 0 || B2.greetT > 0 || A2.greetCd > 0 || B2.greetCd > 0) continue;
+        const ga = A2.obj.group.position, gb = B2.obj.group.position;
+        if (Math.hypot(ga.x - gb.x, ga.z - gb.z) > 2.6) continue;
+        if (pl && (Math.hypot(pl.x - ga.x, pl.z - ga.z) < 4.5 || Math.hypot(pl.x - gb.x, pl.z - gb.z) < 4.5)) continue;
+        A2.greetT = 2.8; B2.greetT = 2.8;
+        A2.greetCd = 9 + Math.random() * 5; B2.greetCd = A2.greetCd;
+        A2.greetWith = gb; B2.greetWith = ga;
+        this.greetEvents = (this.greetEvents || 0) + 1;
+      }
     }
   }
 };
