@@ -202,6 +202,11 @@
   .walkgame .wg-bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .45s ease}
   .walkgame .wg-hint{font-size:11px;letter-spacing:.5px;color:rgba(230,224,208,.72);line-height:1.55;min-height:17px}
   .walkgame .wg-hint b{color:var(--gold);font-weight:500}
+  .walkgame .wg-quests{border-top:1px solid rgba(216,180,95,.16);margin-top:9px;padding-top:8px;display:flex;flex-direction:column;gap:5px}
+  .walkgame .wg-quest{font-size:10.5px;letter-spacing:.4px;color:rgba(230,224,208,.62);display:flex;justify-content:space-between;gap:10px}
+  .walkgame .wg-quest b{color:var(--gold);font-weight:500}
+  .walkgame .wg-quest.done{color:rgba(216,180,95,.8)}
+  .walkgame .wg-quest.done span{text-decoration:line-through;text-decoration-color:rgba(216,180,95,.4)}
   /* 互动提示 */
   .interact{
     position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:7;display:none;
@@ -324,6 +329,7 @@
   </div>
   <div class="wg-bar"><i id="wgBar"></i></div>
   <div class="wg-hint" id="wgHint">走近各处建筑即可发现</div>
+  <div class="wg-quests" id="wgQuests"></div>
 </div>
 
 <div class="tourbar" id="tourbar">

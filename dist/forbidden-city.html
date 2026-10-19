@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.3.0.20261019.0906">
-<meta name="build-time" content="2026-10-19T09:06:59.603Z">
+<meta name="generator" content="forbidden-city-build 6.4.0.20261019.0933">
+<meta name="build-time" content="2026-10-19T09:33:44.301Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T09:06:59.603Z
-  version: 6.3.0.20261019.0906
+  build: 2026-10-19T09:33:44.301Z
+  version: 6.4.0.20261019.0933
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -211,6 +211,11 @@
   .walkgame .wg-bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .45s ease}
   .walkgame .wg-hint{font-size:11px;letter-spacing:.5px;color:rgba(230,224,208,.72);line-height:1.55;min-height:17px}
   .walkgame .wg-hint b{color:var(--gold);font-weight:500}
+  .walkgame .wg-quests{border-top:1px solid rgba(216,180,95,.16);margin-top:9px;padding-top:8px;display:flex;flex-direction:column;gap:5px}
+  .walkgame .wg-quest{font-size:10.5px;letter-spacing:.4px;color:rgba(230,224,208,.62);display:flex;justify-content:space-between;gap:10px}
+  .walkgame .wg-quest b{color:var(--gold);font-weight:500}
+  .walkgame .wg-quest.done{color:rgba(216,180,95,.8)}
+  .walkgame .wg-quest.done span{text-decoration:line-through;text-decoration-color:rgba(216,180,95,.4)}
   /* 互动提示 */
   .interact{
     position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:7;display:none;
@@ -334,6 +339,7 @@
   </div>
   <div class="wg-bar"><i id="wgBar"></i></div>
   <div class="wg-hint" id="wgHint">走近各处建筑即可发现</div>
+  <div class="wg-quests" id="wgQuests"></div>
 </div>
 
 <div class="tourbar" id="tourbar">
@@ -433,7 +439,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.3.0',
+  version: '6.4.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -9827,6 +9833,113 @@ const ASSETS = {
     if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
   }
 
+  /* =========================================================
+   *  任务线（中轴巡礼 / 御花园寻芳 / 宫城寻猫）
+   * ======================================================= */
+  const QUESTS = [
+    {
+      id: 'axis', name: '中轴巡礼', title: '中轴行者',
+      steps: [
+        { t: 'lm', i: 0, label: '午门' }, { t: 'lm', i: 1, label: '太和门' },
+        { t: 'lm', i: 2, label: '太和殿' }, { t: 'lm', i: 3, label: '中和殿' },
+        { t: 'lm', i: 4, label: '保和殿' }, { t: 'lm', i: 5, label: '乾清宫' },
+        { t: 'lm', i: 6, label: '坤宁宫' }, { t: 'lm', i: 9, label: '神武门' }
+      ],
+      progress: 0, done: false
+    },
+    {
+      id: 'garden', name: '御花园寻芳', title: '寻芳客',
+      steps: [
+        { t: 'pos', x: 0, z: -310, r: 18, label: '钦安殿' },
+        { t: 'pos', x: 34, z: -338, r: 12, label: '万春亭' },
+        { t: 'pos', x: -34, z: -338, r: 12, label: '千秋亭' },
+        { t: 'pos', x: 64, z: -352, r: 14, label: '堆秀山' },
+        { t: 'pos', x: 18, z: -350, r: 8, label: '东花坛' },
+        { t: 'pos', x: -18, z: -352, r: 8, label: '西花坛' }
+      ],
+      progress: 0, done: false
+    },
+    {
+      id: 'cats', name: '宫城寻猫', title: '御猫之友',
+      steps: [
+        { t: 'cat', i: 0, label: '御猫' }, { t: 'cat', i: 1, label: '御猫' },
+        { t: 'cat', i: 2, label: '御猫' }, { t: 'cat', i: 3, label: '御猫' },
+        { t: 'cat', i: 4, label: '御猫' }, { t: 'cat', i: 5, label: '御猫' },
+        { t: 'cat', i: 6, label: '御猫' }
+      ],
+      progress: 0, done: false
+    }
+  ];
+  const QUEST_KEY = 'forbidden-city-quests-v1';
+  try {
+    const savedQ = JSON.parse(localStorage.getItem(QUEST_KEY) || '{}');
+    for (let qi = 0; qi < QUESTS.length; qi++) {
+      const q = QUESTS[qi];
+      const st = savedQ[q.id];
+      if (st) {
+        q.progress = Math.max(0, Math.min(q.steps.length, st.p || 0));
+        q.done = !!st.done || q.progress >= q.steps.length;
+      }
+    }
+  } catch (e) {}
+  function questsSave() {
+    const out = {};
+    for (let i = 0; i < QUESTS.length; i++) out[QUESTS[i].id] = { p: QUESTS[i].progress, done: QUESTS[i].done };
+    try { localStorage.setItem(QUEST_KEY, JSON.stringify(out)); } catch (e) {}
+  }
+  function questsReset() {
+    for (let i = 0; i < QUESTS.length; i++) { QUESTS[i].progress = 0; QUESTS[i].done = false; }
+    questsSave();
+    buildQuestHud();
+  }
+  function buildQuestHud() {
+    const box = $('wgQuests');
+    if (!box) return;
+    let html = '';
+    for (let i = 0; i < QUESTS.length; i++) {
+      const q = QUESTS[i];
+      const cls = q.done ? 'wg-quest done' : 'wg-quest';
+      const val = q.done ? '✓' : q.progress + '/' + q.steps.length;
+      html += '<div class="' + cls + '"><span>' + q.name + '</span><b>' + val + '</b></div>';
+    }
+    box.innerHTML = html;
+  }
+  function questStepDone(step) {
+    if (step.t === 'lm') return !!discSet[step.i];
+    if (step.t === 'pos') return Math.hypot(step.x - WALK.pos.x, step.z - WALK.pos.z) < step.r;
+    if (step.t === 'cat') {
+      if (typeof NPC === 'undefined' || !NPC.cats || !NPC.cats[step.i]) return false;
+      const cpos = NPC.cats[step.i].obj.group.position;
+      return Math.hypot(cpos.x - WALK.pos.x, cpos.z - WALK.pos.z) < 5.2;
+    }
+    return false;
+  }
+  function updateQuests() {
+    if (!WALK.active) return;
+    let changed = false;
+    for (let qi = 0; qi < QUESTS.length; qi++) {
+      const q = QUESTS[qi];
+      if (q.done) continue;
+      let advanced = false;
+      while (q.progress < q.steps.length) {
+        const step = q.steps[q.progress];
+        if (!questStepDone(step)) break;
+        q.progress++;
+        advanced = true;
+        if (q.progress >= q.steps.length) {
+          q.done = true;
+          showToast('任务完成 · ' + q.name + ' — 获得称号「' + q.title + '」', 5200);
+          if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+        } else {
+          showToast('任务 · ' + q.name + ' ' + q.progress + '/' + q.steps.length + '（' + step.label + '）', 2400);
+          if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+        }
+      }
+      if (advanced) { changed = true; }
+    }
+    if (changed) { questsSave(); buildQuestHud(); }
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -9836,6 +9949,7 @@ const ASSETS = {
       $('walkhint').classList.add('show');
       $('btnWalk').classList.add('on');
       refreshWalkGame();
+      buildQuestHud();
       showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · 拖拽环视 · Esc 退出', 3600);
     } else {
       WALK.exit();
@@ -10057,7 +10171,8 @@ const ASSETS = {
       if (k2 === 'x') { WALK.toggleView(); return; }
       if (k2 === 'r') {
         discSet = {}; saveDisc(); refreshWalkGame();
-        showToast('探索进度已重置', 2200);
+        questsReset();
+        showToast('探索与任务进度已重置', 2400);
         return;
       }
       if (k2 === 'v' || e.key === 'Escape') { toggleWalk(false); return; }
@@ -10370,6 +10485,7 @@ const ASSETS = {
       AVATAR.update(dt, { moving: WALK.moving, speed: WALK.speed, onGround: WALK.onGround });
       updateWalkGame();
       updateInteractPrompt();
+      updateQuests();
       $('crosshair').style.display = WALK.thirdPerson ? 'none' : 'block';
     } else {
       AVATAR.setVisible(false);
@@ -10605,6 +10721,10 @@ const ASSETS = {
         startWalk: function () { toggleWalk(true); },
     interact: doInteract,
     interactInfo: function () { const it = nearestInteractive(); return it ? { title: it.title, text: it.text } : null; },
+    questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
+    questTick: updateQuests,
+    walkGameTick: updateWalkGame,
+    questsReset: questsReset,
         stopWalk: function () { toggleWalk(false); }
       };
     } catch (err) {
@@ -10630,6 +10750,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.3.0.20261019.0906","time":"2026-10-19T09:06:59.603Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.4.0.20261019.0933","time":"2026-10-19T09:33:44.301Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

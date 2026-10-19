@@ -986,6 +986,113 @@
     if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
   }
 
+  /* =========================================================
+   *  任务线（中轴巡礼 / 御花园寻芳 / 宫城寻猫）
+   * ======================================================= */
+  const QUESTS = [
+    {
+      id: 'axis', name: '中轴巡礼', title: '中轴行者',
+      steps: [
+        { t: 'lm', i: 0, label: '午门' }, { t: 'lm', i: 1, label: '太和门' },
+        { t: 'lm', i: 2, label: '太和殿' }, { t: 'lm', i: 3, label: '中和殿' },
+        { t: 'lm', i: 4, label: '保和殿' }, { t: 'lm', i: 5, label: '乾清宫' },
+        { t: 'lm', i: 6, label: '坤宁宫' }, { t: 'lm', i: 9, label: '神武门' }
+      ],
+      progress: 0, done: false
+    },
+    {
+      id: 'garden', name: '御花园寻芳', title: '寻芳客',
+      steps: [
+        { t: 'pos', x: 0, z: -310, r: 18, label: '钦安殿' },
+        { t: 'pos', x: 34, z: -338, r: 12, label: '万春亭' },
+        { t: 'pos', x: -34, z: -338, r: 12, label: '千秋亭' },
+        { t: 'pos', x: 64, z: -352, r: 14, label: '堆秀山' },
+        { t: 'pos', x: 18, z: -350, r: 8, label: '东花坛' },
+        { t: 'pos', x: -18, z: -352, r: 8, label: '西花坛' }
+      ],
+      progress: 0, done: false
+    },
+    {
+      id: 'cats', name: '宫城寻猫', title: '御猫之友',
+      steps: [
+        { t: 'cat', i: 0, label: '御猫' }, { t: 'cat', i: 1, label: '御猫' },
+        { t: 'cat', i: 2, label: '御猫' }, { t: 'cat', i: 3, label: '御猫' },
+        { t: 'cat', i: 4, label: '御猫' }, { t: 'cat', i: 5, label: '御猫' },
+        { t: 'cat', i: 6, label: '御猫' }
+      ],
+      progress: 0, done: false
+    }
+  ];
+  const QUEST_KEY = 'forbidden-city-quests-v1';
+  try {
+    const savedQ = JSON.parse(localStorage.getItem(QUEST_KEY) || '{}');
+    for (let qi = 0; qi < QUESTS.length; qi++) {
+      const q = QUESTS[qi];
+      const st = savedQ[q.id];
+      if (st) {
+        q.progress = Math.max(0, Math.min(q.steps.length, st.p || 0));
+        q.done = !!st.done || q.progress >= q.steps.length;
+      }
+    }
+  } catch (e) {}
+  function questsSave() {
+    const out = {};
+    for (let i = 0; i < QUESTS.length; i++) out[QUESTS[i].id] = { p: QUESTS[i].progress, done: QUESTS[i].done };
+    try { localStorage.setItem(QUEST_KEY, JSON.stringify(out)); } catch (e) {}
+  }
+  function questsReset() {
+    for (let i = 0; i < QUESTS.length; i++) { QUESTS[i].progress = 0; QUESTS[i].done = false; }
+    questsSave();
+    buildQuestHud();
+  }
+  function buildQuestHud() {
+    const box = $('wgQuests');
+    if (!box) return;
+    let html = '';
+    for (let i = 0; i < QUESTS.length; i++) {
+      const q = QUESTS[i];
+      const cls = q.done ? 'wg-quest done' : 'wg-quest';
+      const val = q.done ? '✓' : q.progress + '/' + q.steps.length;
+      html += '<div class="' + cls + '"><span>' + q.name + '</span><b>' + val + '</b></div>';
+    }
+    box.innerHTML = html;
+  }
+  function questStepDone(step) {
+    if (step.t === 'lm') return !!discSet[step.i];
+    if (step.t === 'pos') return Math.hypot(step.x - WALK.pos.x, step.z - WALK.pos.z) < step.r;
+    if (step.t === 'cat') {
+      if (typeof NPC === 'undefined' || !NPC.cats || !NPC.cats[step.i]) return false;
+      const cpos = NPC.cats[step.i].obj.group.position;
+      return Math.hypot(cpos.x - WALK.pos.x, cpos.z - WALK.pos.z) < 5.2;
+    }
+    return false;
+  }
+  function updateQuests() {
+    if (!WALK.active) return;
+    let changed = false;
+    for (let qi = 0; qi < QUESTS.length; qi++) {
+      const q = QUESTS[qi];
+      if (q.done) continue;
+      let advanced = false;
+      while (q.progress < q.steps.length) {
+        const step = q.steps[q.progress];
+        if (!questStepDone(step)) break;
+        q.progress++;
+        advanced = true;
+        if (q.progress >= q.steps.length) {
+          q.done = true;
+          showToast('任务完成 · ' + q.name + ' — 获得称号「' + q.title + '」', 5200);
+          if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
+        } else {
+          showToast('任务 · ' + q.name + ' ' + q.progress + '/' + q.steps.length + '（' + step.label + '）', 2400);
+          if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+        }
+      }
+      if (advanced) { changed = true; }
+    }
+    if (changed) { questsSave(); buildQuestHud(); }
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -995,6 +1102,7 @@
       $('walkhint').classList.add('show');
       $('btnWalk').classList.add('on');
       refreshWalkGame();
+      buildQuestHud();
       showToast('漫游模式：WASD 移动 · 空格跳跃 · Shift 疾行 · X 视角 · 拖拽环视 · Esc 退出', 3600);
     } else {
       WALK.exit();
@@ -1216,7 +1324,8 @@
       if (k2 === 'x') { WALK.toggleView(); return; }
       if (k2 === 'r') {
         discSet = {}; saveDisc(); refreshWalkGame();
-        showToast('探索进度已重置', 2200);
+        questsReset();
+        showToast('探索与任务进度已重置', 2400);
         return;
       }
       if (k2 === 'v' || e.key === 'Escape') { toggleWalk(false); return; }
@@ -1529,6 +1638,7 @@
       AVATAR.update(dt, { moving: WALK.moving, speed: WALK.speed, onGround: WALK.onGround });
       updateWalkGame();
       updateInteractPrompt();
+      updateQuests();
       $('crosshair').style.display = WALK.thirdPerson ? 'none' : 'block';
     } else {
       AVATAR.setVisible(false);
@@ -1764,6 +1874,10 @@
         startWalk: function () { toggleWalk(true); },
     interact: doInteract,
     interactInfo: function () { const it = nearestInteractive(); return it ? { title: it.title, text: it.text } : null; },
+    questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
+    questTick: updateQuests,
+    walkGameTick: updateWalkGame,
+    questsReset: questsReset,
         stopWalk: function () { toggleWalk(false); }
       };
     } catch (err) {
