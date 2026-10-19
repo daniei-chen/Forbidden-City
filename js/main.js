@@ -1050,6 +1050,12 @@
     const lab = $('interactLabel');
     if (!el) return;
     if (!WALK.active) { el.classList.remove('show'); nearInteractive = null; return; }
+    if (nearCatNest()) {
+      el.classList.add('show');
+      if (lab) lab.textContent = '逗猫棒 · 玩耍';
+      nearInteractive = null;
+      return;
+    }
     if (nearPot()) {
       el.classList.add('show');
       if (lab) lab.textContent = '投壶 · 开始';
@@ -1089,6 +1095,7 @@
       achievements.potBest = savedA.potBest || 0;
       achievements.potGames = savedA.potGames || 0;
       achievements.riddles = Array.isArray(savedA.riddles) ? savedA.riddles : [];
+      achievements.catPlays = savedA.catPlays || 0;
     }
   } catch (e) {}
   function achievementsSave() {
@@ -1106,6 +1113,7 @@
   }
   function doInteract() {
     if (!WALK.active) return;
+    if (nearCatNest()) { playWithCats(); return; }
     if (nearPot()) { startMinigame(); return; }
     if (nearRiddle()) { openRiddle(); return; }
     const ci = nearestCat();
@@ -1458,6 +1466,7 @@
       { name: '猫薄荷', ok: feeds >= 5 },
       { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
       { name: '灯谜雅士', ok: (achievements.riddles || []).length >= 3 },
+      { name: '御猫团宠', ok: (achievements.catPlays || 0) >= 3 },
       { name: '千里之行', ok: travel.dist >= 1000 },
       { name: '宫城常客', ok: travel.dist >= 5000 },
       { name: '身轻如燕', ok: travel.jumps >= 50 },
@@ -1760,6 +1769,7 @@
     minigame.score = 0;
     minigame.finished = false;
     buildPot();
+  buildCatNest();
     minigameHud();
     if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
     showToast('投壶开始：力度条来回摆动，在中间标记处按空格投出（3 投）', 4200);
@@ -2186,6 +2196,54 @@
     if (cb) cb.checked = !!settings.festival;
     saveSettings();
     if (!silent) showToast(settings.festival ? '节庆灯会：开启（主轴红灯笼）' : '节庆灯会：关闭', 2600);
+  }
+
+  /* =========================================================
+   *  御猫小窝 + 逗猫棒（御花园）
+   * ======================================================= */
+  const CAT_NEST = { x: 58, z: -330, r: 4.2 };
+  let catNestGroup = null;
+  function buildCatNest() {
+    if (catNestGroup) return;
+    const g = new THREE.Group();
+    const wicker = new THREE.MeshStandardMaterial({ color: 0x9a7440, roughness: 0.9 });
+    const cushion = new THREE.MeshStandardMaterial({ color: 0x8d2f2a, roughness: 0.95 });
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.6, 0.34, 16), wicker);
+    bowl.position.y = 0.17;
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.12, 16), cushion);
+    pad.position.y = 0.36;
+    g.add(bowl, pad);
+    /* 逗猫棒：斜靠木杆 + 羽毛 */
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 1.7, 6), MATS.rafter || wicker);
+    stick.position.set(1.2, 0.8, 0.5);
+    stick.rotation.z = 0.55;
+    const feather = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.32, 6), MATS.goldDark || wicker);
+    feather.position.set(1.66, 1.5, 0.5);
+    feather.rotation.z = -0.4;
+    g.add(stick, feather);
+    g.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    g.position.set(CAT_NEST.x, 0, CAT_NEST.z);
+    scene.add(g);
+    catNestGroup = g;
+  }
+  function nearCatNest() {
+    if (!WALK.active) return false;
+    return Math.hypot(WALK.pos.x - CAT_NEST.x, WALK.pos.z - CAT_NEST.z) < CAT_NEST.r;
+  }
+  function playWithCats() {
+    if (!nearCatNest()) return 0;
+    buildCatNest();
+    let n = 0;
+    if (typeof NPC !== 'undefined' && NPC.playCatNear) n = NPC.playCatNear(WALK.pos.x, WALK.pos.z, 26, 3);
+    achievements.catPlays = (achievements.catPlays || 0) + 1;
+    achievementsSave();
+    if (n > 0) {
+      showToast('逗猫棒 · ' + n + ' 只御猫跑来了（玩耍 ' + achievements.catPlays + ' 次）', 3600);
+      if (typeof AUDIO !== 'undefined' && AUDIO.meow) AUDIO.meow();
+    } else {
+      showToast('附近没有御猫，去御花园找找吧', 2600);
+    }
+    return n;
   }
 
   function toggleWalk(force) {
@@ -3086,6 +3144,8 @@
     setWeather: function (m) { setWeather(m); return weather; },
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
+    playCats: function () { return playWithCats(); },
+    catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },
     setFestival: function (on) { setFestival(on); return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     festivalInfo: function () { return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     objectiveInfo: function () { const tg = getObjectiveTarget(); const mk = $('objMarker'), ar = $('objArrow'); return { target: tg, markerShown: !!(mk && mk.classList.contains('show')), arrowShown: !!(ar && ar.classList.contains('show')), label: ($('objLabel') || {}).textContent, arrowTransform: ar ? ar.style.transform : null, enabled: settings.objective !== false }; },

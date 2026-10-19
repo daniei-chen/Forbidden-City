@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.23.0.20261019.1729">
-<meta name="build-time" content="2026-10-19T17:29:41.022Z">
+<meta name="generator" content="forbidden-city-build 6.24.0.20261019.1757">
+<meta name="build-time" content="2026-10-19T17:57:57.331Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T17:29:41.022Z
-  version: 6.23.0.20261019.1729
+  build: 2026-10-19T17:57:57.331Z
+  version: 6.24.0.20261019.1757
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -644,7 +644,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.23.0',
+  version: '6.24.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -3744,6 +3744,29 @@ const NPC = {
     return best;
   },
 
+  /* 逗猫：范围内最多 N 只御猫跑来玩耍（跳跃 + 爱心） */
+  playCatNear: function (x, z, r, maxN) {
+    const list = [];
+    for (let i = 0; i < (this.cats || []).length; i++) {
+      const cpos = this.cats[i].obj.group.position;
+      const d = Math.hypot(cpos.x - x, cpos.z - z);
+      if (d < (r == null ? 20 : r)) list.push({ i: i, d: d });
+    }
+    list.sort(function (a, b) { return a.d - b.d; });
+    const n = Math.min(list.length, maxN == null ? 3 : maxN);
+    for (let k = 0; k < n; k++) {
+      const cat = this.cats[list[k].i];
+      cat.feedT = 10;
+      cat.heartT = 0;
+      cat.play = 10;
+      cat.flee = 0;
+      cat.look = 0;
+      cat.curious = 0;
+      cat.chaseT = 0;
+    }
+    return n;
+  },
+
   /* ---------------- 广场麻雀（啄食，小人靠近飞走） ---------------- */
   sparrows: null,
   sparrowData: null,
@@ -4044,6 +4067,10 @@ const NPC = {
         cat.obj.parts.legs[2].rotation.x = -sc0 * 0.6;
         cat.obj.parts.legs[3].rotation.x = sc0 * 0.6;
         cat.obj.parts.tail.rotation.z = Math.sin(this.time * 6.5 + ci) * 0.45;
+        if (cat.play > 0) {
+          cat.play -= dt;
+          cat.obj.parts.body.position.y = 0.3 + Math.abs(Math.sin(this.time * 11)) * 0.16;
+        }
         cat.heartT = (cat.heartT || 0) + dt;
         if (cat.heartT > 0.42 && typeof EFFECTS !== 'undefined' && EFFECTS.spawnHeart) {
           cat.heartT = 0;
@@ -10832,6 +10859,12 @@ const ASSETS = {
     const lab = $('interactLabel');
     if (!el) return;
     if (!WALK.active) { el.classList.remove('show'); nearInteractive = null; return; }
+    if (nearCatNest()) {
+      el.classList.add('show');
+      if (lab) lab.textContent = '逗猫棒 · 玩耍';
+      nearInteractive = null;
+      return;
+    }
     if (nearPot()) {
       el.classList.add('show');
       if (lab) lab.textContent = '投壶 · 开始';
@@ -10871,6 +10904,7 @@ const ASSETS = {
       achievements.potBest = savedA.potBest || 0;
       achievements.potGames = savedA.potGames || 0;
       achievements.riddles = Array.isArray(savedA.riddles) ? savedA.riddles : [];
+      achievements.catPlays = savedA.catPlays || 0;
     }
   } catch (e) {}
   function achievementsSave() {
@@ -10888,6 +10922,7 @@ const ASSETS = {
   }
   function doInteract() {
     if (!WALK.active) return;
+    if (nearCatNest()) { playWithCats(); return; }
     if (nearPot()) { startMinigame(); return; }
     if (nearRiddle()) { openRiddle(); return; }
     const ci = nearestCat();
@@ -11240,6 +11275,7 @@ const ASSETS = {
       { name: '猫薄荷', ok: feeds >= 5 },
       { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
       { name: '灯谜雅士', ok: (achievements.riddles || []).length >= 3 },
+      { name: '御猫团宠', ok: (achievements.catPlays || 0) >= 3 },
       { name: '千里之行', ok: travel.dist >= 1000 },
       { name: '宫城常客', ok: travel.dist >= 5000 },
       { name: '身轻如燕', ok: travel.jumps >= 50 },
@@ -11542,6 +11578,7 @@ const ASSETS = {
     minigame.score = 0;
     minigame.finished = false;
     buildPot();
+  buildCatNest();
     minigameHud();
     if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
     showToast('投壶开始：力度条来回摆动，在中间标记处按空格投出（3 投）', 4200);
@@ -11968,6 +12005,54 @@ const ASSETS = {
     if (cb) cb.checked = !!settings.festival;
     saveSettings();
     if (!silent) showToast(settings.festival ? '节庆灯会：开启（主轴红灯笼）' : '节庆灯会：关闭', 2600);
+  }
+
+  /* =========================================================
+   *  御猫小窝 + 逗猫棒（御花园）
+   * ======================================================= */
+  const CAT_NEST = { x: 58, z: -330, r: 4.2 };
+  let catNestGroup = null;
+  function buildCatNest() {
+    if (catNestGroup) return;
+    const g = new THREE.Group();
+    const wicker = new THREE.MeshStandardMaterial({ color: 0x9a7440, roughness: 0.9 });
+    const cushion = new THREE.MeshStandardMaterial({ color: 0x8d2f2a, roughness: 0.95 });
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.6, 0.34, 16), wicker);
+    bowl.position.y = 0.17;
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.12, 16), cushion);
+    pad.position.y = 0.36;
+    g.add(bowl, pad);
+    /* 逗猫棒：斜靠木杆 + 羽毛 */
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 1.7, 6), MATS.rafter || wicker);
+    stick.position.set(1.2, 0.8, 0.5);
+    stick.rotation.z = 0.55;
+    const feather = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.32, 6), MATS.goldDark || wicker);
+    feather.position.set(1.66, 1.5, 0.5);
+    feather.rotation.z = -0.4;
+    g.add(stick, feather);
+    g.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    g.position.set(CAT_NEST.x, 0, CAT_NEST.z);
+    scene.add(g);
+    catNestGroup = g;
+  }
+  function nearCatNest() {
+    if (!WALK.active) return false;
+    return Math.hypot(WALK.pos.x - CAT_NEST.x, WALK.pos.z - CAT_NEST.z) < CAT_NEST.r;
+  }
+  function playWithCats() {
+    if (!nearCatNest()) return 0;
+    buildCatNest();
+    let n = 0;
+    if (typeof NPC !== 'undefined' && NPC.playCatNear) n = NPC.playCatNear(WALK.pos.x, WALK.pos.z, 26, 3);
+    achievements.catPlays = (achievements.catPlays || 0) + 1;
+    achievementsSave();
+    if (n > 0) {
+      showToast('逗猫棒 · ' + n + ' 只御猫跑来了（玩耍 ' + achievements.catPlays + ' 次）', 3600);
+      if (typeof AUDIO !== 'undefined' && AUDIO.meow) AUDIO.meow();
+    } else {
+      showToast('附近没有御猫，去御花园找找吧', 2600);
+    }
+    return n;
   }
 
   function toggleWalk(force) {
@@ -12868,6 +12953,8 @@ const ASSETS = {
     setWeather: function (m) { setWeather(m); return weather; },
     ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
+    playCats: function () { return playWithCats(); },
+    catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },
     setFestival: function (on) { setFestival(on); return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     festivalInfo: function () { return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     objectiveInfo: function () { const tg = getObjectiveTarget(); const mk = $('objMarker'), ar = $('objArrow'); return { target: tg, markerShown: !!(mk && mk.classList.contains('show')), arrowShown: !!(ar && ar.classList.contains('show')), label: ($('objLabel') || {}).textContent, arrowTransform: ar ? ar.style.transform : null, enabled: settings.objective !== false }; },
@@ -12929,6 +13016,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.23.0.20261019.1729","time":"2026-10-19T17:29:41.022Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.24.0.20261019.1757","time":"2026-10-19T17:57:57.331Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

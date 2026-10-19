@@ -264,6 +264,29 @@ const NPC = {
     return best;
   },
 
+  /* 逗猫：范围内最多 N 只御猫跑来玩耍（跳跃 + 爱心） */
+  playCatNear: function (x, z, r, maxN) {
+    const list = [];
+    for (let i = 0; i < (this.cats || []).length; i++) {
+      const cpos = this.cats[i].obj.group.position;
+      const d = Math.hypot(cpos.x - x, cpos.z - z);
+      if (d < (r == null ? 20 : r)) list.push({ i: i, d: d });
+    }
+    list.sort(function (a, b) { return a.d - b.d; });
+    const n = Math.min(list.length, maxN == null ? 3 : maxN);
+    for (let k = 0; k < n; k++) {
+      const cat = this.cats[list[k].i];
+      cat.feedT = 10;
+      cat.heartT = 0;
+      cat.play = 10;
+      cat.flee = 0;
+      cat.look = 0;
+      cat.curious = 0;
+      cat.chaseT = 0;
+    }
+    return n;
+  },
+
   /* ---------------- 广场麻雀（啄食，小人靠近飞走） ---------------- */
   sparrows: null,
   sparrowData: null,
@@ -564,6 +587,10 @@ const NPC = {
         cat.obj.parts.legs[2].rotation.x = -sc0 * 0.6;
         cat.obj.parts.legs[3].rotation.x = sc0 * 0.6;
         cat.obj.parts.tail.rotation.z = Math.sin(this.time * 6.5 + ci) * 0.45;
+        if (cat.play > 0) {
+          cat.play -= dt;
+          cat.obj.parts.body.position.y = 0.3 + Math.abs(Math.sin(this.time * 11)) * 0.16;
+        }
         cat.heartT = (cat.heartT || 0) + dt;
         if (cat.heartT > 0.42 && typeof EFFECTS !== 'undefined' && EFFECTS.spawnHeart) {
           cat.heartT = 0;
