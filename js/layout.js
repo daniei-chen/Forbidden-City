@@ -1119,12 +1119,21 @@ LAYOUT.build = function (root) {
   mottle.renderOrder = 1;
   root.add(mottle);
 
-  /* 远景树线剪影环：半径 1650m，打破地平线空旷感 */
-  const treeLineGeo = new THREE.CylinderGeometry(1650, 1650, 92, 72, 1, true);
-  const treeLine = new THREE.Mesh(treeLineGeo, MATS.horizonTrees);
-  treeLine.position.set(0, 20, 0);
-  treeLine.material.fog = true;
-  root.add(treeLine);
+  /* 远景树线剪影环：双层（近 1200m / 远 1800m），增强地平线层次 */
+  const nearLineGeo = new THREE.CylinderGeometry(1200, 1200, 78, 72, 1, true);
+  const nearLine = new THREE.Mesh(nearLineGeo, MATS.horizonTrees);
+  nearLine.position.set(0, 16, 0);
+  nearLine.material = MATS.horizonTrees.clone();
+  nearLine.material.map = MATS.horizonTrees.map.clone();
+  nearLine.material.map.repeat.set(5, 1);
+  nearLine.material.map.needsUpdate = true;
+  nearLine.material.color.setHex(0xb8c8b8);
+  root.add(nearLine);
+
+  const farLineGeo = new THREE.CylinderGeometry(1800, 1800, 104, 72, 1, true);
+  const farLine = new THREE.Mesh(farLineGeo, MATS.horizonTrees);
+  farLine.position.set(0, 24, 0);
+  root.add(farLine);
 
   LAYOUT.terrace(root);
   LAYOUT.river(root);

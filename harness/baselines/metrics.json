@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-19T01:13:10.333Z",
-  "elapsedSec": 339.8,
+  "generatedAt": "2026-10-19T01:54:21.140Z",
+  "elapsedSec": 341.2,
   "matrix": {
     "description": "自动化评测截图矩阵：固定机位 × 时段，static=1 保证可复现",
     "quality": "medium",
@@ -30,14 +30,14 @@
     "note": "SSIM/MAE 仅在与本地基线对比时生效；CI 环境使用 --no-compare"
   },
   "renderer": "headless chrome / swiftshader",
-  "version": "5.31.0",
+  "version": "5.33.0",
   "quality": "medium",
   "perf": {
-    "benchMs": 7.9,
-    "fps": 126.6,
-    "draws": 897,
-    "tris": 3557024,
-    "meshes": 1867
+    "benchMs": 9.8,
+    "fps": 102,
+    "draws": 898,
+    "tris": 3557168,
+    "meshes": 1868
   },
   "items": [
     {
@@ -45,13 +45,13 @@
       "theme": "day",
       "view": 0,
       "file": "day-v0.jpg",
-      "bytes": 109317,
+      "bytes": 113983,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 7.9,
-        "fps": 126.6,
-        "draws": 897,
-        "tris": 3557024,
+        "meshes": 1868,
+        "benchMs": 9.8,
+        "fps": 102,
+        "draws": 898,
+        "tris": 3557168,
         "assets": true
       }
     },
@@ -60,13 +60,13 @@
       "theme": "day",
       "view": 1,
       "file": "day-v1.jpg",
-      "bytes": 118578,
+      "bytes": 118951,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 5.9,
-        "fps": 169.5,
-        "draws": 651,
-        "tris": 3197232,
+        "meshes": 1868,
+        "benchMs": 5,
+        "fps": 200,
+        "draws": 652,
+        "tris": 3197376,
         "assets": true
       }
     },
@@ -75,13 +75,13 @@
       "theme": "day",
       "view": 4,
       "file": "day-v4.jpg",
-      "bytes": 140859,
+      "bytes": 142936,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 3.2,
-        "fps": 312.5,
-        "draws": 274,
-        "tris": 3014794,
+        "meshes": 1868,
+        "benchMs": 2.4,
+        "fps": 416.7,
+        "draws": 275,
+        "tris": 3014938,
         "assets": true
       }
     },
@@ -90,13 +90,13 @@
       "theme": "day",
       "view": 8,
       "file": "day-v8.jpg",
-      "bytes": 143818,
+      "bytes": 145634,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 2.2,
-        "fps": 454.5,
-        "draws": 238,
-        "tris": 2984913,
+        "meshes": 1868,
+        "benchMs": 2.3,
+        "fps": 434.8,
+        "draws": 239,
+        "tris": 2985057,
         "assets": true
       }
     },
@@ -105,13 +105,13 @@
       "theme": "day",
       "view": 9,
       "file": "day-v9.jpg",
-      "bytes": 97332,
+      "bytes": 97216,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 3.3,
-        "fps": 303,
-        "draws": 318,
-        "tris": 3086430,
+        "meshes": 1868,
+        "benchMs": 4,
+        "fps": 250,
+        "draws": 319,
+        "tris": 3086574,
         "assets": true
       }
     },
@@ -120,13 +120,13 @@
       "theme": "day",
       "view": 6,
       "file": "day-v6.jpg",
-      "bytes": 120947,
+      "bytes": 122471,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 7.2,
-        "fps": 138.9,
-        "draws": 890,
-        "tris": 3537260,
+        "meshes": 1868,
+        "benchMs": 6.2,
+        "fps": 161.3,
+        "draws": 891,
+        "tris": 3537404,
         "assets": true
       }
     },
@@ -135,13 +135,13 @@
       "theme": "dusk",
       "view": 0,
       "file": "dusk-v0.jpg",
-      "bytes": 100157,
+      "bytes": 104280,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 6.9,
-        "fps": 144.9,
-        "draws": 897,
-        "tris": 3557024,
+        "meshes": 1868,
+        "benchMs": 9.9,
+        "fps": 101,
+        "draws": 898,
+        "tris": 3557168,
         "assets": true
       }
     },
@@ -150,13 +150,13 @@
       "theme": "dusk",
       "view": 1,
       "file": "dusk-v1.jpg",
-      "bytes": 112536,
+      "bytes": 112851,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 4.5,
-        "fps": 222.2,
-        "draws": 651,
-        "tris": 3197232,
+        "meshes": 1868,
+        "benchMs": 4.6,
+        "fps": 217.4,
+        "draws": 652,
+        "tris": 3197376,
         "assets": true
       }
     },
@@ -165,13 +165,13 @@
       "theme": "dusk",
       "view": 4,
       "file": "dusk-v4.jpg",
-      "bytes": 129331,
+      "bytes": 131471,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 2.5,
-        "fps": 400,
-        "draws": 274,
-        "tris": 3014794,
+        "meshes": 1868,
+        "benchMs": 2.6,
+        "fps": 384.6,
+        "draws": 275,
+        "tris": 3014938,
         "assets": true
       }
     },
@@ -180,13 +180,13 @@
       "theme": "dusk",
       "view": 8,
       "file": "dusk-v8.jpg",
-      "bytes": 133371,
+      "bytes": 135058,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 10.1,
-        "fps": 99,
-        "draws": 238,
-        "tris": 2984913,
+        "meshes": 1868,
+        "benchMs": 2,
+        "fps": 500,
+        "draws": 239,
+        "tris": 2985057,
         "assets": true
       }
     },
@@ -195,13 +195,13 @@
       "theme": "dusk",
       "view": 9,
       "file": "dusk-v9.jpg",
-      "bytes": 94128,
+      "bytes": 94062,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 4.4,
-        "fps": 227.3,
-        "draws": 318,
-        "tris": 3086430,
+        "meshes": 1868,
+        "benchMs": 3,
+        "fps": 333.3,
+        "draws": 319,
+        "tris": 3086574,
         "assets": true
       }
     },
@@ -210,13 +210,13 @@
       "theme": "dusk",
       "view": 6,
       "file": "dusk-v6.jpg",
-      "bytes": 111568,
+      "bytes": 112952,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 5.1,
-        "fps": 196.1,
-        "draws": 890,
-        "tris": 3537260,
+        "meshes": 1868,
+        "benchMs": 6.5,
+        "fps": 153.8,
+        "draws": 891,
+        "tris": 3537404,
         "assets": true
       }
     },
@@ -225,13 +225,13 @@
       "theme": "night",
       "view": 0,
       "file": "night-v0.jpg",
-      "bytes": 91832,
+      "bytes": 95395,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 7.9,
-        "fps": 126.6,
-        "draws": 897,
-        "tris": 3557024,
+        "meshes": 1868,
+        "benchMs": 6,
+        "fps": 166.7,
+        "draws": 898,
+        "tris": 3557168,
         "assets": true
       }
     },
@@ -240,13 +240,13 @@
       "theme": "night",
       "view": 1,
       "file": "night-v1.jpg",
-      "bytes": 95654,
+      "bytes": 95670,
       "metrics": {
-        "meshes": 1867,
+        "meshes": 1868,
         "benchMs": 4.3,
         "fps": 232.6,
-        "draws": 651,
-        "tris": 3197232,
+        "draws": 652,
+        "tris": 3197376,
         "assets": true
       }
     },
@@ -255,13 +255,13 @@
       "theme": "night",
       "view": 4,
       "file": "night-v4.jpg",
-      "bytes": 105894,
+      "bytes": 107656,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 2,
-        "fps": 500,
-        "draws": 274,
-        "tris": 3014794,
+        "meshes": 1868,
+        "benchMs": 2.2,
+        "fps": 454.5,
+        "draws": 275,
+        "tris": 3014938,
         "assets": true
       }
     },
@@ -270,13 +270,13 @@
       "theme": "night",
       "view": 8,
       "file": "night-v8.jpg",
-      "bytes": 104857,
+      "bytes": 106193,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 2.3,
-        "fps": 434.8,
-        "draws": 238,
-        "tris": 2984913,
+        "meshes": 1868,
+        "benchMs": 1.9,
+        "fps": 526.3,
+        "draws": 239,
+        "tris": 2985057,
         "assets": true
       }
     },
@@ -285,13 +285,13 @@
       "theme": "night",
       "view": 9,
       "file": "night-v9.jpg",
-      "bytes": 68684,
+      "bytes": 68984,
       "metrics": {
-        "meshes": 1867,
+        "meshes": 1868,
         "benchMs": 2.8,
         "fps": 357.1,
-        "draws": 318,
-        "tris": 3086430,
+        "draws": 319,
+        "tris": 3086574,
         "assets": true
       }
     },
@@ -300,13 +300,13 @@
       "theme": "night",
       "view": 6,
       "file": "night-v6.jpg",
-      "bytes": 95158,
+      "bytes": 96221,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 4.6,
-        "fps": 217.4,
-        "draws": 890,
-        "tris": 3537260,
+        "meshes": 1868,
+        "benchMs": 4.7,
+        "fps": 212.8,
+        "draws": 891,
+        "tris": 3537404,
         "assets": true
       }
     },
@@ -315,13 +315,13 @@
       "theme": "snow",
       "view": 0,
       "file": "snow-v0.jpg",
-      "bytes": 107693,
+      "bytes": 113216,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 5.4,
-        "fps": 185.2,
-        "draws": 897,
-        "tris": 3557024,
+        "meshes": 1868,
+        "benchMs": 5.2,
+        "fps": 192.3,
+        "draws": 898,
+        "tris": 3557168,
         "assets": true
       }
     },
@@ -330,13 +330,13 @@
       "theme": "snow",
       "view": 1,
       "file": "snow-v1.jpg",
-      "bytes": 90487,
+      "bytes": 91185,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 4.2,
-        "fps": 238.1,
-        "draws": 651,
-        "tris": 3197232,
+        "meshes": 1868,
+        "benchMs": 3.9,
+        "fps": 256.4,
+        "draws": 652,
+        "tris": 3197376,
         "assets": true
       }
     },
@@ -345,13 +345,13 @@
       "theme": "snow",
       "view": 4,
       "file": "snow-v4.jpg",
-      "bytes": 104322,
+      "bytes": 107235,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 2.4,
-        "fps": 416.7,
-        "draws": 274,
-        "tris": 3014794,
+        "meshes": 1868,
+        "benchMs": 3.1,
+        "fps": 322.6,
+        "draws": 275,
+        "tris": 3014938,
         "assets": true
       }
     },
@@ -360,13 +360,13 @@
       "theme": "snow",
       "view": 8,
       "file": "snow-v8.jpg",
-      "bytes": 115972,
+      "bytes": 118479,
       "metrics": {
-        "meshes": 1867,
+        "meshes": 1868,
         "benchMs": 2.1,
         "fps": 476.2,
-        "draws": 238,
-        "tris": 2984913,
+        "draws": 239,
+        "tris": 2985057,
         "assets": true
       }
     },
@@ -375,13 +375,13 @@
       "theme": "snow",
       "view": 9,
       "file": "snow-v9.jpg",
-      "bytes": 91300,
+      "bytes": 91135,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 2.5,
-        "fps": 400,
-        "draws": 318,
-        "tris": 3086430,
+        "meshes": 1868,
+        "benchMs": 2.3,
+        "fps": 434.8,
+        "draws": 319,
+        "tris": 3086574,
         "assets": true
       }
     },
@@ -390,13 +390,13 @@
       "theme": "snow",
       "view": 6,
       "file": "snow-v6.jpg",
-      "bytes": 113430,
+      "bytes": 116025,
       "metrics": {
-        "meshes": 1867,
-        "benchMs": 5.6,
-        "fps": 178.6,
-        "draws": 890,
-        "tris": 3537260,
+        "meshes": 1868,
+        "benchMs": 5,
+        "fps": 200,
+        "draws": 891,
+        "tris": 3537404,
         "assets": true
       }
     }

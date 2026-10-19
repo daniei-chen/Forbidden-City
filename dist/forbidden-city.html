@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.32.0.20261019.0125">
-<meta name="build-time" content="2026-10-19T01:25:16.575Z">
+<meta name="generator" content="forbidden-city-build 5.33.0.20261019.0158">
+<meta name="build-time" content="2026-10-19T01:58:18.690Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T01:25:16.575Z
-  version: 5.32.0.20261019.0125
+  build: 2026-10-19T01:58:18.690Z
+  version: 5.33.0.20261019.0158
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.32.0',
+  version: '5.33.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -6182,12 +6182,21 @@ LAYOUT.build = function (root) {
   mottle.renderOrder = 1;
   root.add(mottle);
 
-  /* 远景树线剪影环：半径 1650m，打破地平线空旷感 */
-  const treeLineGeo = new THREE.CylinderGeometry(1650, 1650, 92, 72, 1, true);
-  const treeLine = new THREE.Mesh(treeLineGeo, MATS.horizonTrees);
-  treeLine.position.set(0, 20, 0);
-  treeLine.material.fog = true;
-  root.add(treeLine);
+  /* 远景树线剪影环：双层（近 1200m / 远 1800m），增强地平线层次 */
+  const nearLineGeo = new THREE.CylinderGeometry(1200, 1200, 78, 72, 1, true);
+  const nearLine = new THREE.Mesh(nearLineGeo, MATS.horizonTrees);
+  nearLine.position.set(0, 16, 0);
+  nearLine.material = MATS.horizonTrees.clone();
+  nearLine.material.map = MATS.horizonTrees.map.clone();
+  nearLine.material.map.repeat.set(5, 1);
+  nearLine.material.map.needsUpdate = true;
+  nearLine.material.color.setHex(0xb8c8b8);
+  root.add(nearLine);
+
+  const farLineGeo = new THREE.CylinderGeometry(1800, 1800, 104, 72, 1, true);
+  const farLine = new THREE.Mesh(farLineGeo, MATS.horizonTrees);
+  farLine.position.set(0, 24, 0);
+  root.add(farLine);
 
   LAYOUT.terrace(root);
   LAYOUT.river(root);
@@ -10150,6 +10159,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.32.0.20261019.0125","time":"2026-10-19T01:25:16.575Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.33.0.20261019.0158","time":"2026-10-19T01:58:18.690Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
