@@ -216,7 +216,7 @@ const NPC = {
       g.add(maid.group);
       let len2 = 0;
       for (let i = 1; i < r.pts.length; i++) len2 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.maids.push({ obj: maid, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0, greetT: 0, greetCd: 0, greetWith: null });
+      this.maids.push({ obj: maid, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0, greetT: 0, greetCd: 0, greetWith: null, admireT: 0, admireCd: 18 + Math.random() * 25, petalT: 0 });
     }
 
     /* 御猫三只 */
@@ -239,6 +239,7 @@ const NPC = {
       this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0, chaseT: 0, chaseCd: 6 + Math.random() * 8 });
     }
 
+    this.flowerBeds = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396]];
     this.group = g;
     if (this._pendingSparrows) { this._pendingSparrows = false; this.initSparrows(); }
     scene.add(g);
@@ -331,6 +332,16 @@ const NPC = {
       });
     }
   },
+  admireStats: function () {
+    let active = 0;
+    const list = [];
+    for (let i = 0; i < this.maids.length; i++) {
+      const m = this.maids[i];
+      if (m.admireT > 0) { active++; list.push({ i: i, left: Math.round(m.admireT * 100) / 100 }); }
+    }
+    return { active: active, events: this.admireEvents || 0, list: list };
+  },
+
   greetStats: function () {
     let active = 0;
     const list = [];
@@ -444,6 +455,47 @@ const NPC = {
     for (let mi = 0; mi < (this.maids || []).length; mi++) {
       const mw = this.maids[mi];
       const cur0 = this.pathPos(mw.pts, mw.t);
+      if (mw.admireCd > 0) mw.admireCd -= dt;
+      if (mw.admireT > 0) {
+        mw.admireT -= dt;
+        const curA = this.pathPos(mw.pts, mw.t);
+        mw.obj.group.position.set(curA.x, 0, curA.z);
+        /* 面向最近的花坛 */
+        let bx = 0, bz = -350, bd = 1e9;
+        for (let fb = 0; fb < this.flowerBeds.length; fb++) {
+          const f = this.flowerBeds[fb];
+          const dd = Math.hypot(f[0] - curA.x, f[1] - curA.z);
+          if (dd < bd) { bd = dd; bx = f[0]; bz = f[1]; }
+        }
+        const tya = Math.atan2(bx - curA.x, bz - curA.z);
+        let dya = tya - mw.obj.group.rotation.y;
+        dya = Math.atan2(Math.sin(dya), Math.cos(dya));
+        mw.obj.group.rotation.y += dya * Math.min(1, dt * 4);
+        /* 驻足轻晃 */
+        mw.legPhase += dt * 2.2;
+        const sag = Math.sin(mw.legPhase) * 0.06;
+        mw.obj.parts.legL.rotation.x = sag;
+        mw.obj.parts.legR.rotation.x = -sag;
+        mw.obj.parts.armL.rotation.x = -0.1 + Math.sin(this.time * 1.6) * 0.05;
+        mw.obj.parts.armR.rotation.x = 0.1 - Math.sin(this.time * 1.6) * 0.05;
+        mw.obj.parts.body.position.y = 0.52 + Math.sin(this.time * 1.8) * 0.006;
+        /* 花瓣（复用爱心精灵，粉色） */
+        mw.petalT = (mw.petalT || 0) + dt;
+        if (mw.petalT > 0.9 && typeof EFFECTS !== 'undefined' && EFFECTS.spawnHeart) {
+          mw.petalT = 0;
+          EFFECTS.spawnHeart(curA.x + (Math.random() - 0.5) * 1.6, 1.2 + Math.random() * 0.5, curA.z + (Math.random() - 0.5) * 1.6);
+        }
+        if (mw.admireT <= 0) {
+          this.admireEvents = (this.admireEvents || 0) + 1;
+          mw.admireCd = 26 + Math.random() * 30;
+        }
+        continue;
+      }
+      if (mw.admireCd <= 0 && mw.obj.group.position.z < -280 && mw.alert < 0.2) {
+        mw.admireT = 3.6;
+        mw.admireCd = 0.1;
+      }
+
       if (mw.greetCd > 0) mw.greetCd -= dt;
       if (mw.greetT > 0) {
         mw.greetT -= dt;
