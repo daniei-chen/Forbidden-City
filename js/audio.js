@@ -72,6 +72,23 @@ const AUDIO = {
     }
     this.zone = 'plaza';
 
+    /* 雨声：带通噪声循环 */
+    const rl = Math.floor(c.sampleRate * 2);
+    const rbuf = c.createBuffer(1, rl, c.sampleRate);
+    const rdata = rbuf.getChannelData(0);
+    for (let ri = 0; ri < rl; ri++) rdata[ri] = (Math.random() * 2 - 1) * 0.6;
+    const rsrc = c.createBufferSource();
+    rsrc.buffer = rbuf;
+    rsrc.loop = true;
+    const rbp = c.createBiquadFilter();
+    rbp.type = 'bandpass';
+    rbp.frequency.value = 2400;
+    rbp.Q.value = 0.55;
+    this.rainGain = c.createGain();
+    this.rainGain.gain.value = 0;
+    rsrc.connect(rbp); rbp.connect(this.rainGain); this.rainGain.connect(this.master);
+    rsrc.start();
+
     this.ready = true;
     this.scheduleBird();
   },
@@ -214,6 +231,13 @@ const AUDIO = {
       o.connect(g); g.connect(this.master);
       o.start(s); o.stop(s + 0.75);
     }
+  },
+
+  setRain: function (v) {
+    this.rainAmt = v;
+    if (!this.ready || !this.rainGain) return;
+    const target = Math.max(0, Math.min(1, v)) * 0.16;
+    try { this.rainGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.5); } catch (e) { this.rainGain.gain.value = target; }
   },
 
   setMuted: function (m) {

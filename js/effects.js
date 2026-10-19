@@ -106,6 +106,63 @@ const EFFECTS = {
     this.initLeaves(scene);
     this.initLanterns(scene);
     this.initCloudShadows(scene);
+    this.initRain(scene);
+  },
+
+  /* ---------------- 雨（雨丝线段） ---------------- */
+  rain: null,
+  rainData: null,
+  rainAmt: 0,
+  initRain: function (scene) {
+    const N = 900;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(N * 2 * 3);
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.LineBasicMaterial({
+      color: 0xb8cfe2, transparent: true, opacity: 0, depthWrite: false
+    });
+    const lines = new THREE.LineSegments(geo, mat);
+    lines.frustumCulled = false;
+    lines.visible = false;
+    scene.add(lines);
+    this.rain = lines;
+    this.rainData = [];
+    for (let i = 0; i < N; i++) {
+      this.rainData.push({
+        x: (Math.random() - 0.5) * 140,
+        y: Math.random() * 26,
+        z: (Math.random() - 0.5) * 140,
+        v: 22 + Math.random() * 10,
+        len: 0.35 + Math.random() * 0.35
+      });
+    }
+  },
+  setRain: function (v) { this.rainAmt = Math.max(0, Math.min(1, v)); },
+  updateRain: function (dt, camera) {
+    const lines = this.rain;
+    if (!lines) return;
+    const v = this.rainAmt;
+    lines.visible = v > 0.02;
+    if (!lines.visible) return;
+    lines.material.opacity = 0.16 + v * 0.34;
+    const arr = lines.geometry.attributes.position.array;
+    const cx = camera ? camera.position.x : 0;
+    const cz = camera ? camera.position.z : 0;
+    for (let i = 0; i < this.rainData.length; i++) {
+      const d = this.rainData[i];
+      d.y -= d.v * dt;
+      if (d.y < -1) {
+        d.y += 27 + Math.random() * 6;
+        d.x = (Math.random() - 0.5) * 140;
+        d.z = (Math.random() - 0.5) * 140;
+      }
+      const px = cx + d.x;
+      const pz = cz + d.z;
+      const o = i * 6;
+      arr[o] = px; arr[o + 1] = d.y; arr[o + 2] = pz;
+      arr[o + 3] = px + 0.03; arr[o + 4] = d.y - d.len * 6; arr[o + 5] = pz;
+    }
+    lines.geometry.attributes.position.needsUpdate = true;
   },
 
   /* ---------------- 云影（地面移动阴影） ---------------- */

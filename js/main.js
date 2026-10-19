@@ -700,6 +700,7 @@
     if (!POST.enabled) {
       renderer.toneMappingExposure = th.exposure;
     }
+    applyWeatherToScene();
   }
 
   /* =========================================================
@@ -1583,6 +1584,65 @@
     el.classList.add('show');
   }
 
+  /* =========================================================
+   *  天气系统（晴 / 阴 / 小雨）
+   * ======================================================= */
+  const WEATHER_MODES = {
+    clear: { name: '晴', rain: 0, cloud: 0 },
+    cloudy: { name: '阴', rain: 0.05, cloud: 0.85 },
+    rain: { name: '小雨', rain: 1, cloud: 1 }
+  };
+  const weather = { mode: 'clear', rain: 0, cloud: 0, timer: 0, changedAt: 0 };
+  function setWeather(mode, silent) {
+    const w = WEATHER_MODES[mode] ? mode : 'clear';
+    weather.mode = w;
+    weather.timer = 0;
+    if (typeof settings !== 'undefined') settings.weather = w;
+    if (!silent) showToast('天气：' + WEATHER_MODES[w].name, 2400);
+    saveSettings();
+  }
+  function updateWeather(dt) {
+    const target = WEATHER_MODES[weather.mode] || WEATHER_MODES.clear;
+    const k = 1 - Math.exp(-0.7 * (dt || 0.016));
+    weather.rain += (target.rain - weather.rain) * k;
+    weather.cloud += (target.cloud - weather.cloud) * k;
+    weather.changedAt += dt;
+    /* 自动天气变化 */
+    if (settings.weatherAuto) {
+      weather.timer += dt;
+      if (weather.timer > 95) {
+        weather.timer = 0;
+        const order = ['clear', 'cloudy', 'rain'];
+        const next = order[(order.indexOf(weather.mode) + 1) % order.length];
+        setWeather(next);
+      }
+    }
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.setRain) EFFECTS.setRain(weather.rain);
+    if (typeof AUDIO !== 'undefined' && AUDIO.setRain) AUDIO.setRain(weather.rain);
+    return weather;
+  }
+  /* 天气对光照/天空/雾的叠加（在主题更新后调用） */
+  const WEATHER_GREY = new THREE.Color(0x9aa4ac);
+  function applyWeatherToScene() {
+    const cloud = weather.cloud;
+    const rain = weather.rain;
+    const overcast = Math.max(cloud, rain * 0.7);
+    if (overcast < 0.01) return;
+    if (skyUniforms) {
+      skyUniforms.topColor.value.lerp(WEATHER_GREY, overcast * 0.65);
+      skyUniforms.bottomColor.value.lerp(WEATHER_GREY, overcast * 0.7);
+    }
+    if (fog) fog.color.lerp(WEATHER_GREY, overcast * 0.55);
+    if (typeof fog !== 'undefined' && fog) {
+      fog.density = (fog.__baseDensity || 0.00032) * (1 + overcast * 1.6);
+    }
+    if (typeof sun !== 'undefined' && sun) {
+      sun.intensity *= 1 - overcast * 0.55;
+      hemi.intensity *= 1 - overcast * 0.25;
+      fill.intensity *= 1 - overcast * 0.2;
+    }
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -1611,6 +1671,7 @@
         const name = this.getAttribute('data-theme');
         if (settings.autoCycle) {
           settings.autoCycle = false;
+        weather.rain = 0; weather.cloud = 0; weather.mode = 'clear'; settings.weatherAuto = false;
           const oc = $('optAutoCycle');
           if (oc) oc.checked = false;
           saveSettings();
@@ -1698,6 +1759,21 @@
       optAutoCycle.checked = !!settings.autoCycle;
       optAutoCycle.addEventListener('change', function (e) {
         setDayCycle(e.target.checked);
+      });
+    }
+    const optWeather = $('optWeather');
+    if (optWeather) {
+      optWeather.checked = !!settings.weatherAuto;
+      optWeather.addEventListener('change', function (e) {
+        settings.weatherAuto = e.target.checked;
+        if (settings.weatherAuto) {
+          weather.timer = 0;
+          showToast('天气变化：开启（晴 / 阴 / 雨 自动切换）', 3000);
+        } else {
+          setWeather('clear', true);
+          showToast('天气变化：关闭', 2200);
+        }
+        saveSettings();
       });
     }
     $('optCloud').addEventListener('change', function (e) {
@@ -2142,6 +2218,7 @@
       if (TOUR.active) TOUR.update(dt);
       else ctrl.update(dt);
     }
+    updateWeather(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -2292,6 +2369,10 @@
         }
       }
       if (params.get('daycycle') === '1') setDayCycle(true);
+  if (params.get('weather')) setWeather(params.get('weather'), true);
+  else if (settings.weather && WEATHER_MODES[settings.weather]) { weather.mode = settings.weather; }
+  weather.rain = WEATHER_MODES[weather.mode].rain * 0.001;
+  weather.cloud = WEATHER_MODES[weather.mode].cloud * 0.001;
   if (params.get('walk') === '1') toggleWalk(true);
       if (params.get('walkdemo') === '1') {
         toggleWalk(true);
@@ -2391,6 +2472,9 @@
         toggleLabels: function () { toggleLabels(); },
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
+    setWeather: function (m) { setWeather(m); return weather; },
+    weatherInfo: function () { return { mode: weather.mode, rain: Math.round(weather.rain * 100) / 100, cloud: Math.round(weather.cloud * 100) / 100, auto: !!settings.weatherAuto }; },
+    weatherTick: function (dt) { updateWeather(dt || 0.016); updateTheme(dt || 0.016); draw(); },
     dayCycleInfo: function () { return { on: !!settings.autoCycle, phase: Math.round(dayPhase * 1000) / 1000, theme: currentTheme }; },
     setDayPhase: function (v) { dayPhase = Math.max(0, Math.min(0.9999, v)); },
     dayCycleTick: function (dt) { updateDayCycle(dt || 0.016); updateTheme(dt || 0.016); draw(); },

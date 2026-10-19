@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.12.0.20261019.1322">
-<meta name="build-time" content="2026-10-19T13:22:22.347Z">
+<meta name="generator" content="forbidden-city-build 6.13.0.20261019.1425">
+<meta name="build-time" content="2026-10-19T14:25:11.315Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T13:22:22.347Z
-  version: 6.12.0.20261019.1322
+  build: 2026-10-19T14:25:11.315Z
+  version: 6.13.0.20261019.1425
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -497,6 +497,7 @@
   <label class="check"><span>云层</span><input type="checkbox" id="optCloud"></label>
   <label class="check"><span>小地图</span><input type="checkbox" id="optMinimap"></label>
   <label class="check"><span>日照流转（约 4 分钟一昼夜）</span><input type="checkbox" id="optAutoCycle"></label>
+    <label class="check"><span>天气变化（晴 / 阴 / 雨）</span><input type="checkbox" id="optWeather"></label>
   <label class="check"><span>沉浸模式（自动巡礼 + 字幕）</span><input type="checkbox" id="optCinema"></label>
   <div class="field" style="margin-top:14px">
     <label>导出</label>
@@ -566,7 +567,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.12.0',
+  version: '6.13.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -4184,6 +4185,23 @@ const AUDIO = {
     }
     this.zone = 'plaza';
 
+    /* 雨声：带通噪声循环 */
+    const rl = Math.floor(c.sampleRate * 2);
+    const rbuf = c.createBuffer(1, rl, c.sampleRate);
+    const rdata = rbuf.getChannelData(0);
+    for (let ri = 0; ri < rl; ri++) rdata[ri] = (Math.random() * 2 - 1) * 0.6;
+    const rsrc = c.createBufferSource();
+    rsrc.buffer = rbuf;
+    rsrc.loop = true;
+    const rbp = c.createBiquadFilter();
+    rbp.type = 'bandpass';
+    rbp.frequency.value = 2400;
+    rbp.Q.value = 0.55;
+    this.rainGain = c.createGain();
+    this.rainGain.gain.value = 0;
+    rsrc.connect(rbp); rbp.connect(this.rainGain); this.rainGain.connect(this.master);
+    rsrc.start();
+
     this.ready = true;
     this.scheduleBird();
   },
@@ -4326,6 +4344,13 @@ const AUDIO = {
       o.connect(g); g.connect(this.master);
       o.start(s); o.stop(s + 0.75);
     }
+  },
+
+  setRain: function (v) {
+    this.rainAmt = v;
+    if (!this.ready || !this.rainGain) return;
+    const target = Math.max(0, Math.min(1, v)) * 0.16;
+    try { this.rainGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.5); } catch (e) { this.rainGain.gain.value = target; }
   },
 
   setMuted: function (m) {
@@ -8042,6 +8067,63 @@ const EFFECTS = {
     this.initLeaves(scene);
     this.initLanterns(scene);
     this.initCloudShadows(scene);
+    this.initRain(scene);
+  },
+
+  /* ---------------- 雨（雨丝线段） ---------------- */
+  rain: null,
+  rainData: null,
+  rainAmt: 0,
+  initRain: function (scene) {
+    const N = 900;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(N * 2 * 3);
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.LineBasicMaterial({
+      color: 0xb8cfe2, transparent: true, opacity: 0, depthWrite: false
+    });
+    const lines = new THREE.LineSegments(geo, mat);
+    lines.frustumCulled = false;
+    lines.visible = false;
+    scene.add(lines);
+    this.rain = lines;
+    this.rainData = [];
+    for (let i = 0; i < N; i++) {
+      this.rainData.push({
+        x: (Math.random() - 0.5) * 140,
+        y: Math.random() * 26,
+        z: (Math.random() - 0.5) * 140,
+        v: 22 + Math.random() * 10,
+        len: 0.35 + Math.random() * 0.35
+      });
+    }
+  },
+  setRain: function (v) { this.rainAmt = Math.max(0, Math.min(1, v)); },
+  updateRain: function (dt, camera) {
+    const lines = this.rain;
+    if (!lines) return;
+    const v = this.rainAmt;
+    lines.visible = v > 0.02;
+    if (!lines.visible) return;
+    lines.material.opacity = 0.16 + v * 0.34;
+    const arr = lines.geometry.attributes.position.array;
+    const cx = camera ? camera.position.x : 0;
+    const cz = camera ? camera.position.z : 0;
+    for (let i = 0; i < this.rainData.length; i++) {
+      const d = this.rainData[i];
+      d.y -= d.v * dt;
+      if (d.y < -1) {
+        d.y += 27 + Math.random() * 6;
+        d.x = (Math.random() - 0.5) * 140;
+        d.z = (Math.random() - 0.5) * 140;
+      }
+      const px = cx + d.x;
+      const pz = cz + d.z;
+      const o = i * 6;
+      arr[o] = px; arr[o + 1] = d.y; arr[o + 2] = pz;
+      arr[o + 3] = px + 0.03; arr[o + 4] = d.y - d.len * 6; arr[o + 5] = pz;
+    }
+    lines.geometry.attributes.position.needsUpdate = true;
   },
 
   /* ---------------- 云影（地面移动阴影） ---------------- */
@@ -9979,6 +10061,7 @@ const ASSETS = {
     if (!POST.enabled) {
       renderer.toneMappingExposure = th.exposure;
     }
+    applyWeatherToScene();
   }
 
   /* =========================================================
@@ -10862,6 +10945,65 @@ const ASSETS = {
     el.classList.add('show');
   }
 
+  /* =========================================================
+   *  天气系统（晴 / 阴 / 小雨）
+   * ======================================================= */
+  const WEATHER_MODES = {
+    clear: { name: '晴', rain: 0, cloud: 0 },
+    cloudy: { name: '阴', rain: 0.05, cloud: 0.85 },
+    rain: { name: '小雨', rain: 1, cloud: 1 }
+  };
+  const weather = { mode: 'clear', rain: 0, cloud: 0, timer: 0, changedAt: 0 };
+  function setWeather(mode, silent) {
+    const w = WEATHER_MODES[mode] ? mode : 'clear';
+    weather.mode = w;
+    weather.timer = 0;
+    if (typeof settings !== 'undefined') settings.weather = w;
+    if (!silent) showToast('天气：' + WEATHER_MODES[w].name, 2400);
+    saveSettings();
+  }
+  function updateWeather(dt) {
+    const target = WEATHER_MODES[weather.mode] || WEATHER_MODES.clear;
+    const k = 1 - Math.exp(-0.7 * (dt || 0.016));
+    weather.rain += (target.rain - weather.rain) * k;
+    weather.cloud += (target.cloud - weather.cloud) * k;
+    weather.changedAt += dt;
+    /* 自动天气变化 */
+    if (settings.weatherAuto) {
+      weather.timer += dt;
+      if (weather.timer > 95) {
+        weather.timer = 0;
+        const order = ['clear', 'cloudy', 'rain'];
+        const next = order[(order.indexOf(weather.mode) + 1) % order.length];
+        setWeather(next);
+      }
+    }
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.setRain) EFFECTS.setRain(weather.rain);
+    if (typeof AUDIO !== 'undefined' && AUDIO.setRain) AUDIO.setRain(weather.rain);
+    return weather;
+  }
+  /* 天气对光照/天空/雾的叠加（在主题更新后调用） */
+  const WEATHER_GREY = new THREE.Color(0x9aa4ac);
+  function applyWeatherToScene() {
+    const cloud = weather.cloud;
+    const rain = weather.rain;
+    const overcast = Math.max(cloud, rain * 0.7);
+    if (overcast < 0.01) return;
+    if (skyUniforms) {
+      skyUniforms.topColor.value.lerp(WEATHER_GREY, overcast * 0.65);
+      skyUniforms.bottomColor.value.lerp(WEATHER_GREY, overcast * 0.7);
+    }
+    if (fog) fog.color.lerp(WEATHER_GREY, overcast * 0.55);
+    if (typeof fog !== 'undefined' && fog) {
+      fog.density = (fog.__baseDensity || 0.00032) * (1 + overcast * 1.6);
+    }
+    if (typeof sun !== 'undefined' && sun) {
+      sun.intensity *= 1 - overcast * 0.55;
+      hemi.intensity *= 1 - overcast * 0.25;
+      fill.intensity *= 1 - overcast * 0.2;
+    }
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -10890,6 +11032,7 @@ const ASSETS = {
         const name = this.getAttribute('data-theme');
         if (settings.autoCycle) {
           settings.autoCycle = false;
+        weather.rain = 0; weather.cloud = 0; weather.mode = 'clear'; settings.weatherAuto = false;
           const oc = $('optAutoCycle');
           if (oc) oc.checked = false;
           saveSettings();
@@ -10977,6 +11120,21 @@ const ASSETS = {
       optAutoCycle.checked = !!settings.autoCycle;
       optAutoCycle.addEventListener('change', function (e) {
         setDayCycle(e.target.checked);
+      });
+    }
+    const optWeather = $('optWeather');
+    if (optWeather) {
+      optWeather.checked = !!settings.weatherAuto;
+      optWeather.addEventListener('change', function (e) {
+        settings.weatherAuto = e.target.checked;
+        if (settings.weatherAuto) {
+          weather.timer = 0;
+          showToast('天气变化：开启（晴 / 阴 / 雨 自动切换）', 3000);
+        } else {
+          setWeather('clear', true);
+          showToast('天气变化：关闭', 2200);
+        }
+        saveSettings();
       });
     }
     $('optCloud').addEventListener('change', function (e) {
@@ -11421,6 +11579,7 @@ const ASSETS = {
       if (TOUR.active) TOUR.update(dt);
       else ctrl.update(dt);
     }
+    updateWeather(dt);
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -11571,6 +11730,10 @@ const ASSETS = {
         }
       }
       if (params.get('daycycle') === '1') setDayCycle(true);
+  if (params.get('weather')) setWeather(params.get('weather'), true);
+  else if (settings.weather && WEATHER_MODES[settings.weather]) { weather.mode = settings.weather; }
+  weather.rain = WEATHER_MODES[weather.mode].rain * 0.001;
+  weather.cloud = WEATHER_MODES[weather.mode].cloud * 0.001;
   if (params.get('walk') === '1') toggleWalk(true);
       if (params.get('walkdemo') === '1') {
         toggleWalk(true);
@@ -11670,6 +11833,9 @@ const ASSETS = {
         toggleLabels: function () { toggleLabels(); },
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
+    setWeather: function (m) { setWeather(m); return weather; },
+    weatherInfo: function () { return { mode: weather.mode, rain: Math.round(weather.rain * 100) / 100, cloud: Math.round(weather.cloud * 100) / 100, auto: !!settings.weatherAuto }; },
+    weatherTick: function (dt) { updateWeather(dt || 0.016); updateTheme(dt || 0.016); draw(); },
     dayCycleInfo: function () { return { on: !!settings.autoCycle, phase: Math.round(dayPhase * 1000) / 1000, theme: currentTheme }; },
     setDayPhase: function (v) { dayPhase = Math.max(0, Math.min(0.9999, v)); },
     dayCycleTick: function (dt) { updateDayCycle(dt || 0.016); updateTheme(dt || 0.016); draw(); },
@@ -11715,6 +11881,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.12.0.20261019.1322","time":"2026-10-19T13:22:22.347Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.13.0.20261019.1425","time":"2026-10-19T14:25:11.315Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
