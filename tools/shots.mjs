@@ -48,6 +48,8 @@ async function shootView(view) {
   const proc = spawn(CHROME, [
     '--headless=new', '--disable-gpu', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
     '--hide-scrollbars', '--mute-audio', '--no-first-run', '--no-default-browser-check',
+    '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
+    '--disable-backgrounding-occluded-windows',
     '--remote-debugging-port=' + port, '--remote-allow-origins=*',
     '--num-raster-threads=2', '--renderer-process-limit=1',
     '--user-data-dir=' + profile, '--window-size=' + W + ',' + H, 'about:blank'

@@ -1,5 +1,18 @@
 # 更新日志
 
+## v5.40.0 — 雪景材质竞态修复
+
+**修复**
+- 雪 uniform 初始化竞态：材质着色器编译可能晚于主题设置，导致首帧/部分无头截图没有积雪
+- `MATS.addSnow` 在编译时以当前 `_snowValue` 初始化 `uSnow`，保证任何时机都是正确雪量
+- 椽头（rafter）与斗拱（dougong）加入积雪混合（0.45 / 0.18），雪景檐口对比更自然
+
+**工具**
+- shots/harness 增加 `--disable-background-timer-throttling` 等参数，避免无头页面被判 hidden 导致动画/主题过渡停滞
+- 暴露 `window.MATS` 便于自动化诊断
+
+**验证**
+- 冒烟 27/27；harness 基线重建 + 对比（12 张子集）：SSIM 0.9956 / MAE 0.27% PASS
 ## v5.37.0 — 午门雁翅楼与护城河驳岸
 
 **修复/改进**

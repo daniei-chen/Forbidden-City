@@ -182,6 +182,8 @@ MATS.water.envMapIntensity = 1.35;
   MATS.addSnow(MATS.leaf, 0.22, 0.95);
   MATS.addSnow(MATS.leafLight, 0.22, 0.95);
   MATS.addSnow(MATS.trunk, 0.24, 0.95);
+MATS.addSnow(MATS.rafter, 0.45, 0.92);
+MATS.addSnow(MATS.dougong, 0.18, 0.92);
 
 /* 树冠摆动 */
 MATS.addSway(MATS.leaf, 0.05);
@@ -207,7 +209,7 @@ MATS.addSnow = function (mat, strength, rough) {
   const s = (strength == null ? 0.8 : strength).toFixed(3);
   const r = (rough == null ? 0.9 : rough).toFixed(3);
   mat.onBeforeCompile = function (shader) {
-    shader.uniforms.uSnow = { value: 0 };
+    shader.uniforms.uSnow = { value: MATS._snowValue || 0 };
     mat.userData.uSnow = shader.uniforms.uSnow;
     shader.fragmentShader = 'uniform float uSnow;\n' + shader.fragmentShader;
     shader.fragmentShader = shader.fragmentShader.replace(
@@ -227,6 +229,7 @@ MATS.addSnow = function (mat, strength, rough) {
 };
 
 MATS.setSnow = function (v) {
+  MATS._snowValue = v;
   for (let i = 0; i < MATS.snowMats.length; i++) {
     const u = MATS.snowMats[i].userData.uSnow;
     if (u) u.value = v;
@@ -295,3 +298,5 @@ MATS.plaque = function (text) {
   }
   return MATS[key];
 };
+
+if (typeof window !== 'undefined') window.MATS = MATS;

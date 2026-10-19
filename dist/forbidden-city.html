@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.39.0.20261019.0432">
-<meta name="build-time" content="2026-10-19T04:32:17.895Z">
+<meta name="generator" content="forbidden-city-build 5.40.0.20261019.0531">
+<meta name="build-time" content="2026-10-19T05:31:59.442Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T04:32:17.895Z
-  version: 5.39.0.20261019.0432
+  build: 2026-10-19T05:31:59.442Z
+  version: 5.40.0.20261019.0531
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.39.0',
+  version: '5.40.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -1628,6 +1628,8 @@ MATS.water.envMapIntensity = 1.35;
   MATS.addSnow(MATS.leaf, 0.22, 0.95);
   MATS.addSnow(MATS.leafLight, 0.22, 0.95);
   MATS.addSnow(MATS.trunk, 0.24, 0.95);
+MATS.addSnow(MATS.rafter, 0.45, 0.92);
+MATS.addSnow(MATS.dougong, 0.18, 0.92);
 
 /* 树冠摆动 */
 MATS.addSway(MATS.leaf, 0.05);
@@ -1653,7 +1655,7 @@ MATS.addSnow = function (mat, strength, rough) {
   const s = (strength == null ? 0.8 : strength).toFixed(3);
   const r = (rough == null ? 0.9 : rough).toFixed(3);
   mat.onBeforeCompile = function (shader) {
-    shader.uniforms.uSnow = { value: 0 };
+    shader.uniforms.uSnow = { value: MATS._snowValue || 0 };
     mat.userData.uSnow = shader.uniforms.uSnow;
     shader.fragmentShader = 'uniform float uSnow;\n' + shader.fragmentShader;
     shader.fragmentShader = shader.fragmentShader.replace(
@@ -1673,6 +1675,7 @@ MATS.addSnow = function (mat, strength, rough) {
 };
 
 MATS.setSnow = function (v) {
+  MATS._snowValue = v;
   for (let i = 0; i < MATS.snowMats.length; i++) {
     const u = MATS.snowMats[i].userData.uSnow;
     if (u) u.value = v;
@@ -1741,6 +1744,8 @@ MATS.plaque = function (text) {
   }
   return MATS[key];
 };
+
+if (typeof window !== 'undefined') window.MATS = MATS;
 
 </script>
 <script data-src="js/geometry.js">
@@ -10182,6 +10187,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.39.0.20261019.0432","time":"2026-10-19T04:32:17.895Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.40.0.20261019.0531","time":"2026-10-19T05:31:59.442Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

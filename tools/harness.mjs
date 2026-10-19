@@ -74,6 +74,8 @@ const proc = spawn(chrome, [
   '--headless=new', '--disable-gpu', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
   '--hide-scrollbars', '--mute-audio', '--no-first-run', '--no-default-browser-check',
   '--num-raster-threads=2', '--renderer-process-limit=1',
+  '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
+  '--disable-backgrounding-occluded-windows',
   '--remote-debugging-port=' + chromePort, '--remote-allow-origins=*',
   '--user-data-dir=' + profile,
   '--window-size=' + W + ',' + H,
