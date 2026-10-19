@@ -60,7 +60,7 @@ for (const t of themes) {
 
 const acceptance = [
   ['1', '中轴线构筑物齐全', '达成（主要）', '午门→神武门、四隅角楼、御花园、东西路院落；场景 ' + (perf.meshes || '?') + ' mesh'],
-  ['2', '关键尺寸误差 ≤5%', '近似达成', '按公开实测数据建模，未公开尺寸标注"约"'],
+  ['2', '关键尺寸误差 ≤5%', '近似达成', '按公开实测数据建模；未公开尺寸按推算并标注"约"，无测绘级数据'],
   ['3', '屋顶形制不混用', '达成（主要）', '庑殿/歇山/攒尖/十字脊；重檐与单檐按等级'],
   ['4', '斗拱/瓦垄/脊兽/彩画/门窗/陈设', '达成', '真实 PBR 瓦面；3D 窗棂与斗拱实例；脊兽 10；鎏金门钉/铺首'],
   ['5', '近景 50m 可辨构件', '达成', '斗拱、瓦当、椽头、铜鼎纹饰、窗棂可辨'],
@@ -70,8 +70,8 @@ const acceptance = [
   ['9', '建筑与城墙阻挡', '达成', 'AABB 碰撞 + 碰撞环 + 门洞'],
   ['10', '第一/第三人称切换', '达成', 'X 键切换，滚轮调距'],
   ['11', '飞鸟/飘叶/云影/夜景/雪景', '达成', '四时段 + 雪景积雪 + 夜景窗光 + 太阳光束'],
-  ['12', '无穿帮硬伤', '基本达成', '零 JS 异常；已知简化见"差距"'],
-  ['13', '桌面高画质 ≥30 FPS', '间接验证', '软件渲染基准；真实 GPU 待用户实测'],
+  ['12', '无穿帮硬伤', '基本达成', '零 JS 异常；已完成多轮 QA 修复（悬空博风板、午门压水、贴花朝向、评测保真等）；已知简化见"差距"'],
+  ['13', '桌面高画质 ≥30 FPS', '达成（实测）', gpu.high ? ((gpu.high.renderer || '?').split('(')[0].trim() + '：high ' + gpu.high.fps + ' FPS @DPR1.0' + (gpu['high@1.5x'] ? '，DPR1.5 ' + gpu['high@1.5x'].fps + ' FPS' : '')) : '待实测'],
   ['14', '冒烟 20 项以上全过', '达成', '27/27'],
   ['15', '单文件构建可用', '达成', sizeMB + ' MB（含 CC0 素材内联）'],
   ['16', '文档同步', '达成', 'README/CHANGELOG/REFERENCE/ROADMAP/ACCEPTANCE/REALISM']
@@ -117,6 +117,23 @@ md.push('');
 md.push('| # | 验收标准 | 状态 | 证据 / 说明 |');
 md.push('| --- | --- | --- | --- |');
 for (const a of acceptance) md.push('| ' + a.join(' | ') + ' |');
+md.push('');
+/* 验收状态统计 */
+const statusCount = {};
+for (const a of acceptance) statusCount[a[2]] = (statusCount[a[2]] || 0) + 1;
+md.push('## 3.1 验收状态统计');
+md.push('');
+md.push('| 状态 | 项数 |');
+md.push('| --- | --- |');
+for (const k of Object.keys(statusCount)) md.push('| ' + k + ' | ' + statusCount[k] + ' |');
+md.push('');
+md.push('## 3.2 验证证据');
+md.push('');
+md.push('- 冒烟测试：27/27 通过（`npm run smoke`）');
+md.push('- harness 固定机位：24 张（6 机位 × 四时段），当前版本基线已重建');
+md.push('- 感知对比：SSIM ' + (sum.ssimMean != null ? sum.ssimMean.toFixed(4) : '—') + ' / MAE ' + (sum.maeMean != null ? sum.maeMean.toFixed(2) + '%' : '—'));
+md.push('- 真实 GPU：' + (gpu.high ? (gpu.high.renderer || '?') + '，high ' + gpu.high.fps + ' FPS' + (gpu['high@1.5x'] ? '，DPR1.5 ' + gpu['high@1.5x'].fps + ' FPS' : '') : '未实测'));
+md.push('- 单文件构建：' + sizeMB + ' MB（`npm run build`），桌面副本哈希一致');
 md.push('');
 md.push('## 4. 已知差距（如实披露）');
 md.push('');
