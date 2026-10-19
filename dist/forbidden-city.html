@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.35.0.20261019.2104">
-<meta name="build-time" content="2026-10-19T21:04:32.202Z">
+<meta name="generator" content="forbidden-city-build 6.36.0.20261019.2121">
+<meta name="build-time" content="2026-10-19T21:21:24.025Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T21:04:32.202Z
-  version: 6.35.0.20261019.2104
+  build: 2026-10-19T21:21:24.025Z
+  version: 6.36.0.20261019.2121
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -729,7 +729,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.35.0',
+  version: '6.36.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -3812,7 +3812,7 @@ const NPC = {
       g.add(cat.group);
       let len3 = 0;
       for (let i = 1; i < r.pts.length; i++) len3 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0, chaseT: 0, chaseCd: 6 + Math.random() * 8 });
+      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0, chaseT: 0, chaseCd: 6 + Math.random() * 8, pounceT: 0, pounceCd: 10 + Math.random() * 18, pounced: false, pounceTx: 0, pounceTz: 0 });
     }
 
     this.flowerBeds = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396]];
@@ -3939,6 +3939,34 @@ const NPC = {
       if (c.chaseT > 0) out.push({ i: i, left: Math.round(c.chaseT * 100) / 100 });
     }
     return out;
+  },
+
+  scareSparrows: function (x, z, r) {
+    const data = this.sparrowData;
+    if (!data) return 0;
+    let n = 0;
+    for (let i = 0; i < data.length; i++) {
+      const s = data[i];
+      if (s.state !== 'ground') continue;
+      if (Math.hypot(s.x - x, s.z - z) > (r == null ? 5 : r)) continue;
+      s.state = 'fly';
+      s.flyT = 0;
+      const dx = s.x - x, dz = s.z - z;
+      const dl = Math.hypot(dx, dz) || 1;
+      s.dx = dx / dl; s.dz = dz / dl;
+      n++;
+    }
+    if (n > 0) this.sparrowScares = (this.sparrowScares || 0) + 1;
+    return n;
+  },
+  pounceStats: function () {
+    let active = 0;
+    const list = [];
+    for (let i = 0; i < (this.cats || []).length; i++) {
+      const c = this.cats[i];
+      if (c.pounceT > 0) { active++; list.push({ i: i, left: Math.round(c.pounceT * 100) / 100 }); }
+    }
+    return { active: active, events: this.pounceEvents || 0, scares: this.sparrowScares || 0, list: list };
   },
 
   updateSparrows: function (dt) {
@@ -4276,6 +4304,66 @@ const NPC = {
           cat.flee = 0;
         } else {
           cat.chaseCd = 5;
+        }
+      }
+
+      /* 扑麻雀：猫悄悄接近地面麻雀，麻雀惊飞 */
+      if (cat.pounceCd > 0) cat.pounceCd -= dt;
+      if (cat.pounceT > 0) {
+        cat.pounceT -= dt;
+        const cpS = cat.obj.group.position;
+        const dxS = cat.pounceTx - cpS.x, dzS = cat.pounceTz - cpS.z;
+        const ddS = Math.hypot(dxS, dzS);
+        if (ddS > 1.6) {
+          cat.obj.group.position.set(cpS.x + dxS / ddS * 5.5 * dt, 0, cpS.z + dzS / ddS * 5.5 * dt);
+        }
+        cat.obj.group.rotation.y = Math.atan2(dxS, dzS);
+        cat.legPhase += dt * 16;
+        const scS = Math.sin(cat.legPhase);
+        cat.obj.parts.legs[0].rotation.x = scS * 1.0;
+        cat.obj.parts.legs[1].rotation.x = -scS * 1.0;
+        cat.obj.parts.legs[2].rotation.x = -scS * 1.0;
+        cat.obj.parts.legs[3].rotation.x = scS * 1.0;
+        cat.obj.parts.tail.rotation.z = 0.55 + Math.sin(this.time * 11) * 0.2;
+        /* 扑击瞬间：麻雀惊飞 */
+        if (ddS < 3.2 && !cat.pounced) {
+          cat.pounced = true;
+          this.scareSparrows(cat.obj.group.position.x, cat.obj.group.position.z, 6);
+          this.pounceEvents = (this.pounceEvents || 0) + 1;
+        }
+        cat.obj.parts.body.position.y = 0.3 + (ddS < 3.2 ? Math.abs(Math.sin(this.time * 13)) * 0.24 : Math.abs(scS) * 0.05);
+        if (cat.pounceT <= 0) {
+          let bestTP = 0, bestDP = 1e9;
+          for (let kp = 0; kp <= 12; kp++) {
+            const ttP = (kp / 12) * cat.len;
+            const ppP = this.pathPos(cat.pts, ttP);
+            const ddP = Math.hypot(ppP.x - cat.obj.group.position.x, ppP.z - cat.obj.group.position.z);
+            if (ddP < bestDP) { bestDP = ddP; bestTP = ttP; }
+          }
+          cat.t = bestTP;
+          cat.pounceCd = 22 + Math.random() * 20;
+          cat.obj.parts.body.position.y = 0.3;
+        }
+        continue;
+      }
+      if (cat.pounceCd <= 0 && cat.feedT <= 0 && cat.flee <= 0 && cat.chaseT <= 0 && cat.look <= 0) {
+        /* 找附近地面麻雀 */
+        let bx = 1e9, bz = 0, bd = 16;
+        if (this.sparrowData) {
+          for (let si2 = 0; si2 < this.sparrowData.length; si2++) {
+            const sp2 = this.sparrowData[si2];
+            if (sp2.state !== 'ground') continue;
+            const dd2 = Math.hypot(sp2.x - cat.obj.group.position.x, sp2.z - cat.obj.group.position.z);
+            if (dd2 < bd) { bd = dd2; bx = sp2.x; bz = sp2.z; }
+          }
+        }
+        if (bd < 16) {
+          cat.pounceT = 3.8;
+          cat.pounceTx = bx;
+          cat.pounceTz = bz;
+          cat.pounced = false;
+        } else {
+          cat.pounceCd = 8;
         }
       }
 
@@ -13746,6 +13834,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.35.0.20261019.2104","time":"2026-10-19T21:04:32.202Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.36.0.20261019.2121","time":"2026-10-19T21:21:24.025Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
