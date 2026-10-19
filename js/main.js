@@ -966,6 +966,13 @@
     const lab = $('interactLabel');
     if (!el) return;
     if (!WALK.active) { el.classList.remove('show'); nearInteractive = null; return; }
+    const catIdx = nearestCat();
+    if (catIdx != null) {
+      el.classList.add('show');
+      if (lab) lab.textContent = '投喂御猫';
+      nearInteractive = null;
+      return;
+    }
     const it = nearestInteractive();
     nearInteractive = it;
     if (it) {
@@ -975,8 +982,41 @@
       el.classList.remove('show');
     }
   }
+  const ACH_KEY = 'forbidden-city-achievements-v1';
+  let achievements = { catFeeds: 0, photos: 0 };
+  try {
+    const savedA = JSON.parse(localStorage.getItem(ACH_KEY) || '{}');
+    if (savedA && typeof savedA === 'object') {
+      achievements.catFeeds = savedA.catFeeds || 0;
+      achievements.photos = savedA.photos || 0;
+    }
+  } catch (e) {}
+  function achievementsSave() {
+    try { localStorage.setItem(ACH_KEY, JSON.stringify(achievements)); } catch (e) {}
+  }
+  function nearestCat() {
+    if (!WALK.active || typeof NPC === 'undefined' || !NPC.cats) return null;
+    let best = null, bestD = 3.6;
+    for (let i = 0; i < NPC.cats.length; i++) {
+      const p0 = NPC.cats[i].obj.group.position;
+      const d = Math.hypot(p0.x - WALK.pos.x, p0.z - WALK.pos.z);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
   function doInteract() {
     if (!WALK.active) return;
+    const ci = nearestCat();
+    if (ci != null && typeof NPC !== 'undefined' && NPC.feedCatNear) {
+      const fed = NPC.feedCatNear(WALK.pos.x, WALK.pos.z, 3.6);
+      if (fed >= 0) {
+        achievements.catFeeds++;
+        achievementsSave();
+        showToast('投喂御猫 · 好感 +1（累计 ' + achievements.catFeeds + ' 次）— 它会跟着你走一段', 4200);
+        if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+        return;
+      }
+    }
     const it = nearestInteractive();
     if (!it) return;
     const now = performance.now();
@@ -1973,9 +2013,11 @@
     touchEnabled: function () { return touchEnabled; },
     interact: doInteract,
     interactInfo: function () { const it = nearestInteractive(); return it ? { title: it.title, text: it.text } : null; },
+    achievements: function () { return { catFeeds: achievements.catFeeds, photos: achievements.photos }; },
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
     questTick: updateQuests,
     walkGameTick: updateWalkGame,
+    promptTick: updateInteractPrompt,
     questsReset: questsReset,
         stopWalk: function () { toggleWalk(false); }
       };

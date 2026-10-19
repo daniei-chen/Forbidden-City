@@ -233,13 +233,32 @@ const NPC = {
       g.add(cat.group);
       let len3 = 0;
       for (let i = 1; i < r.pts.length; i++) len3 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0 });
+      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0 });
     }
 
     this.group = g;
     if (this._pendingSparrows) { this._pendingSparrows = false; this.initSparrows(); }
     scene.add(g);
     return g;
+  },
+
+  /* 投喂御猫：找最近的猫并进入跟随状态，返回索引 */
+  feedCatNear: function (x, z, r) {
+    let best = -1, bestD = (r == null ? 3.4 : r);
+    for (let i = 0; i < (this.cats || []).length; i++) {
+      const cpos = this.cats[i].obj.group.position;
+      const d = Math.hypot(cpos.x - x, cpos.z - z);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    if (best >= 0) {
+      const cat = this.cats[best];
+      cat.feedT = 14;
+      cat.heartT = 0;
+      cat.flee = 0;
+      cat.look = 0;
+      cat.curious = 0;
+    }
+    return best;
   },
 
   /* ---------------- 广场麻雀（啄食，小人靠近飞走） ---------------- */
@@ -408,6 +427,49 @@ const NPC = {
       const cur0 = this.pathPos(cat.pts, cat.t);
       let dist = 1e9;
       if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
+
+      /* 投喂跟随：走近玩家身边、冒爱心 */
+      if (cat.feedT > 0) {
+        cat.feedT -= dt;
+        const cp0 = cat.obj.group.position;
+        const px0 = pl ? pl.x : cp0.x, pz0 = pl ? pl.z : cp0.z;
+        const dx0 = px0 - cp0.x, dz0 = pz0 - cp0.z;
+        const dd0 = Math.hypot(dx0, dz0);
+        let nx0 = cp0.x, nz0 = cp0.z;
+        const yaw0 = Math.atan2(dx0, dz0);
+        if (dd0 > 2.1) {
+          nx0 += (dx0 / dd0) * 2.7 * dt;
+          nz0 += (dz0 / dd0) * 2.7 * dt;
+        }
+        cat.obj.group.position.set(nx0, 0, nz0);
+        let dy0 = yaw0 - cat.obj.group.rotation.y;
+        dy0 = Math.atan2(Math.sin(dy0), Math.cos(dy0));
+        cat.obj.group.rotation.y += dy0 * Math.min(1, dt * 9);
+        cat.legPhase += dt * 7.5;
+        const sc0 = Math.sin(cat.legPhase);
+        cat.obj.parts.legs[0].rotation.x = sc0 * 0.6;
+        cat.obj.parts.legs[1].rotation.x = -sc0 * 0.6;
+        cat.obj.parts.legs[2].rotation.x = -sc0 * 0.6;
+        cat.obj.parts.legs[3].rotation.x = sc0 * 0.6;
+        cat.obj.parts.tail.rotation.z = Math.sin(this.time * 6.5 + ci) * 0.45;
+        cat.heartT = (cat.heartT || 0) + dt;
+        if (cat.heartT > 0.42 && typeof EFFECTS !== 'undefined' && EFFECTS.spawnHeart) {
+          cat.heartT = 0;
+          EFFECTS.spawnHeart(nx0, 0.85, nz0);
+        }
+        if (cat.feedT <= 0) {
+          /* 回到最近的巡逻路径点 */
+          let bestT = 0, bestD = 1e9;
+          for (let k = 0; k <= 12; k++) {
+            const tt = (k / 12) * cat.len;
+            const pp = this.pathPos(cat.pts, tt);
+            const dd2 = Math.hypot(pp.x - nx0, pp.z - nz0);
+            if (dd2 < bestD) { bestD = dd2; bestT = tt; }
+          }
+          cat.t = bestT;
+        }
+        continue;
+      }
 
       /* 受惊：快速跑开 */
       if (pl && dist < 3.4 && cat.flee <= 0) {

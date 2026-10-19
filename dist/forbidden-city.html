@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.6.0.20261019.1009">
-<meta name="build-time" content="2026-10-19T10:09:34.475Z">
+<meta name="generator" content="forbidden-city-build 6.7.0.20261019.1030">
+<meta name="build-time" content="2026-10-19T10:30:00.816Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T10:09:34.475Z
-  version: 6.6.0.20261019.1009
+  build: 2026-10-19T10:30:00.816Z
+  version: 6.7.0.20261019.1030
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -478,7 +478,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.6.0',
+  version: '6.7.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -3547,13 +3547,32 @@ const NPC = {
       g.add(cat.group);
       let len3 = 0;
       for (let i = 1; i < r.pts.length; i++) len3 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0 });
+      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0 });
     }
 
     this.group = g;
     if (this._pendingSparrows) { this._pendingSparrows = false; this.initSparrows(); }
     scene.add(g);
     return g;
+  },
+
+  /* 投喂御猫：找最近的猫并进入跟随状态，返回索引 */
+  feedCatNear: function (x, z, r) {
+    let best = -1, bestD = (r == null ? 3.4 : r);
+    for (let i = 0; i < (this.cats || []).length; i++) {
+      const cpos = this.cats[i].obj.group.position;
+      const d = Math.hypot(cpos.x - x, cpos.z - z);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    if (best >= 0) {
+      const cat = this.cats[best];
+      cat.feedT = 14;
+      cat.heartT = 0;
+      cat.flee = 0;
+      cat.look = 0;
+      cat.curious = 0;
+    }
+    return best;
   },
 
   /* ---------------- 广场麻雀（啄食，小人靠近飞走） ---------------- */
@@ -3722,6 +3741,49 @@ const NPC = {
       const cur0 = this.pathPos(cat.pts, cat.t);
       let dist = 1e9;
       if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
+
+      /* 投喂跟随：走近玩家身边、冒爱心 */
+      if (cat.feedT > 0) {
+        cat.feedT -= dt;
+        const cp0 = cat.obj.group.position;
+        const px0 = pl ? pl.x : cp0.x, pz0 = pl ? pl.z : cp0.z;
+        const dx0 = px0 - cp0.x, dz0 = pz0 - cp0.z;
+        const dd0 = Math.hypot(dx0, dz0);
+        let nx0 = cp0.x, nz0 = cp0.z;
+        const yaw0 = Math.atan2(dx0, dz0);
+        if (dd0 > 2.1) {
+          nx0 += (dx0 / dd0) * 2.7 * dt;
+          nz0 += (dz0 / dd0) * 2.7 * dt;
+        }
+        cat.obj.group.position.set(nx0, 0, nz0);
+        let dy0 = yaw0 - cat.obj.group.rotation.y;
+        dy0 = Math.atan2(Math.sin(dy0), Math.cos(dy0));
+        cat.obj.group.rotation.y += dy0 * Math.min(1, dt * 9);
+        cat.legPhase += dt * 7.5;
+        const sc0 = Math.sin(cat.legPhase);
+        cat.obj.parts.legs[0].rotation.x = sc0 * 0.6;
+        cat.obj.parts.legs[1].rotation.x = -sc0 * 0.6;
+        cat.obj.parts.legs[2].rotation.x = -sc0 * 0.6;
+        cat.obj.parts.legs[3].rotation.x = sc0 * 0.6;
+        cat.obj.parts.tail.rotation.z = Math.sin(this.time * 6.5 + ci) * 0.45;
+        cat.heartT = (cat.heartT || 0) + dt;
+        if (cat.heartT > 0.42 && typeof EFFECTS !== 'undefined' && EFFECTS.spawnHeart) {
+          cat.heartT = 0;
+          EFFECTS.spawnHeart(nx0, 0.85, nz0);
+        }
+        if (cat.feedT <= 0) {
+          /* 回到最近的巡逻路径点 */
+          let bestT = 0, bestD = 1e9;
+          for (let k = 0; k <= 12; k++) {
+            const tt = (k / 12) * cat.len;
+            const pp = this.pathPos(cat.pts, tt);
+            const dd2 = Math.hypot(pp.x - nx0, pp.z - nz0);
+            if (dd2 < bestD) { bestD = dd2; bestT = tt; }
+          }
+          cat.t = bestT;
+        }
+        continue;
+      }
 
       /* 受惊：快速跑开 */
       if (pl && dist < 3.4 && cat.flee <= 0) {
@@ -7730,6 +7792,7 @@ const EFFECTS = {
   })(),
 
   init: function (scene) {
+    this.scene = scene;
     /* ---------------- 雪 ---------------- */
     const N = CONFIG.quality.high.snow;
     const pos = new Float32Array(N * 3);
@@ -8230,6 +8293,75 @@ const EFFECTS = {
         continue;
       }
       f.mesh.material.opacity = 0.55 * Math.min(1, f.life * 2.2);
+    }
+  },
+
+  /* ---------------- 爱心粒子（投喂御猫） ---------------- */
+  _heartTex: null,
+  _hearts: null,
+  initHearts: function () {
+    if (this._hearts) return;
+    const cv = document.createElement('canvas');
+    cv.width = 64; cv.height = 64;
+    const g = cv.getContext('2d');
+    g.clearRect(0, 0, 64, 64);
+    g.fillStyle = '#ff8aa6';
+    g.beginPath();
+    g.moveTo(32, 56);
+    g.bezierCurveTo(4, 34, 10, 10, 32, 22);
+    g.bezierCurveTo(54, 10, 60, 34, 32, 56);
+    g.closePath();
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.7)';
+    g.beginPath();
+    g.ellipse(22, 24, 5, 7, -0.5, 0, 6.28);
+    g.fill();
+    const tex = new THREE.CanvasTexture(cv);
+    tex.needsUpdate = true;
+    this._heartTex = tex;
+    const pool = [];
+    for (let i = 0; i < 14; i++) {
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false });
+      const sp = new THREE.Sprite(mat);
+      sp.scale.set(0.35, 0.35, 1);
+      sp.visible = false;
+      (this.scene || this.root).add(sp);
+      pool.push({ sp: sp, life: 0, ttl: 1, vx: 0, vy: 0, vz: 0 });
+    }
+    this._hearts = pool;
+  },
+  spawnHeart: function (x, y, z) {
+    this.initHearts();
+    const pool = this._hearts;
+    for (let i = 0; i < pool.length; i++) {
+      const h = pool[i];
+      if (h.life > 0) continue;
+      h.life = h.ttl = 1.5 + Math.random() * 0.5;
+      h.sp.position.set(x + (Math.random() - 0.5) * 0.5, y, z + (Math.random() - 0.5) * 0.5);
+      h.sp.material.opacity = 0.95;
+      h.sp.visible = true;
+      h.vx = (Math.random() - 0.5) * 0.35;
+      h.vy = 0.7 + Math.random() * 0.35;
+      h.vz = (Math.random() - 0.5) * 0.35;
+      return;
+    }
+  },
+  updateHearts: function (dt) {
+    const pool = this._hearts;
+    if (!pool) return;
+    for (let i = 0; i < pool.length; i++) {
+      const h = pool[i];
+      if (h.life <= 0) continue;
+      h.life -= dt;
+      if (h.life <= 0) { h.sp.visible = false; h.sp.material.opacity = 0; continue; }
+      h.sp.position.x += h.vx * dt;
+      h.sp.position.y += h.vy * dt;
+      h.sp.position.z += h.vz * dt;
+      h.vy *= 0.985;
+      const k = h.life / h.ttl;
+      h.sp.material.opacity = Math.min(1, k * 1.8);
+      const s = 0.35 + (1 - k) * 0.22;
+      h.sp.scale.set(s, s, 1);
     }
   },
 
@@ -9948,6 +10080,13 @@ const ASSETS = {
     const lab = $('interactLabel');
     if (!el) return;
     if (!WALK.active) { el.classList.remove('show'); nearInteractive = null; return; }
+    const catIdx = nearestCat();
+    if (catIdx != null) {
+      el.classList.add('show');
+      if (lab) lab.textContent = '投喂御猫';
+      nearInteractive = null;
+      return;
+    }
     const it = nearestInteractive();
     nearInteractive = it;
     if (it) {
@@ -9957,8 +10096,41 @@ const ASSETS = {
       el.classList.remove('show');
     }
   }
+  const ACH_KEY = 'forbidden-city-achievements-v1';
+  let achievements = { catFeeds: 0, photos: 0 };
+  try {
+    const savedA = JSON.parse(localStorage.getItem(ACH_KEY) || '{}');
+    if (savedA && typeof savedA === 'object') {
+      achievements.catFeeds = savedA.catFeeds || 0;
+      achievements.photos = savedA.photos || 0;
+    }
+  } catch (e) {}
+  function achievementsSave() {
+    try { localStorage.setItem(ACH_KEY, JSON.stringify(achievements)); } catch (e) {}
+  }
+  function nearestCat() {
+    if (!WALK.active || typeof NPC === 'undefined' || !NPC.cats) return null;
+    let best = null, bestD = 3.6;
+    for (let i = 0; i < NPC.cats.length; i++) {
+      const p0 = NPC.cats[i].obj.group.position;
+      const d = Math.hypot(p0.x - WALK.pos.x, p0.z - WALK.pos.z);
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return best;
+  }
   function doInteract() {
     if (!WALK.active) return;
+    const ci = nearestCat();
+    if (ci != null && typeof NPC !== 'undefined' && NPC.feedCatNear) {
+      const fed = NPC.feedCatNear(WALK.pos.x, WALK.pos.z, 3.6);
+      if (fed >= 0) {
+        achievements.catFeeds++;
+        achievementsSave();
+        showToast('投喂御猫 · 好感 +1（累计 ' + achievements.catFeeds + ' 次）— 它会跟着你走一段', 4200);
+        if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+        return;
+      }
+    }
     const it = nearestInteractive();
     if (!it) return;
     const now = performance.now();
@@ -10955,9 +11127,11 @@ const ASSETS = {
     touchEnabled: function () { return touchEnabled; },
     interact: doInteract,
     interactInfo: function () { const it = nearestInteractive(); return it ? { title: it.title, text: it.text } : null; },
+    achievements: function () { return { catFeeds: achievements.catFeeds, photos: achievements.photos }; },
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
     questTick: updateQuests,
     walkGameTick: updateWalkGame,
+    promptTick: updateInteractPrompt,
     questsReset: questsReset,
         stopWalk: function () { toggleWalk(false); }
       };
@@ -10984,6 +11158,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.6.0.20261019.1009","time":"2026-10-19T10:09:34.475Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.7.0.20261019.1030","time":"2026-10-19T10:30:00.816Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

@@ -18,6 +18,7 @@ const EFFECTS = {
   })(),
 
   init: function (scene) {
+    this.scene = scene;
     /* ---------------- 雪 ---------------- */
     const N = CONFIG.quality.high.snow;
     const pos = new Float32Array(N * 3);
@@ -518,6 +519,75 @@ const EFFECTS = {
         continue;
       }
       f.mesh.material.opacity = 0.55 * Math.min(1, f.life * 2.2);
+    }
+  },
+
+  /* ---------------- 爱心粒子（投喂御猫） ---------------- */
+  _heartTex: null,
+  _hearts: null,
+  initHearts: function () {
+    if (this._hearts) return;
+    const cv = document.createElement('canvas');
+    cv.width = 64; cv.height = 64;
+    const g = cv.getContext('2d');
+    g.clearRect(0, 0, 64, 64);
+    g.fillStyle = '#ff8aa6';
+    g.beginPath();
+    g.moveTo(32, 56);
+    g.bezierCurveTo(4, 34, 10, 10, 32, 22);
+    g.bezierCurveTo(54, 10, 60, 34, 32, 56);
+    g.closePath();
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.7)';
+    g.beginPath();
+    g.ellipse(22, 24, 5, 7, -0.5, 0, 6.28);
+    g.fill();
+    const tex = new THREE.CanvasTexture(cv);
+    tex.needsUpdate = true;
+    this._heartTex = tex;
+    const pool = [];
+    for (let i = 0; i < 14; i++) {
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false });
+      const sp = new THREE.Sprite(mat);
+      sp.scale.set(0.35, 0.35, 1);
+      sp.visible = false;
+      (this.scene || this.root).add(sp);
+      pool.push({ sp: sp, life: 0, ttl: 1, vx: 0, vy: 0, vz: 0 });
+    }
+    this._hearts = pool;
+  },
+  spawnHeart: function (x, y, z) {
+    this.initHearts();
+    const pool = this._hearts;
+    for (let i = 0; i < pool.length; i++) {
+      const h = pool[i];
+      if (h.life > 0) continue;
+      h.life = h.ttl = 1.5 + Math.random() * 0.5;
+      h.sp.position.set(x + (Math.random() - 0.5) * 0.5, y, z + (Math.random() - 0.5) * 0.5);
+      h.sp.material.opacity = 0.95;
+      h.sp.visible = true;
+      h.vx = (Math.random() - 0.5) * 0.35;
+      h.vy = 0.7 + Math.random() * 0.35;
+      h.vz = (Math.random() - 0.5) * 0.35;
+      return;
+    }
+  },
+  updateHearts: function (dt) {
+    const pool = this._hearts;
+    if (!pool) return;
+    for (let i = 0; i < pool.length; i++) {
+      const h = pool[i];
+      if (h.life <= 0) continue;
+      h.life -= dt;
+      if (h.life <= 0) { h.sp.visible = false; h.sp.material.opacity = 0; continue; }
+      h.sp.position.x += h.vx * dt;
+      h.sp.position.y += h.vy * dt;
+      h.sp.position.z += h.vz * dt;
+      h.vy *= 0.985;
+      const k = h.life / h.ttl;
+      h.sp.material.opacity = Math.min(1, k * 1.8);
+      const s = 0.35 + (1 - k) * 0.22;
+      h.sp.scale.set(s, s, 1);
     }
   },
 
