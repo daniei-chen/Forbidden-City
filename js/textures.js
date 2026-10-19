@@ -104,6 +104,52 @@ TEX.groundMottle = function () {
   return tex;
 };
 
+/* 远景树线剪影（环形远景带，打破地平线空旷感） */
+TEX.horizonTrees = function () {
+  if (TEX._horizonTrees) return TEX._horizonTrees;
+  const W = 1024, H = 128;
+  const cv = TEX.canvas(W, H);
+  const g = cv.getContext('2d');
+  const palette = ['#26331f', '#2d3a24', '#1f2a1b', '#33402a'];
+  let x = 0;
+  while (x < W) {
+    const crownR = 9 + TEX.rand() * 20;
+    const base = H - 4 - TEX.rand() * 8;
+    const crownH = H * (0.28 + TEX.rand() * 0.42);
+    const topY = base - crownH;
+    const col = palette[Math.floor(TEX.rand() * palette.length)];
+    g.fillStyle = col;
+    /* 主干 */
+    g.fillRect(x + crownR * 0.42, topY + crownH * 0.55, 3 + TEX.rand() * 3, base - (topY + crownH * 0.55));
+    /* 冠层：多团 */
+    const lobes = 4 + Math.floor(TEX.rand() * 4);
+    for (let k = 0; k < lobes; k++) {
+      const cx = x + crownR + (TEX.rand() - 0.5) * crownR * 1.1;
+      const cy = topY + crownH * (0.15 + TEX.rand() * 0.7);
+      const r = crownR * (0.35 + TEX.rand() * 0.55);
+      g.beginPath(); g.ellipse(cx, cy, r, r * (0.7 + TEX.rand() * 0.4), 0, 0, 6.283); g.fill();
+    }
+    x += crownR * (0.9 + TEX.rand() * 0.9);
+  }
+  /* 底部连续灌木层，避免树脚悬空 */
+  g.fillStyle = '#1d2719';
+  g.beginPath();
+  g.moveTo(0, H);
+  for (let i = 0; i <= 64; i++) {
+    const px = (i / 64) * W;
+    const py = H - 10 - Math.abs(Math.sin(i * 1.7)) * 14 - TEX.rand() * 6;
+    g.lineTo(px, py);
+  }
+  g.lineTo(W, H);
+  g.closePath();
+  g.fill();
+  const tex = TEX.tex(cv, 7, 1, true);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  TEX._horizonTrees = tex;
+  return tex;
+};
+
 TEX.roof = function () {
   return TEX.once('roof', function () {
     const W = 512, H = 512, cv = TEX.canvas(W, H), g = cv.getContext('2d');

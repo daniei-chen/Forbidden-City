@@ -105,6 +105,11 @@ MATS.water.envMapIntensity = 1.35;
   });
 
   /* ---- 接地 AO / 云影 ---- */
+  MATS.horizonTrees = new THREE.MeshBasicMaterial({
+    map: TEX.horizonTrees(), transparent: true, alphaTest: 0.32,
+    side: THREE.BackSide, depthWrite: false, color: 0xffffff
+  });
+
   MATS.groundMottle = new THREE.MeshBasicMaterial({
     map: TEX.groundMottle(), transparent: true, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1

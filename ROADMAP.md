@@ -99,3 +99,4 @@ pm run smoke` → ④ 多机位截图 → ⑤ 更新文档/版本 → ⑥ 记录
 | R39 | 御花园荷叶/荷花 + 蝴蝶 | 冒烟 + harness |
 | R40 | 地面大尺度斑驳叠加（打散铺装重复）| 冒烟 + harness |
 | R41 | 广场麻雀（InstancedMesh，靠近飞走）| 冒烟 + harness |
+| R42 | 远景树线剪影环 | 冒烟 + harness |

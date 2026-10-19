@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 5.28.0.20261019.0000">
-<meta name="build-time" content="2026-10-19T00:00:56.030Z">
+<meta name="generator" content="forbidden-city-build 5.29.0.20261019.0027">
+<meta name="build-time" content="2026-10-19T00:27:32.316Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T00:00:56.030Z
-  version: 5.28.0.20261019.0000
+  build: 2026-10-19T00:27:32.316Z
+  version: 5.29.0.20261019.0027
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -394,7 +394,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '5.28.0',
+  version: '5.29.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -596,6 +596,52 @@ TEX.groundMottle = function () {
   }
   const tex = TEX.tex(cv, 3.4, 4.4, true);
   TEX._groundMottle = tex;
+  return tex;
+};
+
+/* 远景树线剪影（环形远景带，打破地平线空旷感） */
+TEX.horizonTrees = function () {
+  if (TEX._horizonTrees) return TEX._horizonTrees;
+  const W = 1024, H = 128;
+  const cv = TEX.canvas(W, H);
+  const g = cv.getContext('2d');
+  const palette = ['#26331f', '#2d3a24', '#1f2a1b', '#33402a'];
+  let x = 0;
+  while (x < W) {
+    const crownR = 9 + TEX.rand() * 20;
+    const base = H - 4 - TEX.rand() * 8;
+    const crownH = H * (0.28 + TEX.rand() * 0.42);
+    const topY = base - crownH;
+    const col = palette[Math.floor(TEX.rand() * palette.length)];
+    g.fillStyle = col;
+    /* 主干 */
+    g.fillRect(x + crownR * 0.42, topY + crownH * 0.55, 3 + TEX.rand() * 3, base - (topY + crownH * 0.55));
+    /* 冠层：多团 */
+    const lobes = 4 + Math.floor(TEX.rand() * 4);
+    for (let k = 0; k < lobes; k++) {
+      const cx = x + crownR + (TEX.rand() - 0.5) * crownR * 1.1;
+      const cy = topY + crownH * (0.15 + TEX.rand() * 0.7);
+      const r = crownR * (0.35 + TEX.rand() * 0.55);
+      g.beginPath(); g.ellipse(cx, cy, r, r * (0.7 + TEX.rand() * 0.4), 0, 0, 6.283); g.fill();
+    }
+    x += crownR * (0.9 + TEX.rand() * 0.9);
+  }
+  /* 底部连续灌木层，避免树脚悬空 */
+  g.fillStyle = '#1d2719';
+  g.beginPath();
+  g.moveTo(0, H);
+  for (let i = 0; i <= 64; i++) {
+    const px = (i / 64) * W;
+    const py = H - 10 - Math.abs(Math.sin(i * 1.7)) * 14 - TEX.rand() * 6;
+    g.lineTo(px, py);
+  }
+  g.lineTo(W, H);
+  g.closePath();
+  g.fill();
+  const tex = TEX.tex(cv, 7, 1, true);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  TEX._horizonTrees = tex;
   return tex;
 };
 
@@ -1494,6 +1540,11 @@ MATS.water.envMapIntensity = 1.35;
   });
 
   /* ---- 接地 AO / 云影 ---- */
+  MATS.horizonTrees = new THREE.MeshBasicMaterial({
+    map: TEX.horizonTrees(), transparent: true, alphaTest: 0.32,
+    side: THREE.BackSide, depthWrite: false, color: 0xffffff
+  });
+
   MATS.groundMottle = new THREE.MeshBasicMaterial({
     map: TEX.groundMottle(), transparent: true, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
@@ -6092,6 +6143,13 @@ LAYOUT.build = function (root) {
   mottle.renderOrder = 1;
   root.add(mottle);
 
+  /* 远景树线剪影环：半径 1650m，打破地平线空旷感 */
+  const treeLineGeo = new THREE.CylinderGeometry(1650, 1650, 92, 72, 1, true);
+  const treeLine = new THREE.Mesh(treeLineGeo, MATS.horizonTrees);
+  treeLine.position.set(0, 20, 0);
+  treeLine.material.fog = true;
+  root.add(treeLine);
+
   LAYOUT.terrace(root);
   LAYOUT.river(root);
   LAYOUT.taiheHall();
@@ -10021,6 +10079,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"5.28.0.20261019.0000","time":"2026-10-19T00:00:56.030Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"5.29.0.20261019.0027","time":"2026-10-19T00:27:32.316Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

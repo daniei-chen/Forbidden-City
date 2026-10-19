@@ -1119,6 +1119,13 @@ LAYOUT.build = function (root) {
   mottle.renderOrder = 1;
   root.add(mottle);
 
+  /* 远景树线剪影环：半径 1650m，打破地平线空旷感 */
+  const treeLineGeo = new THREE.CylinderGeometry(1650, 1650, 92, 72, 1, true);
+  const treeLine = new THREE.Mesh(treeLineGeo, MATS.horizonTrees);
+  treeLine.position.set(0, 20, 0);
+  treeLine.material.fog = true;
+  root.add(treeLine);
+
   LAYOUT.terrace(root);
   LAYOUT.river(root);
   LAYOUT.taiheHall();
