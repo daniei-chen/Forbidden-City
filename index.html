@@ -315,6 +315,26 @@
   }
   .objarrow.show{display:block}
   body.photo .objmark, body.photo .objarrow{display:none !important}
+  /* ---------------- 相册灯箱 ---------------- */
+  .lightbox{position:fixed;inset:0;z-index:33;display:none;align-items:center;justify-content:center;
+    background:rgba(3,4,6,.94);backdrop-filter:blur(6px)}
+  .lightbox.show{display:flex}
+  .lightbox img{max-width:88vw;max-height:76vh;object-fit:contain;border:1px solid rgba(216,180,95,.3);
+    box-shadow:0 20px 70px rgba(0,0,0,.6)}
+  .lightbox .lb-cap{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);
+    font-size:12px;letter-spacing:2px;color:rgba(240,234,220,.85)}
+  .lightbox .lb-cap small{display:block;text-align:center;font-size:10px;color:rgba(230,224,208,.45);margin-top:4px;letter-spacing:1px}
+  .lightbox .lb-btn{position:absolute;width:44px;height:44px;border:1px solid rgba(216,180,95,.45);
+    background:rgba(9,11,15,.7);color:var(--gold);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .lightbox .lb-btn:hover{background:rgba(216,180,95,.25)}
+  #lbPrev{left:22px;top:50%;transform:translateY(-50%)}
+  #lbNext{right:22px;top:50%;transform:translateY(-50%)}
+  #lbClose{right:22px;top:20px}
+  .lightbox .lb-tools{position:absolute;right:22px;bottom:22px;display:flex;gap:8px}
+  .lightbox .lb-tools button{padding:8px 14px;background:rgba(216,180,95,.14);border:1px solid rgba(216,180,95,.5);
+    color:var(--gold);font-size:11px;letter-spacing:1px;cursor:pointer}
+  .lightbox .lb-tools button:hover{background:rgba(216,180,95,.28)}
+
   /* ---------------- 成就通知 ---------------- */
   .achv .loglist{margin-top:16px;padding-top:14px;border-top:1px solid rgba(216,180,95,.18)}
   .achv .loglist .lbl{font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.4);margin-bottom:6px}
@@ -612,6 +632,17 @@
     <div class="total" id="achvTotal"></div>
   </div>
 </div>
+<div class="lightbox" id="lightbox">
+  <img id="lbImg" alt="照片">
+  <button class="lb-btn" id="lbClose">×</button>
+  <button class="lb-btn" id="lbPrev">‹</button>
+  <button class="lb-btn" id="lbNext">›</button>
+  <div class="lb-cap" id="lbCap"></div>
+  <div class="lb-tools">
+    <button id="lbDownload">下载原图</button>
+  </div>
+</div>
+
 <div class="album" id="album">
   <button class="close" id="albumClose">×</button>
   <div class="inner">

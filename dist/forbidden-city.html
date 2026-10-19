@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.37.0.20261019.2136">
-<meta name="build-time" content="2026-10-19T21:36:02.330Z">
+<meta name="generator" content="forbidden-city-build 6.38.0.20261019.2153">
+<meta name="build-time" content="2026-10-19T21:53:48.635Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T21:36:02.330Z
-  version: 6.37.0.20261019.2136
+  build: 2026-10-19T21:53:48.635Z
+  version: 6.38.0.20261019.2153
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -324,6 +324,26 @@
   }
   .objarrow.show{display:block}
   body.photo .objmark, body.photo .objarrow{display:none !important}
+  /* ---------------- 相册灯箱 ---------------- */
+  .lightbox{position:fixed;inset:0;z-index:33;display:none;align-items:center;justify-content:center;
+    background:rgba(3,4,6,.94);backdrop-filter:blur(6px)}
+  .lightbox.show{display:flex}
+  .lightbox img{max-width:88vw;max-height:76vh;object-fit:contain;border:1px solid rgba(216,180,95,.3);
+    box-shadow:0 20px 70px rgba(0,0,0,.6)}
+  .lightbox .lb-cap{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);
+    font-size:12px;letter-spacing:2px;color:rgba(240,234,220,.85)}
+  .lightbox .lb-cap small{display:block;text-align:center;font-size:10px;color:rgba(230,224,208,.45);margin-top:4px;letter-spacing:1px}
+  .lightbox .lb-btn{position:absolute;width:44px;height:44px;border:1px solid rgba(216,180,95,.45);
+    background:rgba(9,11,15,.7);color:var(--gold);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .lightbox .lb-btn:hover{background:rgba(216,180,95,.25)}
+  #lbPrev{left:22px;top:50%;transform:translateY(-50%)}
+  #lbNext{right:22px;top:50%;transform:translateY(-50%)}
+  #lbClose{right:22px;top:20px}
+  .lightbox .lb-tools{position:absolute;right:22px;bottom:22px;display:flex;gap:8px}
+  .lightbox .lb-tools button{padding:8px 14px;background:rgba(216,180,95,.14);border:1px solid rgba(216,180,95,.5);
+    color:var(--gold);font-size:11px;letter-spacing:1px;cursor:pointer}
+  .lightbox .lb-tools button:hover{background:rgba(216,180,95,.28)}
+
   /* ---------------- 成就通知 ---------------- */
   .achv .loglist{margin-top:16px;padding-top:14px;border-top:1px solid rgba(216,180,95,.18)}
   .achv .loglist .lbl{font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.4);margin-bottom:6px}
@@ -622,6 +642,17 @@
     <div class="total" id="achvTotal"></div>
   </div>
 </div>
+<div class="lightbox" id="lightbox">
+  <img id="lbImg" alt="照片">
+  <button class="lb-btn" id="lbClose">×</button>
+  <button class="lb-btn" id="lbPrev">‹</button>
+  <button class="lb-btn" id="lbNext">›</button>
+  <div class="lb-cap" id="lbCap"></div>
+  <div class="lb-tools">
+    <button id="lbDownload">下载原图</button>
+  </div>
+</div>
+
 <div class="album" id="album">
   <button class="close" id="albumClose">×</button>
   <div class="inner">
@@ -737,7 +768,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.37.0',
+  version: '6.38.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -11833,7 +11864,43 @@ const ASSETS = {
     return { total: album.length, filter: albumFilter, bySpot: bySpot, shown: album.filter(albumFilterOk).length };
   }
 
-    function downloadPhoto(i) {
+    /* 相册灯箱：全屏浏览 */
+  const lightbox = { active: false, idx: 0 };
+  function renderLightbox() {
+    const lb = $('lightbox'), img = $('lbImg'), cap = $('lbCap');
+    if (!lb || !img) return;
+    const ordered = [];
+    for (let i = 0; i < album.length; i++) ordered.push(i);
+    if (!ordered.length || lightbox.idx < 0 || lightbox.idx >= ordered.length) { closeLightbox(); return; }
+    const ph = album[ordered[lightbox.idx]];
+    img.src = ph.url;
+    if (cap) {
+      const dt = new Date(ph.t);
+      cap.innerHTML = (ph.name || '宫城随拍') + '<small>' + dt.getFullYear() + '-' + ('0' + (dt.getMonth() + 1)).slice(-2) + '-' + ('0' + dt.getDate()).slice(-2) + ' ' + ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2) + ' · ' + (lightbox.idx + 1) + ' / ' + ordered.length + '</small>';
+    }
+  }
+  function openLightbox(albumIndex) {
+    if (!album.length) return false;
+    lightbox.active = true;
+    const ordered = album.map(function (x, i) { return i; });
+    lightbox.idx = Math.max(0, ordered.indexOf(albumIndex));
+    const lb = $('lightbox');
+    if (lb) lb.classList.add('show');
+    renderLightbox();
+    return true;
+  }
+  function closeLightbox() {
+    lightbox.active = false;
+    const lb = $('lightbox');
+    if (lb) lb.classList.remove('show');
+  }
+  function lightboxNav(dir) {
+    if (!lightbox.active || !album.length) return;
+    lightbox.idx = (lightbox.idx + dir + album.length) % album.length;
+    renderLightbox();
+  }
+
+  function downloadPhoto(i) {
     const ph = album[i];
     if (!ph) return;
     try {
@@ -11848,7 +11915,7 @@ const ASSETS = {
     if (!el) return;
     const on = force == null ? !el.classList.contains('show') : !!force;
     if (on) { refreshAlbum(); el.classList.add('show'); }
-    else el.classList.remove('show');
+    else { closeLightbox(); el.classList.remove('show'); }
   }
 
   /* =========================================================
@@ -13173,6 +13240,12 @@ const ASSETS = {
       }
       if (e.key === 'Escape') { closeRiddle(); e.preventDefault(); return; }
     }
+    if (lightbox.active) {
+      if (e.key === 'Escape') { closeLightbox(); e.preventDefault(); return; }
+      if (e.key === 'ArrowLeft') { lightboxNav(-1); e.preventDefault(); return; }
+      if (e.key === 'ArrowRight') { lightboxNav(1); e.preventDefault(); return; }
+      if ((e.key || '').toLowerCase() === 'd') { downloadPhoto(lightbox.idx); return; }
+    }
     if (WALK.active) {
       const k2 = (e.key || '').toLowerCase();
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].indexOf(k2) >= 0) {
@@ -13199,6 +13272,7 @@ const ASSETS = {
         return;
       }
       if (e.key === 'Escape') {
+        if (lightbox.active) { closeLightbox(); return; }
         if (tutorial.active) { tutorialHide(true); return; }
         if (minigame.active) { stopMinigame(); return; }
         const ab = document.getElementById('album');
@@ -13698,8 +13772,18 @@ const ASSETS = {
       while (el && el !== grid && !(el.getAttribute && el.getAttribute('data-i'))) el = el.parentNode;
       if (!el || el === grid) return;
       const i = parseInt(el.getAttribute('data-i'), 10);
-      if (!isNaN(i)) downloadPhoto(i);
+      if (!isNaN(i)) openLightbox(i);
     });
+    const lbClose = $('lbClose');
+    if (lbClose) lbClose.addEventListener('click', closeLightbox);
+    const lbPrev = $('lbPrev');
+    if (lbPrev) lbPrev.addEventListener('click', function () { lightboxNav(-1); });
+    const lbNext = $('lbNext');
+    if (lbNext) lbNext.addEventListener('click', function () { lightboxNav(1); });
+    const lbDown = $('lbDownload');
+    if (lbDown) lbDown.addEventListener('click', function () { downloadPhoto(lightbox.idx); });
+    const lbEl = $('lightbox');
+    if (lbEl) lbEl.addEventListener('click', function (e) { if (e.target === lbEl) closeLightbox(); });
     const ab = $('album');
     if (ab) ab.addEventListener('click', function (e) { if (e.target === ab) openAlbum(false); });
     const ac = $('achvClose');
@@ -13870,6 +13954,10 @@ const ASSETS = {
     albumInfo: function () { return { photos: album.length, spots: Object.keys(photoSpots).length, allDone: photoAllDone, names: album.map(function (a) { return a.name; }) }; },
     openAlbum: openAlbum,
     setAlbumFilter: setAlbumFilter,
+    openLightbox: openLightbox,
+    lightboxInfo: function () { const lb = $('lightbox'), img = $('lbImg'); return { active: lightbox.active, idx: lightbox.idx, shown: !!(lb && lb.classList.contains('show')), srcLen: img && img.src ? img.src.length : 0, cap: ($('lbCap') || {}).innerText || '' }; },
+    lightboxNav: lightboxNav,
+    closeLightbox: closeLightbox,
     albumFilterInfo: albumInfoEx,
     openAchievements: openAchievements,
     achievementsPanel: function () { return achvData(); },
@@ -13905,6 +13993,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.37.0.20261019.2136","time":"2026-10-19T21:36:02.330Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.38.0.20261019.2153","time":"2026-10-19T21:53:48.635Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

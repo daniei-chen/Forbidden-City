@@ -1532,7 +1532,43 @@
     return { total: album.length, filter: albumFilter, bySpot: bySpot, shown: album.filter(albumFilterOk).length };
   }
 
-    function downloadPhoto(i) {
+    /* 相册灯箱：全屏浏览 */
+  const lightbox = { active: false, idx: 0 };
+  function renderLightbox() {
+    const lb = $('lightbox'), img = $('lbImg'), cap = $('lbCap');
+    if (!lb || !img) return;
+    const ordered = [];
+    for (let i = 0; i < album.length; i++) ordered.push(i);
+    if (!ordered.length || lightbox.idx < 0 || lightbox.idx >= ordered.length) { closeLightbox(); return; }
+    const ph = album[ordered[lightbox.idx]];
+    img.src = ph.url;
+    if (cap) {
+      const dt = new Date(ph.t);
+      cap.innerHTML = (ph.name || '宫城随拍') + '<small>' + dt.getFullYear() + '-' + ('0' + (dt.getMonth() + 1)).slice(-2) + '-' + ('0' + dt.getDate()).slice(-2) + ' ' + ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2) + ' · ' + (lightbox.idx + 1) + ' / ' + ordered.length + '</small>';
+    }
+  }
+  function openLightbox(albumIndex) {
+    if (!album.length) return false;
+    lightbox.active = true;
+    const ordered = album.map(function (x, i) { return i; });
+    lightbox.idx = Math.max(0, ordered.indexOf(albumIndex));
+    const lb = $('lightbox');
+    if (lb) lb.classList.add('show');
+    renderLightbox();
+    return true;
+  }
+  function closeLightbox() {
+    lightbox.active = false;
+    const lb = $('lightbox');
+    if (lb) lb.classList.remove('show');
+  }
+  function lightboxNav(dir) {
+    if (!lightbox.active || !album.length) return;
+    lightbox.idx = (lightbox.idx + dir + album.length) % album.length;
+    renderLightbox();
+  }
+
+  function downloadPhoto(i) {
     const ph = album[i];
     if (!ph) return;
     try {
@@ -1547,7 +1583,7 @@
     if (!el) return;
     const on = force == null ? !el.classList.contains('show') : !!force;
     if (on) { refreshAlbum(); el.classList.add('show'); }
-    else el.classList.remove('show');
+    else { closeLightbox(); el.classList.remove('show'); }
   }
 
   /* =========================================================
@@ -2872,6 +2908,12 @@
       }
       if (e.key === 'Escape') { closeRiddle(); e.preventDefault(); return; }
     }
+    if (lightbox.active) {
+      if (e.key === 'Escape') { closeLightbox(); e.preventDefault(); return; }
+      if (e.key === 'ArrowLeft') { lightboxNav(-1); e.preventDefault(); return; }
+      if (e.key === 'ArrowRight') { lightboxNav(1); e.preventDefault(); return; }
+      if ((e.key || '').toLowerCase() === 'd') { downloadPhoto(lightbox.idx); return; }
+    }
     if (WALK.active) {
       const k2 = (e.key || '').toLowerCase();
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].indexOf(k2) >= 0) {
@@ -2898,6 +2940,7 @@
         return;
       }
       if (e.key === 'Escape') {
+        if (lightbox.active) { closeLightbox(); return; }
         if (tutorial.active) { tutorialHide(true); return; }
         if (minigame.active) { stopMinigame(); return; }
         const ab = document.getElementById('album');
@@ -3397,8 +3440,18 @@
       while (el && el !== grid && !(el.getAttribute && el.getAttribute('data-i'))) el = el.parentNode;
       if (!el || el === grid) return;
       const i = parseInt(el.getAttribute('data-i'), 10);
-      if (!isNaN(i)) downloadPhoto(i);
+      if (!isNaN(i)) openLightbox(i);
     });
+    const lbClose = $('lbClose');
+    if (lbClose) lbClose.addEventListener('click', closeLightbox);
+    const lbPrev = $('lbPrev');
+    if (lbPrev) lbPrev.addEventListener('click', function () { lightboxNav(-1); });
+    const lbNext = $('lbNext');
+    if (lbNext) lbNext.addEventListener('click', function () { lightboxNav(1); });
+    const lbDown = $('lbDownload');
+    if (lbDown) lbDown.addEventListener('click', function () { downloadPhoto(lightbox.idx); });
+    const lbEl = $('lightbox');
+    if (lbEl) lbEl.addEventListener('click', function (e) { if (e.target === lbEl) closeLightbox(); });
     const ab = $('album');
     if (ab) ab.addEventListener('click', function (e) { if (e.target === ab) openAlbum(false); });
     const ac = $('achvClose');
@@ -3569,6 +3622,10 @@
     albumInfo: function () { return { photos: album.length, spots: Object.keys(photoSpots).length, allDone: photoAllDone, names: album.map(function (a) { return a.name; }) }; },
     openAlbum: openAlbum,
     setAlbumFilter: setAlbumFilter,
+    openLightbox: openLightbox,
+    lightboxInfo: function () { const lb = $('lightbox'), img = $('lbImg'); return { active: lightbox.active, idx: lightbox.idx, shown: !!(lb && lb.classList.contains('show')), srcLen: img && img.src ? img.src.length : 0, cap: ($('lbCap') || {}).innerText || '' }; },
+    lightboxNav: lightboxNav,
+    closeLightbox: closeLightbox,
     albumFilterInfo: albumInfoEx,
     openAchievements: openAchievements,
     achievementsPanel: function () { return achvData(); },
