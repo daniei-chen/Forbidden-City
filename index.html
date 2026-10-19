@@ -315,6 +315,15 @@
   }
   .objarrow.show{display:block}
   body.photo .objmark, body.photo .objarrow{display:none !important}
+  /* ---------------- 氛围预设 ---------------- */
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 4px}
+  .presets button{
+    padding:7px 6px;background:rgba(216,180,95,.06);border:1px solid rgba(216,180,95,.25);
+    font-size:10.5px;letter-spacing:1px;color:rgba(230,224,208,.78);cursor:pointer;transition:.15s;
+  }
+  .presets button:hover{border-color:rgba(216,180,95,.6);background:rgba(216,180,95,.14);color:var(--gold)}
+  .presets button.on{background:rgba(216,180,95,.85);border-color:var(--gold);color:#20150a}
+
   /* ---------------- 新手引导 ---------------- */
   .tutorial{
     position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:12;display:none;
@@ -626,6 +635,13 @@
   <label class="check"><span>日照流转（约 4 分钟一昼夜）</span><input type="checkbox" id="optAutoCycle"></label>
     <label class="check"><span>天气变化（晴 / 阴 / 雨）</span><input type="checkbox" id="optWeather"></label>
   <label class="check"><span>节庆灯会（红灯笼）</span><input type="checkbox" id="optFestival"></label>
+  <div class="setgroup">氛围预设</div>
+  <div class="presets" id="presets">
+    <button data-preset="day_clear">晴日宫城</button>
+    <button data-preset="dusk_festival">黄昏灯会</button>
+    <button data-preset="night_rain">夜雨灯会</button>
+    <button data-preset="snow_night">雪夜宫灯</button>
+  </div>
   <div class="setgroup">漫游</div>
   <label class="check"><span>任务指引（目标标记）</span><input type="checkbox" id="optObjective"></label>
   <label class="check"><span>性能 HUD（F 键）</span><input type="checkbox" id="optPerfHud"></label>

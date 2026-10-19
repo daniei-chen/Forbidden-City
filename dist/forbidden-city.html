@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.34.0.20261019.2049">
-<meta name="build-time" content="2026-10-19T20:49:14.601Z">
+<meta name="generator" content="forbidden-city-build 6.35.0.20261019.2104">
+<meta name="build-time" content="2026-10-19T21:04:32.202Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T20:49:14.601Z
-  version: 6.34.0.20261019.2049
+  build: 2026-10-19T21:04:32.202Z
+  version: 6.35.0.20261019.2104
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -324,6 +324,15 @@
   }
   .objarrow.show{display:block}
   body.photo .objmark, body.photo .objarrow{display:none !important}
+  /* ---------------- 氛围预设 ---------------- */
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 4px}
+  .presets button{
+    padding:7px 6px;background:rgba(216,180,95,.06);border:1px solid rgba(216,180,95,.25);
+    font-size:10.5px;letter-spacing:1px;color:rgba(230,224,208,.78);cursor:pointer;transition:.15s;
+  }
+  .presets button:hover{border-color:rgba(216,180,95,.6);background:rgba(216,180,95,.14);color:var(--gold)}
+  .presets button.on{background:rgba(216,180,95,.85);border-color:var(--gold);color:#20150a}
+
   /* ---------------- 新手引导 ---------------- */
   .tutorial{
     position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:12;display:none;
@@ -636,6 +645,13 @@
   <label class="check"><span>日照流转（约 4 分钟一昼夜）</span><input type="checkbox" id="optAutoCycle"></label>
     <label class="check"><span>天气变化（晴 / 阴 / 雨）</span><input type="checkbox" id="optWeather"></label>
   <label class="check"><span>节庆灯会（红灯笼）</span><input type="checkbox" id="optFestival"></label>
+  <div class="setgroup">氛围预设</div>
+  <div class="presets" id="presets">
+    <button data-preset="day_clear">晴日宫城</button>
+    <button data-preset="dusk_festival">黄昏灯会</button>
+    <button data-preset="night_rain">夜雨灯会</button>
+    <button data-preset="snow_night">雪夜宫灯</button>
+  </div>
   <div class="setgroup">漫游</div>
   <label class="check"><span>任务指引（目标标记）</span><input type="checkbox" id="optObjective"></label>
   <label class="check"><span>性能 HUD（F 键）</span><input type="checkbox" id="optPerfHud"></label>
@@ -713,7 +729,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.34.0',
+  version: '6.35.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -12680,6 +12696,28 @@ const ASSETS = {
     return tutorial.step;
   }
 
+  /* =========================================================
+   *  氛围预设（时段 + 天气 + 灯会组合）
+   * ======================================================= */
+  const SCENE_PRESETS = {
+    day_clear: { name: '晴日宫城', theme: 'day', weather: 'clear', festival: false, label: '晴日宫城' },
+    dusk_festival: { name: '黄昏灯会', theme: 'dusk', weather: 'clear', festival: true, label: '黄昏灯会' },
+    night_rain: { name: '夜雨灯会', theme: 'night', weather: 'rain', festival: true, label: '夜雨灯会' },
+    snow_night: { name: '雪夜宫灯', theme: 'snow', weather: 'clear', festival: true, label: '雪夜宫灯' }
+  };
+  function applyScenePreset(id) {
+    const pr = SCENE_PRESETS[id];
+    if (!pr) return null;
+    if (settings.autoCycle) { settings.autoCycle = false; const oc = $('optAutoCycle'); if (oc) oc.checked = false; saveSettings(); }
+    setTheme(pr.theme);
+    setWeather(pr.weather, true);
+    setFestival(pr.festival, true);
+    const btns = document.querySelectorAll('#presets button');
+    for (let i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-preset') === id);
+    showToast('氛围预设 · ' + pr.label, 2800);
+    return { id: id, theme: pr.theme, weather: pr.weather, festival: pr.festival };
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -12801,6 +12839,15 @@ const ASSETS = {
       optAutoCycle.addEventListener('change', function (e) {
         setDayCycle(e.target.checked);
       });
+    }
+    const presetBox = $('presets');
+    if (presetBox) {
+      const pbtns = presetBox.querySelectorAll('button');
+      for (let pi = 0; pi < pbtns.length; pi++) {
+        pbtns[pi].addEventListener('click', function () {
+          applyScenePreset(this.getAttribute('data-preset'));
+        });
+      }
     }
     const optObjective = $('optObjective');
     if (optObjective) {
@@ -13634,6 +13681,8 @@ const ASSETS = {
     togglePerfHud: togglePerfHud,
     perfHudTick: function (dt) { updatePerfHud(dt || 0.016); },
     catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },
+    preset: function (id) { return applyScenePreset(id); },
+    presetInfo: function () { return Array.prototype.slice.call(document.querySelectorAll('#presets button')).map(function (b) { return { id: b.getAttribute('data-preset'), on: b.classList.contains('on') }; }); },
     setFestival: function (on) { setFestival(on); return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     festivalInfo: function () { return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     objectiveInfo: function () { const tg = getObjectiveTarget(); const mk = $('objMarker'), ar = $('objArrow'); return { target: tg, markerShown: !!(mk && mk.classList.contains('show')), arrowShown: !!(ar && ar.classList.contains('show')), label: ($('objLabel') || {}).textContent, arrowTransform: ar ? ar.style.transform : null, enabled: settings.objective !== false }; },
@@ -13697,6 +13746,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.34.0.20261019.2049","time":"2026-10-19T20:49:14.601Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.35.0.20261019.2104","time":"2026-10-19T21:04:32.202Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

@@ -2491,6 +2491,28 @@
     return tutorial.step;
   }
 
+  /* =========================================================
+   *  氛围预设（时段 + 天气 + 灯会组合）
+   * ======================================================= */
+  const SCENE_PRESETS = {
+    day_clear: { name: '晴日宫城', theme: 'day', weather: 'clear', festival: false, label: '晴日宫城' },
+    dusk_festival: { name: '黄昏灯会', theme: 'dusk', weather: 'clear', festival: true, label: '黄昏灯会' },
+    night_rain: { name: '夜雨灯会', theme: 'night', weather: 'rain', festival: true, label: '夜雨灯会' },
+    snow_night: { name: '雪夜宫灯', theme: 'snow', weather: 'clear', festival: true, label: '雪夜宫灯' }
+  };
+  function applyScenePreset(id) {
+    const pr = SCENE_PRESETS[id];
+    if (!pr) return null;
+    if (settings.autoCycle) { settings.autoCycle = false; const oc = $('optAutoCycle'); if (oc) oc.checked = false; saveSettings(); }
+    setTheme(pr.theme);
+    setWeather(pr.weather, true);
+    setFestival(pr.festival, true);
+    const btns = document.querySelectorAll('#presets button');
+    for (let i = 0; i < btns.length; i++) btns[i].classList.toggle('on', btns[i].getAttribute('data-preset') === id);
+    showToast('氛围预设 · ' + pr.label, 2800);
+    return { id: id, theme: pr.theme, weather: pr.weather, festival: pr.festival };
+  }
+
   function toggleWalk(force) {
     const on = force == null ? !WALK.active : !!force;
     if (on) {
@@ -2612,6 +2634,15 @@
       optAutoCycle.addEventListener('change', function (e) {
         setDayCycle(e.target.checked);
       });
+    }
+    const presetBox = $('presets');
+    if (presetBox) {
+      const pbtns = presetBox.querySelectorAll('button');
+      for (let pi = 0; pi < pbtns.length; pi++) {
+        pbtns[pi].addEventListener('click', function () {
+          applyScenePreset(this.getAttribute('data-preset'));
+        });
+      }
     }
     const optObjective = $('optObjective');
     if (optObjective) {
@@ -3445,6 +3476,8 @@
     togglePerfHud: togglePerfHud,
     perfHudTick: function (dt) { updatePerfHud(dt || 0.016); },
     catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },
+    preset: function (id) { return applyScenePreset(id); },
+    presetInfo: function () { return Array.prototype.slice.call(document.querySelectorAll('#presets button')).map(function (b) { return { id: b.getAttribute('data-preset'), on: b.classList.contains('on') }; }); },
     setFestival: function (on) { setFestival(on); return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     festivalInfo: function () { return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     objectiveInfo: function () { const tg = getObjectiveTarget(); const mk = $('objMarker'), ar = $('objArrow'); return { target: tg, markerShown: !!(mk && mk.classList.contains('show')), arrowShown: !!(ar && ar.classList.contains('show')), label: ($('objLabel') || {}).textContent, arrowTransform: ar ? ar.style.transform : null, enabled: settings.objective !== false }; },
