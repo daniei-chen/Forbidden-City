@@ -316,6 +316,15 @@ const tour = await evl(`(function(){
 })()`);
 check('灯会夜游导览五站', tour && tour.start === 0 && tour.got === 5 && tour.total === 5, JSON.stringify({ got: tour && tour.got, hint: tour && tour.hint }));
 
+/* 13f. 宫灯串：灯会 40 盏横跨御道的小灯 */
+const strings = await evl(`(function(){
+  var A = window.__app;
+  A.setFestival(true);
+  A.festivalStringsTick();
+  return A.festivalStringsInfo();
+})()`);
+check('灯会宫灯串', strings && strings.count === 40 && strings.anchors === 40 && strings.visible === true, JSON.stringify({ count: strings && strings.count, firstY: strings && strings.firstY }));
+
 /* 14. 设置与 HUD */
 const ui = await evl(`(function(){
   var A = window.__app;

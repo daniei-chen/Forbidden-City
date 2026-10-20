@@ -2884,8 +2884,59 @@
     }
     flags.instanceMatrix.needsUpdate = true;
     g.add(flags);
+
+    /* ---- 宫灯串：横跨御道的成排小灯 + 悬索 ---- */
+    const strSpans = [
+      { z: 380, x0: -7.6, x1: 7.6, y: 4.4, sag: 0.85 },
+      { z: 330, x0: -7.6, x1: 7.6, y: 4.4, sag: 0.8 },
+      { z: 280, x0: -7.6, x1: 7.6, y: 4.4, sag: 0.8 },
+      { z: -170, x0: -6.2, x1: 6.2, y: 4.2, sag: 0.7 },
+      { z: -220, x0: -6.2, x1: 6.2, y: 4.2, sag: 0.7 }
+    ];
+    const PER = 8;
+    const TOTAL_STR = strSpans.length * PER;
+    const strGeo = new THREE.SphereGeometry(0.14, 8, 6);
+    strGeo.scale(1, 1.15, 1);
+    const strMat = new THREE.MeshStandardMaterial({
+      color: 0xd23428, roughness: 0.5, emissive: 0xff4a2c, emissiveIntensity: 0.7
+    });
+    const lanternStrings = new THREE.InstancedMesh(strGeo, strMat, TOTAL_STR);
+    lanternStrings.castShadow = false;
+    const strAnchors = [];
+    let si = 0;
+    const ropePts = [];
+    for (let s2 = 0; s2 < strSpans.length; s2++) {
+      const sp = strSpans[s2];
+      for (let k = 0; k < PER; k++) {
+        const kk = (k + 1) / (PER + 1);
+        const lx = sp.x0 + (sp.x1 - sp.x0) * kk;
+        const ly = sp.y - sp.sag * 4 * kk * (1 - kk);
+        strAnchors.push({ x: lx, y: ly, z: sp.z, ph: Math.random() * 6.28 });
+        m4.makeTranslation(lx, ly, sp.z);
+        lanternStrings.setMatrixAt(si, m4);
+        si++;
+      }
+      /* 悬索折线（近似悬链线） */
+      const SEG = 12;
+      for (let k = 0; k < SEG; k++) {
+        const a = k / SEG, b = (k + 1) / SEG;
+        const ax = sp.x0 + (sp.x1 - sp.x0) * a;
+        const bx = sp.x0 + (sp.x1 - sp.x0) * b;
+        const ay = sp.y - sp.sag * 4 * a * (1 - a);
+        const by = sp.y - sp.sag * 4 * b * (1 - b);
+        ropePts.push(ax, ay, sp.z, bx, by, sp.z);
+      }
+    }
+    lanternStrings.instanceMatrix.needsUpdate = true;
+    g.add(lanternStrings);
+    const ropeGeo = new THREE.BufferGeometry();
+    ropeGeo.setAttribute('position', new THREE.Float32BufferAttribute(ropePts, 3));
+    const ropeMat = new THREE.LineBasicMaterial({ color: 0x6b4a2a, transparent: true, opacity: 0.7 });
+    const ropes = new THREE.LineSegments(ropeGeo, ropeMat);
+    g.add(ropes);
+
     g.visible = !!settings.festival;
-    festivalRefs = { bodies: bodies, caps: caps, flags: flags, spots: spots, m4: m4, q: new THREE.Quaternion(), e: new THREE.Euler(), s: new THREE.Vector3(1, 1, 1), v: new THREE.Vector3() };
+    festivalRefs = { bodies: bodies, caps: caps, flags: flags, spots: spots, m4: m4, q: new THREE.Quaternion(), e: new THREE.Euler(), s: new THREE.Vector3(1, 1, 1), v: new THREE.Vector3(), lanternStrings: lanternStrings, strAnchors: strAnchors };
     scene.add(g);
     festivalGroup = g;
   }
@@ -2920,6 +2971,21 @@
       r.flags.setMatrixAt(f, r.m4);
     }
     r.flags.instanceMatrix.needsUpdate = true;
+    /* 灯串轻晃 */
+    if (r.lanternStrings && r.strAnchors) {
+      const tmpQ = new THREE.Quaternion();
+      const tmpE = new THREE.Euler(0, 0, 0);
+      for (let q2 = 0; q2 < r.strAnchors.length; q2++) {
+        const an = r.strAnchors[q2];
+        const bob = Math.sin(tt * 1.6 + an.ph) * 0.06;
+        tmpE.set(Math.sin(tt * 1.2 + an.ph) * 0.12, 0, Math.cos(tt * 1.4 + an.ph) * 0.12);
+        tmpQ.setFromEuler(tmpE);
+        r.v.set(an.x, an.y + bob, an.z);
+        r.m4.compose(r.v, tmpQ, r.s);
+        r.lanternStrings.setMatrixAt(q2, r.m4);
+      }
+      r.lanternStrings.instanceMatrix.needsUpdate = true;
+    }
   }
   function setFestival(on, silent) {
     settings.festival = !!on;
@@ -4274,6 +4340,16 @@
     preset: function (id) { return applyScenePreset(id); },
     presetInfo: function () { return Array.prototype.slice.call(document.querySelectorAll('#presets button')).map(function (b) { return { id: b.getAttribute('data-preset'), on: b.classList.contains('on') }; }); },
     festivalSwayTick: function () { updateFestivalSway(); },
+    festivalStringsInfo: function () {
+      if (!festivalRefs || !festivalRefs.lanternStrings) return null;
+      return {
+        count: festivalRefs.lanternStrings.count,
+        anchors: festivalRefs.strAnchors.length,
+        visible: !!(festivalGroup && festivalGroup.visible),
+        firstY: Math.round(festivalRefs.strAnchors[0].y * 100) / 100
+      };
+    },
+    festivalStringsTick: function () { updateFestivalSway(); },
     festivalSwayInfo: function () {
       if (!festivalRefs) return null;
       const m = new THREE.Matrix4();
