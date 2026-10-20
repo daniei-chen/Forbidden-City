@@ -240,6 +240,37 @@ const AUDIO = {
     }
   },
 
+  /* 舞龙鼓：低频闷鼓两连击 */
+  dragonDrum: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    for (let i = 0; i < 2; i++) {
+      const s = t0 + i * 0.16;
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(120, s);
+      o.frequency.exponentialRampToValueAtTime(62, s + 0.18);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.06, s + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.3);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 0.32);
+      const n = c.createBufferSource();
+      const buf = c.createBuffer(1, Math.floor(c.sampleRate * 0.12), c.sampleRate);
+      const dd = buf.getChannelData(0);
+      for (let k = 0; k < dd.length; k++) dd[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / dd.length, 2);
+      n.buffer = buf;
+      const bp = c.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.9;
+      const g2 = c.createGain();
+      g2.gain.value = 0.025;
+      n.connect(bp); bp.connect(g2); g2.connect(this.master);
+      n.start(s);
+    }
+  },
+
   /* 烟花：低频爆响 + 噼啪碎响 */
   fireworkBoom: function () {
     if (!this.ready || this.muted) return;

@@ -3829,6 +3829,17 @@
     updatePerfHud(dt);
     updatePerfGovernor(dt);
     updateFestivalSway();
+    if (typeof NPC !== 'undefined' && NPC.dragon) {
+      const festD = !!(festivalGroup && festivalGroup.visible);
+      NPC.dragon.enabled = festD && (currentTheme === 'night' || currentTheme === 'dusk');
+      if (NPC.dragon.enabled) {
+        NPC.dragon.drumT = (NPC.dragon.drumT || 0) - dt;
+        if (NPC.dragon.drumT <= 0) {
+          NPC.dragon.drumT = 1.15 + Math.random() * 0.5;
+          if (AUDIO.dragonDrum) AUDIO.dragonDrum();
+        }
+      }
+    }
     if (typeof EFFECTS !== 'undefined') {
       const fest = !!(festivalGroup && festivalGroup.visible);
       EFFECTS.fireworksEnabled = fest && (currentTheme === 'night' || currentTheme === 'dusk');
@@ -4151,6 +4162,8 @@
     talkInfo: function () { return { asks: achievements.asks || 0, active: window.__npcTalk || null }; },
     nearestWalkNpc: function () { const wk = nearestWalkNpc(); return wk ? { kind: wk.kind, dist: Math.round(wk.dist * 10) / 10 } : null; },
     materialInfo: function () { return { goldEnv: MATS.gold ? Math.round(MATS.gold.envMapIntensity * 100) / 100 : -1, roofEnv: MATS.roof ? Math.round(MATS.roof.envMapIntensity * 100) / 100 : -1, roofRough: MATS.roof ? Math.round(MATS.roof.roughness * 100) / 100 : -1, waterEnv: MATS.water ? Math.round(MATS.water.envMapIntensity * 100) / 100 : -1 }; },
+    dragonInfo: function () { return (typeof NPC !== 'undefined' && NPC.dragonInfo) ? NPC.dragonInfo() : null; },
+    dragonSet: function (on) { if (typeof NPC !== 'undefined' && NPC.dragon) { NPC.dragon.enabled = !!on; if (!on) { NPC.dragon.active = false; NPC.dragon.group.visible = false; } } return this.dragonInfo(); },
     fireworkTest: function () { if (typeof EFFECTS !== 'undefined' && EFFECTS.launchFirework) { return EFFECTS.launchFirework(0, 30, 440); } return false; },
     fireworkInfo: function () { const n = (typeof EFFECTS !== 'undefined' && EFFECTS.fireworkData) ? EFFECTS.fireworkData.filter(function (d) { return d.life > 0; }).length : -1; return { spawns: (typeof EFFECTS !== 'undefined' && EFFECTS.fireworkSpawns) || 0, particles: n, enabled: (typeof EFFECTS !== 'undefined' && EFFECTS.fireworksEnabled) || false }; },
     lanternInfo: function () { return { released: achievements.lanterns || 0, floating: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternPool) ? EFFECTS.riverLanternPool.filter(function (l) { return l.life > 0; }).length : -1, spawns: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternSpawns) || 0 }; },

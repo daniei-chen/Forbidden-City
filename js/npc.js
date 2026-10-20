@@ -330,6 +330,7 @@ const NPC = {
       this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, breed: { name: r.name, trait: r.trait, area: r.area, fur: r.fur }, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0, chaseT: 0, chaseCd: 6 + Math.random() * 8, pounceT: 0, pounceCd: 10 + Math.random() * 18, pounced: false, pounceTx: 0, pounceTz: 0 });
     }
 
+    this.initDragon(g);
     this.flowerBeds = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396]];
     this.group = g;
     if (this._pendingSparrows) { this._pendingSparrows = false; this.initSparrows(); }
@@ -383,6 +384,148 @@ const NPC = {
   sparrows: null,
   sparrowData: null,
   sparrowTime: 0,
+  /* ---------------- 灯会舞龙 ---------------- */
+  initDragon: function (g) {
+    const gold = new THREE.MeshStandardMaterial({ color: 0xd8a74a, roughness: 0.35, metalness: 0.75 });
+    const red = new THREE.MeshStandardMaterial({ color: 0xb2362b, roughness: 0.62 });
+    const deep = new THREE.MeshStandardMaterial({ color: 0x5c1712, roughness: 0.7 });
+    const group = new THREE.Group();
+    const segs = [];
+    /* 龙珠（前导） */
+    const pearl = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), gold);
+    pearl.material = gold.clone();
+    pearl.material.emissive = new THREE.Color(0x6b4a12);
+    group.add(pearl);
+    segs.push({ mesh: pearl, r: 0.28, isHead: false });
+    /* 龙头 */
+    const headGroup = new THREE.Group();
+    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 10), red);
+    skull.scale.set(1.0, 0.85, 1.35);
+    headGroup.add(skull);
+    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.32, 0.5), red);
+    snout.position.set(0, -0.05, 0.72);
+    headGroup.add(snout);
+    for (const hx of [-0.28, 0.28]) {
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.5, 6), gold);
+      horn.position.set(hx, 0.5, -0.1);
+      horn.rotation.z = hx > 0 ? -0.5 : 0.5;
+      headGroup.add(horn);
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), gold);
+      eye.position.set(hx * 0.55, 0.12, 0.4);
+      headGroup.add(eye);
+    }
+    const mane = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.9, 7), gold);
+    mane.position.set(0, 0.55, -0.5);
+    mane.rotation.x = -1.1;
+    headGroup.add(mane);
+    group.add(headGroup);
+    segs.push({ mesh: headGroup, r: 0.55, isHead: true });
+    /* 身体节段 */
+    for (let i = 1; i <= 9; i++) {
+      const rad = 0.46 - i * 0.025;
+      const seg = new THREE.Mesh(new THREE.SphereGeometry(rad, 9, 7), red);
+      const belt = new THREE.Mesh(new THREE.TorusGeometry(rad * 0.96, 0.045, 5, 12), gold);
+      belt.rotation.x = Math.PI / 2;
+      seg.add(belt);
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 5), gold);
+      spike.position.set(0, rad * 0.95, 0);
+      seg.add(spike);
+      group.add(seg);
+      segs.push({ mesh: seg, r: rad, isHead: false });
+    }
+    /* 尾鳍 */
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.1, 6), gold);
+    tail.rotation.x = Math.PI / 2;
+    group.add(tail);
+    segs.push({ mesh: tail, r: 0.3, isHead: false });
+    /* 四根抬杆 */
+    const poles = [];
+    for (let i = 0; i < 4; i++) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.5, 5), deep);
+      pole.position.y = -0.75;
+      group.add(pole);
+      poles.push({ mesh: pole, idx: 2 + i * 2 });
+    }
+    group.visible = false;
+    g.add(group);
+    const pts = [[-62, 246], [62, 246], [62, 330], [-62, 330]];
+    let len = 0;
+    for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    this.dragon = {
+      group: group, segs: segs, poles: poles, pts: pts, len: len,
+      t: 0, active: false, enabled: false, hist: [], drumT: 0, passes: 0
+    };
+    /* 预填充历史，避免开场聚成一团 */
+    for (let i = 0; i < 140; i++) this.dragon.hist.push({ x: -62, z: 246, yaw: 0 });
+  },
+  updateDragon: function (dt) {
+    const D = this.dragon;
+    if (!D) return;
+    const on = !!D.enabled;
+    if (!on) {
+      D.active = false;
+      D.group.visible = false;
+      return;
+    }
+    D.active = true;
+    D.group.visible = true;
+    D.t += 2.8 * dt;
+    if (D.t > D.len) { D.t -= D.len; D.passes = (D.passes || 0) + 1; }
+    /* 折线取点 */
+    let d = D.t, x = 0, z = 0, yaw = 0;
+    for (let i = 1; i < D.pts.length; i++) {
+      const ax = D.pts[i - 1][0], az = D.pts[i - 1][1];
+      const bx = D.pts[i][0], bz = D.pts[i][1];
+      const segLen = Math.hypot(bx - ax, bz - az);
+      if (d <= segLen) {
+        const k = segLen > 0 ? d / segLen : 0;
+        x = ax + (bx - ax) * k;
+        z = az + (bz - az) * k;
+        yaw = Math.atan2(bx - ax, bz - az);
+        break;
+      }
+      d -= segLen;
+      if (i === D.pts.length - 1) { x = bx; z = bz; yaw = Math.atan2(bx - ax, bz - az); }
+    }
+    D.hist.push({ x: x, z: z, yaw: yaw });
+    if (D.hist.length > 160) D.hist.shift();
+    const hist = D.hist;
+    for (let i = 0; i < D.segs.length; i++) {
+      const idx = Math.max(0, hist.length - 1 - i * 5);
+      const h = hist[idx];
+      const seg = D.segs[i];
+      const bob = Math.sin(this.time * 4.2 + i * 0.55) * 0.05;
+      const wig = Math.sin(this.time * 3.1 - i * 0.7) * 0.12;
+      const nx = Math.cos(h.yaw), nz = -Math.sin(h.yaw);
+      const px = h.x + nx * wig;
+      const pz = h.z + nz * wig;
+      const py = 1.15 + bob + (seg.isHead ? 0.1 : 0);
+      seg.mesh.position.set(px, py, pz);
+      seg.mesh.rotation.y = h.yaw;
+      if (seg.isHead) {
+        seg.mesh.rotation.x = Math.sin(this.time * 3.4) * 0.06;
+        seg.mesh.rotation.z = Math.sin(this.time * 2.2) * 0.1;
+      }
+    }
+    /* 抬杆跟着身体 */
+    for (let i = 0; i < D.poles.length; i++) {
+      const idx = Math.max(0, hist.length - 1 - D.poles[i].idx * 5);
+      const h = hist[idx];
+      D.poles[i].mesh.position.set(h.x, 0.75, h.z);
+      D.poles[i].mesh.rotation.y = h.yaw;
+    }
+  },
+  dragonInfo: function () {
+    const D = this.dragon;
+    if (!D) return null;
+    const head = D.segs[1] ? D.segs[1].mesh.position : null;
+    return {
+      active: D.active, visible: D.group.visible, enabled: D.enabled,
+      t: Math.round(D.t * 10) / 10, passes: D.passes || 0,
+      head: head ? [Math.round(head.x), Math.round(head.z)] : null
+    };
+  },
+
   initSparrows: function () {
     const body = new THREE.SphereGeometry(0.11, 7, 6);
     body.scale(1, 0.85, 1.35);
@@ -678,6 +821,7 @@ const NPC = {
     this.updateSparrows(dt);
     this.time += dt;
     this.updateCeremony(dt);
+    this.updateDragon(dt);
     /* 雨伞随雨量显隐 */
     if (this.umbrellas && this.umbrellas.length) {
       const rainAmt = (typeof EFFECTS !== 'undefined') ? (EFFECTS.rainAmt || 0) : 0;
