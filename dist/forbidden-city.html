@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 7.21.0.20261020.1212">
-<meta name="build-time" content="2026-10-20T12:12:23.619Z">
+<meta name="generator" content="forbidden-city-build 7.22.0.20261020.1232">
+<meta name="build-time" content="2026-10-20T12:32:45.324Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-20T12:12:23.619Z
-  version: 7.21.0.20261020.1212
+  build: 2026-10-20T12:32:45.324Z
+  version: 7.22.0.20261020.1232
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -478,8 +478,7 @@
     .walkgame{right:12px;top:auto;bottom:96px;width:160px;padding:10px 12px}
   }
   /* 窄屏（手机）：HUD 分区，避免与摇杆/按钮重叠 */
-  @media (max-width:520px){
-    .walkgame{
+  @media (max-width:520px){    .walkgame{
       left:10px;right:10px;width:auto;top:auto;
       bottom:calc(env(safe-area-inset-bottom, 0px) + 268px);
       padding:8px 10px 7px;
@@ -507,6 +506,24 @@
   }
   @media (max-width:900px){
     .walkhint{font-size:10.5px;padding:8px 12px;letter-spacing:.5px;bottom:14px;white-space:normal;text-align:center;max-width:92vw}
+  }
+  /* 手机横屏：压缩顶部与 HUD，探索面板移到左上，避开右下触控区 */
+  @media (max-height:480px) and (orientation:landscape){
+    .top{padding:4px 8px 0}
+    .top .brand .en{display:none}
+    .top .brand .seal{width:24px;height:24px;font-size:14px;line-height:24px}
+    .top .brand .cn{font-size:15px;letter-spacing:2px}
+    .top .actions{gap:3px}
+    .top .themes button,.top .actions .btn{font-size:9px;padding:2px 5px;letter-spacing:.3px}
+    .walkgame{
+      left:10px;right:auto;top:64px;bottom:auto;
+      width:190px;padding:7px 9px 6px;
+    }
+    .walkgame .wg-quests{display:none}
+    .walkgame .wg-hint{font-size:9.5px;letter-spacing:.2px;white-space:normal}
+    .walkhint,.hint,.views,.panel{display:none !important}
+    .tutorial{display:none !important}
+    .touchui .ttip{display:none}
   }
 
   /* ---------------- 沉浸（纪录）模式 ---------------- */
@@ -802,7 +819,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '7.21.0',
+  version: '7.22.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -16080,6 +16097,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"7.21.0.20261020.1212","time":"2026-10-20T12:12:23.619Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"7.22.0.20261020.1232","time":"2026-10-20T12:32:45.324Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

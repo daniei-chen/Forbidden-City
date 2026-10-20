@@ -117,6 +117,8 @@ if (ready) {
   fs.writeFileSync(path.join(outDir, 'portrait.jpg'), Buffer.from(shotP.data, 'base64'));
   await send('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 2, mobile: true, screenOrientation: { type: 'landscapePrimary', angle: 90 } });
   await sleep(900);
+  const landLayout = await evl('(function(){ var wg=document.getElementById("walkgame"); var wr=wg?wg.getBoundingClientRect():null; var els=[document.getElementById("stick")].concat(Array.prototype.slice.call(document.querySelectorAll("#touchui .tbtn"))); var overlaps=[]; if (wr) { for (var i=0;i<els.length;i++){ var e=els[i]; if(!e) continue; var r=e.getBoundingClientRect(); var ox=Math.max(0, Math.min(wr.right,r.right)-Math.max(wr.left,r.left)); var oy=Math.max(0, Math.min(wr.bottom,r.bottom)-Math.max(wr.top,r.top)); if (ox>2 && oy>2) overlaps.push({ id: e.id, ox: Math.round(ox), oy: Math.round(oy) }); } } var topH = document.querySelector("header.top") ? Math.round(document.querySelector("header.top").getBoundingClientRect().height) : 0; return { overlaps: overlaps, walkgame: wr?{ top: Math.round(wr.top), bottom: Math.round(wr.bottom), left: Math.round(wr.left), right: Math.round(wr.right) }:null, headerH: topH }; })()');
+  check('横屏布局不重叠', landLayout && landLayout.walkgame && landLayout.overlaps.length === 0 && landLayout.headerH < 70, JSON.stringify(landLayout));
   const shotL = await send('Page.captureScreenshot', { format: 'jpeg', quality: 85, fromSurface: true });
   fs.writeFileSync(path.join(outDir, 'landscape.jpg'), Buffer.from(shotL.data, 'base64'));
   const pSize = fs.statSync(path.join(outDir, 'portrait.jpg')).size;
