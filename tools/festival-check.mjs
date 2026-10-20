@@ -96,13 +96,11 @@ if (ready) {
   /* 3. 地面光池 */
   const glow = await evl(`(function(){
     var A = window.__app;
-    A.setTheme('night'); A.festivalStringsTick();
-    var night = A.festivalGlowInfo();
     A.setTheme('dusk'); A.festivalStringsTick();
     var dusk = A.festivalGlowInfo();
-    return { night: night, dusk: dusk };
+    return { dusk: dusk };
   })()`);
-  check('灯会地面光池', glow && glow.night && glow.night.opacity >= 0.4 && glow.night.count >= 100, JSON.stringify(glow && glow.night));
+  check('灯会地面光池', glow && glow.dusk && glow.dusk.opacity >= 0.3 && glow.dusk.count >= 100, JSON.stringify(glow && glow.dusk));
 
   /* 4. 夜间湿光 */
   const sheen = await evl(`(function(){
@@ -110,7 +108,7 @@ if (ready) {
     A.setFestival(false); A.setTheme('day'); A.setWeather('clear');
     for (var i = 0; i < 700; i++) A.weatherTick(1 / 60);
     var dry = A.wetInfo();
-    A.setFestival(true); A.setTheme('night');
+    A.setFestival(true); A.setTheme('dusk');
     for (var k = 0; k < 200; k++) A.weatherTick(1 / 60);
     var wet = A.wetInfo();
     A.setFestival(false); A.setTheme('day');

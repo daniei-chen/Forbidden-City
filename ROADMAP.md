@@ -183,3 +183,4 @@ pm run smoke` → ④ 多机位截图 → ⑤ 更新文档/版本 → ⑥ 记录
 | R123 | 手机横屏适配（压缩顶栏/面板左上）| mobile-check 10 项 + 冒烟 + harness |
 | R124 | 桌面 HUD 视觉巡检（9 项 + 截图）| hud-check + 冒烟 + harness |
 | R125 | 灯会夜间地面湿光（sheen 0.3）| 联动 18 + 灯会 6 + NPC 5 + 冒烟 + harness |
+| R126 | NPC 猜谜围观（托腮/冷却）| NPC 6 项 + 冒烟 + harness |

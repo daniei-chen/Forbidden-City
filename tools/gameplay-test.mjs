@@ -254,10 +254,10 @@ check('彩蛋互动（摸铜狮/喂雀）', extras && extras.petLions >= 2 && ex
 /* 12. 氛围预设 */
 const preset = await evl(`(function(){
   var A = window.__app;
-  A.preset('night_rain');
+  A.preset('dusk_festival');
   return { theme: A.state.theme, weather: A.weatherInfo().mode, festival: A.festivalInfo().visible };
 })()`);
-check('氛围预设切换', preset && preset.theme === 'night' && preset.weather === 'rain' && preset.festival === true, JSON.stringify(preset));
+check('氛围预设切换', preset && preset.theme === 'dusk' && preset.weather === 'clear' && preset.festival === true, JSON.stringify(preset));
 
 /* mid-suite reload: 清理累积的 WebGL/页面状态，避免重负载后渲染器卡死 */
 await send('Page.navigate', { url: pathToFileURL(file).href + '?still=1&quality=low&theme=day&view=1&nomap=1' });

@@ -125,6 +125,22 @@ if (ready) {
     return { info: info, spawned: (EFFECTS.riverLanternSpawns || 0) - s0 };
   })()`);
   check('放河灯宫女', maid && maid.info && maid.info.released >= 1 && maid.spawned >= 1, JSON.stringify({ released: maid && maid.info && maid.info.released, spawned: maid && maid.spawned }));
+
+  /* 5. 猜谜围观 */
+  const riddleWatch = await evl(`(function(){
+    var A = window.__app, N = window.__NPC;
+    A.lanternNpcSet(true);
+    var p = N.patrols[3];
+    p.t = 70; p.riddleCd = 0; p.lampCd = 0; p.watchT = 0; p.lampT = 0;
+    N.update(1 / 60); N.update(1 / 60); N.update(1 / 60);
+    var st = N.riddleWatchInfo();
+    var armR = p.obj.parts.armR.rotation.x;
+    A.lanternNpcSet(false);
+    for (var k = 0; k < N.patrols.length; k++) N.patrols[k].riddleT = 0;
+    for (var m = 0; m < N.maids.length; m++) N.maids[m].riddleT = 0;
+    return { active: st.active, events: st.events, armR: Math.round(armR * 100) / 100 };
+  })()`);
+  check('NPC 猜谜围观', riddleWatch && riddleWatch.events >= 1 && riddleWatch.active >= 1 && riddleWatch.armR < -1.5, JSON.stringify(riddleWatch));
 }
 
 const pass = results.filter(r => r.ok).length;

@@ -273,7 +273,7 @@ const NPC = {
       maid.group.add(umb2);
       let len2 = 0;
       for (let i = 1; i < r.pts.length; i++) len2 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.maids.push({ obj: maid, watchT: 0, watchCd: 0, lampT: 0, lampCd: 0, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0, greetT: 0, greetCd: 0, greetWith: null, admireT: 0, admireCd: 18 + Math.random() * 25, petalT: 0 });
+      this.maids.push({ obj: maid, watchT: 0, watchCd: 0, lampT: 0, lampCd: 0, riddleT: 0, riddleCd: 0, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0, greetT: 0, greetCd: 0, greetWith: null, admireT: 0, admireCd: 18 + Math.random() * 25, petalT: 0 });
     }
 
     /* 御猫三只 */
@@ -388,7 +388,14 @@ const NPC = {
   sparrowTime: 0,
   /* ---------------- 灯会观灯 ---------------- */
   lanternFest: false,
-  lanternAnchors: [[0, 250], [0, 300], [0, -146], [0, -196], [0, -320], [44, -312], [-44, -314]],
+  lanternAnchors: [[0, 300], [0, -146], [0, -196], [0, -320], [44, -312], [-44, -314]],
+  riddleSpots: [[0, 250], [30, 296], [-44, -300]],
+  riddleWatchInfo: function () {
+    let active = 0;
+    for (let i = 0; i < (this.patrols || []).length; i++) if (this.patrols[i].riddleT > 0) active++;
+    for (let j = 0; j < (this.maids || []).length; j++) if (this.maids[j].riddleT > 0) active++;
+    return { active: active, events: this.riddleEvents || 0 };
+  },
   lanternInfo: function () {
     let active = 0;
     for (let i = 0; i < (this.patrols || []).length; i++) if (this.patrols[i].lampT > 0) active++;
@@ -1107,6 +1114,47 @@ const NPC = {
         }
       }
 
+      /* 猜谜围观：灯谜摊前驻足琢磨 */
+      if (mw.riddleT > 0) {
+        mw.riddleT -= dt;
+        const curR2 = this.pathPos(mw.pts, mw.t);
+        mw.obj.group.position.set(curR2.x, 0, curR2.z);
+        let bdm = 1e9, bxm = 0, bzm = 0;
+        for (let rk = 0; rk < this.riddleSpots.length; rk++) {
+          const rp3 = this.riddleSpots[rk];
+          const ddm = Math.hypot(rp3[0] - curR2.x, rp3[1] - curR2.z);
+          if (ddm < bdm) { bdm = ddm; bxm = rp3[0]; bzm = rp3[1]; }
+        }
+        const tym = Math.atan2(bxm - curR2.x, bzm - curR2.z);
+        let dym = tym - mw.obj.group.rotation.y;
+        dym = Math.atan2(Math.sin(dym), Math.cos(dym));
+        mw.obj.group.rotation.y += dym * Math.min(1, dt * 4);
+        mw.legPhase += dt * 0.9;
+        const sm2 = Math.sin(mw.legPhase) * 0.02;
+        mw.obj.parts.legL.rotation.x = sm2;
+        mw.obj.parts.legR.rotation.x = -sm2;
+        mw.obj.parts.armR.rotation.x = -1.9 + Math.sin(this.time * 1.3) * 0.08;
+        mw.obj.parts.armL.rotation.x = 0.22;
+        mw.obj.parts.body.rotation.z = Math.sin(this.time * 1.1) * 0.03;
+        mw.obj.parts.body.position.y = 0.52 + Math.sin(this.time * 1.5) * 0.004;
+        if (mw.riddleT <= 0) { mw.riddleCd = 12 + Math.random() * 8; mw.obj.parts.body.rotation.z = 0; mw.obj.parts.armR.rotation.x = 0; }
+        continue;
+      }
+      if (mw.riddleCd > 0) mw.riddleCd -= dt;
+      if (this.lanternFest && !(mw.riddleCd > 0)) {
+        let bdM2 = 1e9;
+        for (let rm = 0; rm < this.riddleSpots.length; rm++) {
+          const rp4 = this.riddleSpots[rm];
+          const dd4 = Math.hypot(rp4[0] - cur0.x, rp4[1] - cur0.z);
+          if (dd4 < bdM2) bdM2 = dd4;
+        }
+        if (bdM2 < 8) {
+          mw.riddleT = 3.2;
+          mw.riddleCd = 14;
+          this.riddleEvents = (this.riddleEvents || 0) + 1;
+        }
+      }
+
       let dist = 1e9;
       if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
       if (dist < 6.0) mw.alert = Math.min(1, mw.alert + dt * 4.5);
@@ -1484,6 +1532,48 @@ const NPC = {
           p.lampT = 2.6;
           p.lampCd = 14;
           this.lampEvents = (this.lampEvents || 0) + 1;
+        }
+      }
+
+      /* 猜谜围观：灯谜摊前驻足琢磨 */
+      if (p.riddleT > 0) {
+        p.riddleT -= dt;
+        const curR = this.pathPos(p.pts, p.t);
+        p.obj.group.position.set(curR.x, 0, curR.z);
+        let bdr = 1e9, bxr = 0, bzr = 0;
+        for (let ri = 0; ri < this.riddleSpots.length; ri++) {
+          const rp = this.riddleSpots[ri];
+          const dd = Math.hypot(rp[0] - curR.x, rp[1] - curR.z);
+          if (dd < bdr) { bdr = dd; bxr = rp[0]; bzr = rp[1]; }
+        }
+        const tyr = Math.atan2(bxr - curR.x, bzr - curR.z);
+        let dyr = tyr - p.obj.group.rotation.y;
+        dyr = Math.atan2(Math.sin(dyr), Math.cos(dyr));
+        p.obj.group.rotation.y += dyr * Math.min(1, dt * 4);
+        p.legPhase += dt * 0.9;
+        const sr = Math.sin(p.legPhase) * 0.02;
+        p.obj.parts.legL.rotation.x = sr;
+        p.obj.parts.legR.rotation.x = -sr;
+        /* 一手托腮思考 */
+        p.obj.parts.armR.rotation.x = -1.95 + Math.sin(this.time * 1.3) * 0.08;
+        p.obj.parts.armL.rotation.x = 0.25;
+        p.obj.parts.body.rotation.z = Math.sin(this.time * 1.1) * 0.03;
+        p.obj.parts.body.position.y = 0.52 + Math.sin(this.time * 1.5) * 0.004;
+        if (p.riddleT <= 0) { p.riddleCd = 12 + Math.random() * 8; p.obj.parts.body.rotation.z = 0; p.obj.parts.armR.rotation.x = 0; }
+        continue;
+      }
+      if (p.riddleCd > 0) p.riddleCd -= dt;
+      if (this.lanternFest && !(p.riddleCd > 0)) {
+        let bdR2 = 1e9;
+        for (let rj = 0; rj < this.riddleSpots.length; rj++) {
+          const rp2 = this.riddleSpots[rj];
+          const dd2 = Math.hypot(rp2[0] - cur0.x, rp2[1] - cur0.z);
+          if (dd2 < bdR2) bdR2 = dd2;
+        }
+        if (bdR2 < 8) {
+          p.riddleT = 3.2;
+          p.riddleCd = 14;
+          this.riddleEvents = (this.riddleEvents || 0) + 1;
         }
       }
 
