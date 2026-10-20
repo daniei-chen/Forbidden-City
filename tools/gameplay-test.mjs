@@ -325,6 +325,20 @@ const strings = await evl(`(function(){
 })()`);
 check('灯会宫灯串', strings && strings.count === 40 && strings.anchors === 40 && strings.visible === true, JSON.stringify({ count: strings && strings.count, firstY: strings && strings.firstY }));
 
+/* 13g. 灯会地面光池：夜里亮、白天极弱 */
+const glow = await evl(`(function(){
+  var A = window.__app;
+  A.setFestival(true);
+  A.setTheme('night');
+  A.festivalStringsTick();
+  var night = A.festivalGlowInfo();
+  A.setTheme('day');
+  A.festivalStringsTick();
+  var day = A.festivalGlowInfo();
+  return { night: night, day: day };
+})()`);
+check('灯会地面光池', glow && glow.night && glow.night.opacity >= 0.4 && glow.night.count >= 100 && glow.day && glow.day.opacity < 0.1, JSON.stringify({ night: glow && glow.night, day: glow && glow.day }));
+
 /* 14. 设置与 HUD */
 const ui = await evl(`(function(){
   var A = window.__app;

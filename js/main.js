@@ -2823,6 +2823,8 @@
    * ======================================================= */
   let festivalGroup = null;
   let festivalRefs = null;
+  let festivalGlowMat = null;
+  let festivalGlowMesh = null;
   let festivalCount = 0;
   function buildFestival() {
     if (festivalGroup) return;
@@ -2935,6 +2937,43 @@
     const ropes = new THREE.LineSegments(ropeGeo, ropeMat);
     g.add(ropes);
 
+    /* ---- 地面光池：灯会夜里灯笼在地面投下暖光 ---- */
+    const glowCv = document.createElement('canvas');
+    glowCv.width = glowCv.height = 64;
+    const gctx = glowCv.getContext('2d');
+    const grd2 = gctx.createRadialGradient(32, 32, 2, 32, 32, 31);
+    grd2.addColorStop(0, 'rgba(255,196,120,0.95)');
+    grd2.addColorStop(0.45, 'rgba(255,150,70,0.35)');
+    grd2.addColorStop(1, 'rgba(255,120,40,0)');
+    gctx.fillStyle = grd2;
+    gctx.fillRect(0, 0, 64, 64);
+    const glowTex = new THREE.CanvasTexture(glowCv);
+    glowTex.needsUpdate = true;
+    const glowGeo = new THREE.PlaneGeometry(1, 1);
+    glowGeo.rotateX(-Math.PI / 2);
+    const glowMat = new THREE.MeshBasicMaterial({
+      map: glowTex, transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    const glowCount = spots.length + strAnchors.length;
+    const glowPools = new THREE.InstancedMesh(glowGeo, glowMat, glowCount);
+    glowPools.renderOrder = 2;
+    let gi = 0;
+    for (let s3 = 0; s3 < spots.length; s3++) {
+      m4.makeScale(3.2, 1, 3.2);
+      m4.setPosition(spots[s3][0], 0.065, spots[s3][1]);
+      glowPools.setMatrixAt(gi++, m4);
+    }
+    for (let s4 = 0; s4 < strAnchors.length; s4++) {
+      m4.makeScale(2.4, 1, 2.4);
+      m4.setPosition(strAnchors[s4].x, 0.065, strAnchors[s4].z);
+      glowPools.setMatrixAt(gi++, m4);
+    }
+    glowPools.instanceMatrix.needsUpdate = true;
+    g.add(glowPools);
+    festivalGlowMat = glowMat;
+    festivalGlowMesh = glowPools;
+
     g.visible = !!settings.festival;
     festivalRefs = { bodies: bodies, caps: caps, flags: flags, spots: spots, m4: m4, q: new THREE.Quaternion(), e: new THREE.Euler(), s: new THREE.Vector3(1, 1, 1), v: new THREE.Vector3(), lanternStrings: lanternStrings, strAnchors: strAnchors };
     scene.add(g);
@@ -2971,6 +3010,11 @@
       r.flags.setMatrixAt(f, r.m4);
     }
     r.flags.instanceMatrix.needsUpdate = true;
+    if (festivalGlowMat) {
+      const lvl = (currentTheme === 'night') ? 0.52 : (currentTheme === 'dusk' ? 0.34 : 0.05);
+      festivalGlowMat.opacity = lvl;
+      if (festivalGlowMesh) festivalGlowMesh.visible = lvl > 0.01;
+    }
     /* 灯串轻晃 */
     if (r.lanternStrings && r.strAnchors) {
       const tmpQ = new THREE.Quaternion();
@@ -4350,6 +4394,7 @@
       };
     },
     festivalStringsTick: function () { updateFestivalSway(); },
+    festivalGlowInfo: function () { return festivalGlowMat ? { opacity: Math.round(festivalGlowMat.opacity * 100) / 100, count: festivalGlowMesh ? festivalGlowMesh.count : 0, visible: !!(festivalGlowMesh && festivalGlowMesh.visible) } : null; },
     festivalSwayInfo: function () {
       if (!festivalRefs) return null;
       const m = new THREE.Matrix4();
