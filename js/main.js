@@ -973,6 +973,55 @@
     if (a > Math.PI * 0.125) return rel > 0 ? '↖' : '↗';
     return '↑';
   }
+  /* =========================================================
+   *  灯会夜游导览（灯会期间按站点夜游）
+   * ======================================================= */
+  const FESTIVAL_TOUR = [
+    { x: 0, z: 430, r: 14, name: '午门锣鼓队' },
+    { x: 30, z: 296, r: 12, name: '广场灯谜' },
+    { x: 0, z: 320, r: 18, name: '舞龙巡游道' },
+    { x: 30, z: 370, r: 10, name: '金水河河灯' },
+    { x: -44, z: -300, r: 12, name: '御花园灯谜' }
+  ];
+  function festivalTourActive() {
+    return !!(festivalGroup && festivalGroup.visible) && (currentTheme === 'night' || currentTheme === 'dusk') && WALK.active;
+  }
+  function festivalTourVisited() {
+    if (!Array.isArray(achievements.festivalTour)) achievements.festivalTour = [];
+    return achievements.festivalTour;
+  }
+  function festivalTourNext() {
+    const vis = festivalTourVisited();
+    for (let i = 0; i < FESTIVAL_TOUR.length; i++) if (vis.indexOf(i) < 0) return { idx: i, stop: FESTIVAL_TOUR[i] };
+    return null;
+  }
+  function updateFestivalTour() {
+    if (!festivalTourActive()) return;
+    const vis = festivalTourVisited();
+    for (let i = 0; i < FESTIVAL_TOUR.length; i++) {
+      if (vis.indexOf(i) >= 0) continue;
+      const s = FESTIVAL_TOUR[i];
+      if (Math.hypot(WALK.pos.x - s.x, WALK.pos.z - s.z) < s.r) {
+        vis.push(i);
+        achievementsSave();
+        showToast('灯会导览 · 抵达「' + s.name + '」（' + vis.length + '/' + FESTIVAL_TOUR.length + '）', 3400);
+        if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+        if (vis.length >= FESTIVAL_TOUR.length) {
+          setTimeout(function () { showToast('称号达成 · 灯会常客（夜游灯会五站全至）', 5000); }, 3200);
+        }
+      }
+    }
+  }
+  function festivalTourInfo() {
+    const vis = festivalTourVisited();
+    const nx = festivalTourNext();
+    return {
+      total: FESTIVAL_TOUR.length, got: vis.length, active: festivalTourActive(),
+      next: nx ? { idx: nx.idx, name: nx.stop.name, x: nx.stop.x, z: nx.stop.z } : null,
+      visited: vis.slice()
+    };
+  }
+
   function refreshWalkGame() {
     const n = discCount();
     const c = $('wgCount'); if (c) c.textContent = String(n);
@@ -981,6 +1030,21 @@
   }
   function updateWalkGameHint() {
     const hint = $('wgHint');
+    if (festivalTourActive() && hint) {
+      const ti = festivalTourInfo();
+      const nx2 = ti.next;
+      if (nx2) {
+        const d2 = Math.round(Math.hypot(nx2.x - WALK.pos.x, nx2.z - WALK.pos.z));
+        const dx2 = nx2.x - WALK.pos.x, dz2 = nx2.z - WALK.pos.z;
+        const ang2 = Math.atan2(dx2, -dz2) * 180 / Math.PI;
+        const arrows2 = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
+        const ai2 = ((Math.round(ang2 / 45) % 8) + 8) % 8;
+        hint.textContent = '灯会导览 ' + ti.got + '/' + ti.total + ' · 下一站 ' + nx2.name + ' ' + arrows2[ai2] + ' ' + d2 + ' m';
+        return;
+      }
+      hint.textContent = '灯会导览已完成 · 尽情夜游吧';
+      return;
+    }
     if (!hint) return;
     const n = discCount();
     if (n >= DISCOVERIES.length) { hint.innerHTML = '全部 ' + DISCOVERIES.length + ' 处已发现 · <b>宫城探索完成</b>'; return; }
@@ -994,6 +1058,7 @@
     if (best) hint.innerHTML = '下一处 <b>' + best.name + '</b> ' + bearingArrow(best, WALK.yaw) + ' ' + Math.round(bestD) + ' m · 已发现 ' + n + '/' + DISCOVERIES.length;
   }
   function updateWalkGame() {
+    updateFestivalTour();
     if (!WALK.active) return;
     for (let i = 0; i < DISCOVERIES.length; i++) {
       if (discSet[i]) continue;
@@ -1121,6 +1186,7 @@
       achievements.lanterns = savedA.lanterns || 0;
       achievements.asks = savedA.asks || 0;
       achievements.catCodex = Array.isArray(savedA.catCodex) ? savedA.catCodex : [];
+      achievements.festivalTour = Array.isArray(savedA.festivalTour) ? savedA.festivalTour : [];
       achievements.feedBirds = savedA.feedBirds || 0;
     }
   } catch (e) {}
@@ -1927,6 +1993,7 @@
       { name: '河灯祈愿', ok: (achievements.lanterns || 0) >= 3 },
       { name: '宫中熟人', ok: (achievements.asks || 0) >= 5 },
       { name: '猫谱大家', ok: (achievements.catCodex || []).length >= 7 },
+      { name: '灯会常客', ok: (achievements.festivalTour || []).length >= 5 },
       { name: '雀跃', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', ok: (achievements.incense || 0) >= 3 },
@@ -1979,6 +2046,7 @@
       { name: '河灯祈愿', cat: '趣味', ok: (achievements.lanterns || 0) >= 3 },
       { name: '宫中熟人', cat: '探索', ok: (achievements.asks || 0) >= 5 },
       { name: '猫谱大家', cat: '趣味', ok: (achievements.catCodex || []).length >= 7 },
+      { name: '灯会常客', cat: '探索', ok: (achievements.festivalTour || []).length >= 5 },
       { name: '雀跃', cat: '趣味', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', cat: '趣味', ok: (achievements.incense || 0) >= 3 },
@@ -4253,6 +4321,9 @@
     questsInfo: function () { return QUESTS.map(function (q) { return { id: q.id, name: q.name, progress: q.progress, total: q.steps.length, done: q.done, title: q.title }; }); },
     questTick: updateQuests,
     walkGameTick: updateWalkGame,
+    festivalTourInfo: festivalTourInfo,
+    festivalTourTick: updateFestivalTour,
+    resetFestivalTour: function () { achievements.festivalTour = []; achievementsSave(); return festivalTourInfo(); },
     promptTick: updateInteractPrompt,
     questsReset: questsReset,
         stopWalk: function () { toggleWalk(false); }

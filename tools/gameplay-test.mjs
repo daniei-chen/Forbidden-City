@@ -298,6 +298,24 @@ const band = await evl(`(function(){
 })()`);
 check('灯会锣鼓队节拍', band && band.on && band.on.beats >= 20 && band.off && band.off.visible === false, JSON.stringify({ beats: band && band.on && band.on.beats }));
 
+/* 13e. 灯会夜游导览：五站全至 */
+const tour = await evl(`(function(){
+  var A = window.__app, W = window.WALK;
+  A.resetFestivalTour();
+  A.setFestival(true);
+  A.setTheme('night');
+  var st = A.festivalTourInfo();
+  var stops = [[0,430],[30,296],[0,320],[30,370],[-44,-300]];
+  for (var i = 0; i < stops.length; i++) {
+    W.pos.set(stops[i][0], 0, stops[i][1]); W.pos.y = W.groundAt(W.pos.x, W.pos.z);
+    A.festivalTourTick();
+  }
+  A.walkGameTick();
+  var en = A.festivalTourInfo();
+  return { start: st.got, got: en.got, total: en.total, hint: document.getElementById('wgHint').textContent };
+})()`);
+check('灯会夜游导览五站', tour && tour.start === 0 && tour.got === 5 && tour.total === 5, JSON.stringify({ got: tour && tour.got, hint: tour && tour.hint }));
+
 /* 14. 设置与 HUD */
 const ui = await evl(`(function(){
   var A = window.__app;
