@@ -1,6 +1,6 @@
 # 游戏化联动自动测试报告
 
-> 由 `tools/gameplay-test.mjs` 生成 · 2026-10-20T06:26:50.803Z
+> 由 `tools/gameplay-test.mjs` 生成 · 2026-10-20T06:59:57.116Z
 
 结果：**17 / 17 通过**
 
@@ -13,7 +13,7 @@
 | 5 | 中轴巡礼任务可完成 | ✅ 通过 | {"id":"axis","name":"中轴巡礼","progress":8,"total":8,"done":true,"title":"中轴行者"} |
 | 6 | 图鉴可收录 | ✅ 通过 | {"got":3,"total":16} |
 | 7 | 御猫图鉴可收集 | ✅ 通过 | {"got":7,"total":7} |
-| 8 | 成就解锁记录 | ✅ 通过 | {"n":7,"last":{"name":"流连忘返","t":1792477468823}} |
+| 8 | 成就解锁记录 | ✅ 通过 | {"n":7,"last":{"name":"流连忘返","t":1792479385855}} |
 | 9 | 拍照/相册/灯箱 | ✅ 通过 | {"total":1,"lbShown":true,"lbActive":true} |
 | 10 | 投壶小游戏可玩 | ✅ 通过 | {"started":true,"score":4} |
 | 11 | 宫灯谜题可作答 | ✅ 通过 | {"opened":true,"ok":true} |
@@ -21,5 +21,5 @@
 | 13 | 彩蛋互动（摸铜狮/喂雀） | ✅ 通过 | {"petLions":2,"feedBirds":2} |
 | 14 | 氛围预设切换 | ✅ 通过 | {"theme":"night","weather":"rain","festival":true} |
 | 15 | NPC 生态（伞/仪式/生活/寒暄） | ✅ 通过 | {"umb":{"total":16,"shown":16,"rain":0.99},"cyc":1} |
-| 16 | 性能 HUD / 设置系统 | ✅ 通过 | {"text":"FPS 60 · Draws 775 · Tris 2.65M\n画质 low ·"} |
+| 16 | 性能 HUD / 设置系统 | ✅ 通过 | {"text":"FPS 60 · 帧时 16.7ms · 1%低帧 60\nDraws 772 ·"} |
 | 17 | 无运行时错误 | ✅ 通过 | {"errors":0,"app":true} |

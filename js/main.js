@@ -2951,6 +2951,7 @@
     }
   }
 
+  const perfDts = [];
   function updatePerfHud(dt) {
     const el = $('perfhud');
     if (!el) return;
@@ -2960,14 +2961,27 @@
     if (dt > 0) {
       const fps = 1 / Math.max(1e-4, dt);
       perfFps = perfFps ? perfFps * 0.9 + fps * 0.1 : fps;
+      perfDts.push(dt);
+      if (perfDts.length > 120) perfDts.shift();
     }
     perfTimer += dt;
     if (perfTimer < 0.2) return;
     perfTimer = 0;
     const info = (renderer && renderer.info) ? renderer.info.render : { calls: 0, triangles: 0 };
     const zone = (WALK.zoneAt && WALK.zoneAt(WALK.pos.x, WALK.pos.z)) || 'plaza';
+    /* 帧时均值 + 1% 低帧 */
+    let avgMs = 0, low1Fps = 0;
+    if (perfDts.length > 8) {
+      let sum = 0;
+      for (let i = 0; i < perfDts.length; i++) sum += perfDts[i];
+      avgMs = (sum / perfDts.length) * 1000;
+      const sorted = perfDts.slice().sort(function (a, b) { return a - b; });
+      const worst = sorted[Math.max(0, Math.ceil(sorted.length * 0.01) - 1)];
+      low1Fps = worst > 0 ? Math.round(1 / worst) : 0;
+    }
     el.innerHTML =
-      '<div>FPS <b>' + Math.round(perfFps) + '</b> · Draws <b>' + info.calls + '</b> · Tris <b>' + (info.triangles ? (info.triangles / 1e6).toFixed(2) + 'M' : '0') + '</b></div>' +
+      '<div>FPS <b>' + Math.round(perfFps) + '</b> · 帧时 <b>' + avgMs.toFixed(1) + 'ms</b> · 1%低帧 <b>' + low1Fps + '</b></div>' +
+      '<div>Draws <b>' + info.calls + '</b> · Tris <b>' + (info.triangles ? (info.triangles / 1e6).toFixed(2) + 'M' : '0') + '</b></div>' +
       '<div>画质 <b>' + (settings.quality || 'auto') + '</b> · 区域 <b>' + (ZONE_LABELS[zone] || zone) + '</b> · 位置 <b>' + Math.round(WALK.pos.x) + ', ' + Math.round(WALK.pos.z) + '</b></div>';
   }
   function togglePerfHud() {
