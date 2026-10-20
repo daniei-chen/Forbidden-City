@@ -3204,10 +3204,12 @@
     tutorial.baseJumps = WALK.jumps || 0;
     tutorial.basePhotos = achievements.photos || 0;
     el.classList.add('show');
+    document.body.classList.add('tutorialOn');
     tutorialRender();
   }
   function tutorialHide(skipped) {
     tutorial.active = false;
+    document.body.classList.remove('tutorialOn');
     const el = $('tutorial');
     if (el) el.classList.remove('show');
     if (skipped) { tutorial.done = true; tutorialSave(); showToast('已跳过新手引导（可在设置中重新体验）', 2600); }
@@ -3231,6 +3233,7 @@
       tutorial.done = true;
       tutorialSave();
       const el = $('tutorial');
+      document.body.classList.remove('tutorialOn');
       if (el) el.classList.remove('show');
       showToast('新手引导完成 · 开始你的紫禁城之旅！', 3600);
       if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();

@@ -181,3 +181,4 @@ pm run smoke` → ④ 多机位截图 → ⑤ 更新文档/版本 → ⑥ 记录
 | R121 | 成就墙整理（5 类/进度条）| 联动 25 项 + 冒烟 + harness |
 | R122 | 移动端专项检查 + CSS 缺括号修复 | mobile-check 9 项 + 冒烟 + harness |
 | R123 | 手机横屏适配（压缩顶栏/面板左上）| mobile-check 10 项 + 冒烟 + harness |
+| R124 | 桌面 HUD 视觉巡检（9 项 + 截图）| hud-check + 冒烟 + harness |

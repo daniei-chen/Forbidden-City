@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 7.22.0.20261020.1232">
-<meta name="build-time" content="2026-10-20T12:32:45.324Z">
+<meta name="generator" content="forbidden-city-build 7.23.0.20261020.1303">
+<meta name="build-time" content="2026-10-20T13:03:22.910Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-20T12:32:45.324Z
-  version: 7.22.0.20261020.1232
+  build: 2026-10-20T13:03:22.910Z
+  version: 7.23.0.20261020.1303
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -384,6 +384,9 @@
   .tutorial .tu-skip{cursor:pointer;color:rgba(230,224,208,.55);border-bottom:1px dashed rgba(230,224,208,.3)}
   .tutorial .tu-skip:hover{color:var(--gold)}
   body.photo .tutorial{display:none !important}
+  /* 引导进行中：隐藏桌面键位提示，互动提示上移避免与引导卡重叠 */
+  body.tutorialOn .walkhint{display:none !important}
+  body.tutorialOn .interact{bottom:252px}
 
   /* ---------------- 漫游性能 HUD ---------------- */
   .perfhud{
@@ -819,7 +822,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '7.22.0',
+  version: '7.23.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -14820,10 +14823,12 @@ const ASSETS = {
     tutorial.baseJumps = WALK.jumps || 0;
     tutorial.basePhotos = achievements.photos || 0;
     el.classList.add('show');
+    document.body.classList.add('tutorialOn');
     tutorialRender();
   }
   function tutorialHide(skipped) {
     tutorial.active = false;
+    document.body.classList.remove('tutorialOn');
     const el = $('tutorial');
     if (el) el.classList.remove('show');
     if (skipped) { tutorial.done = true; tutorialSave(); showToast('已跳过新手引导（可在设置中重新体验）', 2600); }
@@ -14847,6 +14852,7 @@ const ASSETS = {
       tutorial.done = true;
       tutorialSave();
       const el = $('tutorial');
+      document.body.classList.remove('tutorialOn');
       if (el) el.classList.remove('show');
       showToast('新手引导完成 · 开始你的紫禁城之旅！', 3600);
       if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
@@ -16097,6 +16103,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"7.22.0.20261020.1232","time":"2026-10-20T12:32:45.324Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"7.23.0.20261020.1303","time":"2026-10-20T13:03:22.910Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # 游戏化联动自动测试报告
 
-> 由 `tools/gameplay-test.mjs` 生成 · 2026-10-20T12:38:11.096Z
+> 由 `tools/gameplay-test.mjs` 生成 · 2026-10-20T13:09:29.091Z
 
 结果：**25 / 25 通过**
 
@@ -13,7 +13,7 @@
 | 5 | 中轴巡礼任务可完成 | ✅ 通过 | {"id":"axis","name":"中轴巡礼","progress":8,"total":8,"done":true,"title":"中轴行者"} |
 | 6 | 图鉴可收录 | ✅ 通过 | {"got":3,"total":16} |
 | 7 | 御猫图鉴可收集 | ✅ 通过 | {"got":7,"total":7} |
-| 8 | 成就解锁记录 | ✅ 通过 | {"n":7,"last":{"name":"流连忘返","t":1792499711951}} |
+| 8 | 成就解锁记录 | ✅ 通过 | {"n":7,"last":{"name":"流连忘返","t":1792501577065}} |
 | 9 | 成就墙分组 | ✅ 通过 | {"groups":5,"total":23} |
 | 10 | 拍照/相册/灯箱 | ✅ 通过 | {"total":1,"lbShown":true,"lbActive":true} |
 | 11 | 投壶小游戏可玩 | ✅ 通过 | {"started":true,"score":4} |
@@ -28,6 +28,6 @@
 | 20 | 灯会夜游导览五站 | ✅ 通过 | {"got":5,"hint":"灯会导览已完成 · 尽情夜游吧"} |
 | 21 | 灯会宫灯串 | ✅ 通过 | {"count":40,"firstY":4.06} |
 | 22 | 灯会地面光池 | ✅ 通过 | {"night":{"opacity":0.52,"count":111,"visible":true},"day":{"opacity":0.05,"count":111,"visible":true}} |
-| 23 | 放河灯宫女 | ✅ 通过 | {"released":8,"spawned":3} |
-| 24 | 性能 HUD / 设置系统 | ✅ 通过 | {"text":"FPS 60 · 帧时 16.7ms · 1%低帧 60\nDraws 235 ·"} |
+| 23 | 放河灯宫女 | ✅ 通过 | {"released":7,"spawned":3} |
+| 24 | 性能 HUD / 设置系统 | ✅ 通过 | {"text":"FPS 60 · 帧时 16.7ms · 1%低帧 60\nDraws 236 ·"} |
 | 25 | 无运行时错误 | ✅ 通过 | {"errors":0,"app":true} |

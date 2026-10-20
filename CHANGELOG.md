@@ -1,5 +1,19 @@
 # 更新日志
 
+## v7.23.0 — 桌面 HUD 视觉巡检
+
+**新增**
+- `tools/hud-check.mjs`（`npm run test:hud`）：桌面 1440×900 漫游 HUD 巡检
+  - 顶栏/小地图/探索面板/性能 HUD/互动提示/NPC 气泡 逐项验证
+  - 布局断言：小地图↔探索面板、探索面板↔性能 HUD、引导卡↔互动提示 均不重叠
+  - 截图取证：`docs/desktop/walk-hud.jpg`、`walk-npc.jpg`；报告 `HUD_CHECK.md`
+- 引导期间细节：
+  - `body.tutorialOn` 状态下隐藏桌面键位提示（避免与引导卡文字重复）
+  - 互动提示上移至 `bottom:252px`，与引导卡不再重叠
+
+**验证**
+- HUD 巡检 **9/9 通过**（header 92px、minimap 168×168、walkgame 196×175、引导卡 420×125、互动提示 169×34、气泡显示）
+- 联动 25/25；移动端 10/10；冒烟 27/27；harness 对比 PASS
 ## v7.22.0 — 手机横屏适配
 
 **新增**

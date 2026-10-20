@@ -375,6 +375,9 @@
   .tutorial .tu-skip{cursor:pointer;color:rgba(230,224,208,.55);border-bottom:1px dashed rgba(230,224,208,.3)}
   .tutorial .tu-skip:hover{color:var(--gold)}
   body.photo .tutorial{display:none !important}
+  /* 引导进行中：隐藏桌面键位提示，互动提示上移避免与引导卡重叠 */
+  body.tutorialOn .walkhint{display:none !important}
+  body.tutorialOn .interact{bottom:252px}
 
   /* ---------------- 漫游性能 HUD ---------------- */
   .perfhud{
