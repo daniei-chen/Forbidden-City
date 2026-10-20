@@ -155,3 +155,4 @@ pm run smoke` → ④ 多机位截图 → ⑤ 更新文档/版本 → ⑥ 记录
 | R95 | 生活 NPC（传旨太监/清扫宫人）| 行为测试 + 冒烟 + harness |
 | R96 | 联动自动测试（15 项跨系统回归）| gameplay-test + 冒烟 + harness |
 | R97 | 灯笼/幡旗摆动 + 伞面雨声 | 摆动/音效测试 + 冒烟 + harness |
+| R98 | 互动彩蛋（摸铜狮/撒米喂雀）+ 测试扩展 | gameplay-test + 冒烟 + harness |

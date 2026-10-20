@@ -515,8 +515,9 @@ const NPC = {
     for (let i = 0; i < data.length; i++) {
       const s = data[i];
       if (s.state === 'ground') {
+        if (s.fedT > 0) s.fedT -= dt;
         const d = Math.hypot(ax - s.x, az - s.z);
-        if (walkOn && d < 7) {
+        if (walkOn && d < 7 && !(s.fedT > 0)) {
           s.state = 'fly';
           s.flyT = 0;
           const dx = s.x - ax, dz = s.z - az;

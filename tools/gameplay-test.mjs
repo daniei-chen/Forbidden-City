@@ -198,6 +198,21 @@ const interact = await evl(`(async function(){
 })()`);
 check('许愿/上香/投喂互动', interact && interact.wishes >= 2 && interact.incense >= 2, JSON.stringify(interact));
 
+/* 11b. 彩蛋互动：摸铜狮 / 撒米喂雀 */
+const extras = await evl(`(async function(){
+  var A = window.__app, W = window.WALK;
+  W.pos.set(13, 0, 306); W.pos.y = W.groundAt(13, 306);
+  A.interact();
+  await new Promise(function(r){ setTimeout(r, 900); });
+  A.interact();
+  W.pos.set(40, 0, 184); W.pos.y = W.groundAt(40, 184);
+  A.interact();
+  await new Promise(function(r){ setTimeout(r, 1000); });
+  A.interact();
+  return A.petInfo();
+})()`);
+check('彩蛋互动（摸铜狮/喂雀）', extras && extras.petLions >= 2 && extras.feedBirds >= 2, JSON.stringify(extras));
+
 /* 12. 氛围预设 */
 const preset = await evl(`(function(){
   var A = window.__app;

@@ -1024,8 +1024,8 @@
     { x: -20, z: -120, r: 3.2, title: '太平缸', wish: true, text: '内廷同样陈设太平缸，取"天一生水"之意。' },
     { x: 34, z: 98, r: 4.2, title: '日晷', text: '以日影计时的石盘，明清宫廷重要陈设，象征皇权授时。' },
     { x: -34, z: 98, r: 4.2, title: '嘉量', text: '石亭式铜量器，象征国家统一与量衡标准。' },
-    { x: 13, z: 304, r: 3.6, title: '铜狮', text: '太和门前镇守铜狮，雄狮踏绣球、雌狮抚幼狮。' },
-    { x: -13, z: 304, r: 3.6, title: '铜狮', text: '太和门前镇守铜狮，雄狮踏绣球、雌狮抚幼狮。' },
+    { x: 13, z: 304, r: 3.6, title: '铜狮', pet: true, text: '太和门前镇守铜狮，雄狮踏绣球、雌狮抚幼狮。' },
+    { x: -13, z: 304, r: 3.6, title: '铜狮', pet: true, text: '太和门前镇守铜狮，雄狮踏绣球、雌抚幼狮。' },
     { x: 26, z: 438, r: 4.0, title: '华表', text: '宫门前的望柱，柱顶承露盘与蹲兽，兼具礼制与标识。' },
     { x: -26, z: 438, r: 4.0, title: '华表', text: '宫门前的望柱，柱顶承露盘与蹲兽，兼具礼制与标识。' },
     { x: 26, z: -372, r: 2.8, title: '石桌石凳', text: '御花园中的石桌石凳，供帝王后妃游憩小坐。' },
@@ -1078,11 +1078,18 @@
       nearInteractive = null;
       return;
     }
+    const flk = nearestSparrowFlocks();
+    if (flk && !nearestInteractive()) {
+      el.classList.add('show');
+      if (lab) lab.textContent = '撒米喂雀';
+      nearInteractive = null;
+      return;
+    }
     const it = nearestInteractive();
     nearInteractive = it;
     if (it) {
       el.classList.add('show');
-      if (lab) lab.textContent = (it.wish ? '投币许愿 · ' : (it.incense ? '上香祈福 · ' : '查看 · ')) + it.title;
+      if (lab) lab.textContent = (it.wish ? '投币许愿 · ' : (it.incense ? '上香祈福 · ' : (it.pet ? '摸摸铜狮 · ' : '查看 · '))) + it.title;
     } else {
       el.classList.remove('show');
     }
@@ -1102,6 +1109,8 @@
       achievements.incense = savedA.incense || 0;
       achievements.log = Array.isArray(savedA.log) ? savedA.log : [];
       achievements.codex = Array.isArray(savedA.codex) ? savedA.codex : [];
+      achievements.petLions = savedA.petLions || 0;
+      achievements.feedBirds = savedA.feedBirds || 0;
     }
   } catch (e) {}
   function achievementsSave() {
@@ -1148,6 +1157,55 @@
     return achievements.incense;
   }
 
+  /* 互动彩蛋：摸铜狮 / 撒米喂雀 */
+  function nearestSparrowFlocks() {
+    if (!WALK.active || typeof NPC === 'undefined' || !NPC.sparrowData) return null;
+    let best = null, bestD = 9;
+    for (let i = 0; i < NPC.sparrowData.length; i++) {
+      const s = NPC.sparrowData[i];
+      if (s.state !== 'ground') continue;
+      const d = Math.hypot(s.x - WALK.pos.x, s.z - WALK.pos.z);
+      if (d < bestD) { bestD = d; best = { x: s.x, z: s.z, d: d }; }
+    }
+    return best;
+  }
+  function petLion(it) {
+    achievements.petLions = (achievements.petLions || 0) + 1;
+    achievementsSave();
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.spawnHeart) {
+      EFFECTS.spawnHeart(it.x + (Math.random() - 0.5) * 0.6, 1.6, it.z + (Math.random() - 0.5) * 0.6);
+    }
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    showToast('摸摸铜狮的头，沾沾福气（摸狮 ' + achievements.petLions + ' 次）', 3200);
+    if (achievements.petLions >= 3) {
+      setTimeout(function () { showToast('称号达成 · 摸狮得福（摸铜狮 3 次）', 4400); }, 3300);
+    }
+  }
+  function feedSparrows(fl) {
+    achievements.feedBirds = (achievements.feedBirds || 0) + 1;
+    achievementsSave();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chirp) AUDIO.chirp();
+    /* 麻雀围过来：把附近地面麻雀向玩家方向聚拢 */
+    let n = 0;
+    if (typeof NPC !== 'undefined' && NPC.sparrowData) {
+      for (let i = 0; i < NPC.sparrowData.length; i++) {
+        const s = NPC.sparrowData[i];
+        if (s.state !== 'ground') continue;
+        const d = Math.hypot(s.x - WALK.pos.x, s.z - WALK.pos.z);
+        if (d < 9) {
+          s.x += (WALK.pos.x - s.x) * 0.18;
+          s.z += (WALK.pos.z - s.z) * 0.18;
+          s.fedT = 6;
+          n++;
+        }
+      }
+    }
+    showToast('撒了一把小米，' + n + ' 只麻雀围了过来（喂雀 ' + achievements.feedBirds + ' 次）', 3400);
+    if (achievements.feedBirds >= 3) {
+      setTimeout(function () { showToast('称号达成 · 雀跃（喂麻雀 3 次）', 4400); }, 3500);
+    }
+  }
+
   function doInteract() {
     if (!WALK.active) return;
     achievements.interacts = (achievements.interacts || 0) + 1;
@@ -1165,8 +1223,23 @@
         return;
       }
     }
+    const fl = nearestSparrowFlocks();
+    if (fl && (!nearestInteractive())) {
+      const nowF = performance.now();
+      if (nowF - (window.__lastFeedT || 0) < 900) return;
+      window.__lastFeedT = nowF;
+      feedSparrows(fl);
+      return;
+    }
     const it = nearestInteractive();
     if (!it) return;
+    if (it.pet) {
+      const nowP = performance.now();
+      if (nowP - (window.__lastPetT || 0) < 800) return;
+      window.__lastPetT = nowP;
+      petLion(it);
+      return;
+    }
     if (it.wish) {
       const nowW = performance.now();
       if (nowW - lastWishT < 800) return;
@@ -1686,6 +1759,8 @@
       { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
       { name: '灯谜雅士', ok: (achievements.riddles || []).length >= 3 },
       { name: '御猫团宠', ok: (achievements.catPlays || 0) >= 3 },
+      { name: '摸狮得福', ok: (achievements.petLions || 0) >= 3 },
+      { name: '雀跃', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', ok: (achievements.incense || 0) >= 3 },
       { name: '图鉴收藏家', ok: (achievements.codex || []).length >= 16 },
@@ -1732,6 +1807,8 @@
       { name: '投壶高手', cat: '趣味', ok: potBest >= 5 },
       { name: '灯谜雅士', cat: '趣味', ok: riddleN >= 3 },
       { name: '御猫团宠', cat: '趣味', ok: plays >= 3 },
+      { name: '摸狮得福', cat: '趣味', ok: (achievements.petLions || 0) >= 3 },
+      { name: '雀跃', cat: '趣味', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', cat: '趣味', ok: (achievements.incense || 0) >= 3 },
       { name: '图鉴收藏家', cat: '综合', ok: (achievements.codex || []).length >= 16 },
@@ -3755,6 +3832,7 @@
     playCats: function () { return playWithCats(); },
     syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
     codexInfo: codexInfo,
+    petInfo: function () { return { petLions: achievements.petLions || 0, feedBirds: achievements.feedBirds || 0 }; },
     unlockCodex: function (id) { return codexUnlock(id); },
     achievementLog: function () { return (achievements.log || []).slice(-20); },
     tutorialInfo: function () { return { active: tutorial.active, step: tutorial.step, done: tutorial.done, total: TUTORIAL_STEPS.length }; },
