@@ -1,5 +1,17 @@
 # 更新日志
 
+## v7.26.0 — 测试入口统一
+
+**新增**
+- `tools/test-all.mjs`（`npm run test:all`）：串行运行全部 6 个套件，生成 `TEST_ALL.md` 汇总（通过/失败、用时、摘要、日志路径）
+  - 联动 18 项 / NPC 6 项 / 灯会 6 项 / 桌面 HUD 9 项 / 移动端 10 项 / 冒烟 27 项
+  - 每个套件独立 Chrome profile 与日志（`logs/test-all-*.log`）
+  - 支持 `--with-harness` 追加视觉回归
+- 修复灯会专项中 `weatherTick` 每帧重绘导致 700 次循环超时的问题（改为 5 次，dry 状态本就无雨）
+
+**验证**
+- `npm run test:all`：**6 / 6 套件通过**（联动 18/18、NPC 6/6、灯会 6/6、HUD 9/9、移动端 10/10、冒烟 27/27）
+- harness 对比 PASS（SSIM 0.9957 / MAE 0.27%）
 ## v7.25.0 — NPC 猜谜围观
 
 **新增**

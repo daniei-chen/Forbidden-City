@@ -12,3 +12,5 @@ dist/build-info.json
 harness/out/
 # CI 工作流需 workflow scope 才能推送，保留示例于 docs/ci-harness.yml.example
 .github/workflows/harness.yml
+
+logs/

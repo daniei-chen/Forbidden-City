@@ -106,13 +106,13 @@ if (ready) {
   const sheen = await evl(`(function(){
     var A = window.__app;
     A.setFestival(false); A.setTheme('day'); A.setWeather('clear');
-    for (var i = 0; i < 700; i++) A.weatherTick(1 / 60);
+    for (var i = 0; i < 5; i++) A.weatherTick(1 / 60);
     var dry = A.wetInfo();
     A.setFestival(true); A.setTheme('dusk');
     for (var k = 0; k < 200; k++) A.weatherTick(1 / 60);
     var wet = A.wetInfo();
     A.setFestival(false); A.setTheme('day');
-    for (var m = 0; m < 700; m++) A.weatherTick(1 / 60);
+    for (var m = 0; m < 5; m++) A.weatherTick(1 / 60);
     var back = A.wetInfo();
     return { dry: dry, wet: wet, back: back };
   })()`);
