@@ -1080,6 +1080,12 @@
       nearInteractive = null;
       return;
     }
+    const wkp = nearestWalkNpc();
+    if (wkp && !nearestInteractive()) {
+      el.classList.add('show');
+      if (lab) lab.textContent = '问路 · ' + wkp.name;
+      return;
+    }
     const flk = nearestSparrowFlocks();
     if (flk && !nearestInteractive()) {
       el.classList.add('show');
@@ -1113,6 +1119,7 @@
       achievements.codex = Array.isArray(savedA.codex) ? savedA.codex : [];
       achievements.petLions = savedA.petLions || 0;
       achievements.lanterns = savedA.lanterns || 0;
+      achievements.asks = savedA.asks || 0;
       achievements.feedBirds = savedA.feedBirds || 0;
     }
   } catch (e) {}
@@ -1226,6 +1233,75 @@
     return ok;
   }
 
+  /* 问路：最近的行走 NPC */
+  function nearestWalkNpc() {
+    if (!WALK.active || typeof NPC === 'undefined') return null;
+    let best = null, bestD = 4.2;
+    if (NPC.patrols) {
+      for (let i = 0; i < NPC.patrols.length; i++) {
+        const o = NPC.patrols[i].obj.group;
+        const d = Math.hypot(o.position.x - WALK.pos.x, o.position.z - WALK.pos.z);
+        if (d < bestD) { bestD = d; best = { kind: 'guard', name: '侍卫', obj: NPC.patrols[i], dist: d }; }
+      }
+    }
+    if (NPC.maids) {
+      for (let i = 0; i < NPC.maids.length; i++) {
+        const o = NPC.maids[i].obj.group;
+        const d = Math.hypot(o.position.x - WALK.pos.x, o.position.z - WALK.pos.z);
+        if (d < bestD) { bestD = d; best = { kind: 'maid', name: '宫女', obj: NPC.maids[i], dist: d }; }
+      }
+    }
+    return best;
+  }
+  function dirWord(dx, dz) {
+    const ang = Math.atan2(dx, dz);
+    const deg = (ang * 180 / Math.PI + 360) % 360;
+    if (deg < 22.5 || deg >= 337.5) return '向南';
+    if (deg < 67.5) return '向东南';
+    if (deg < 112.5) return '向东';
+    if (deg < 157.5) return '向东北';
+    if (deg < 202.5) return '向北';
+    if (deg < 247.5) return '向西北';
+    if (deg < 292.5) return '向西';
+    return '向西南';
+  }
+  const NPC_TALK_LINES = {
+    maid: [
+      '御花园的海棠开得正好，往北再走几步便是。',
+      '前面亭子里有石桌石凳，走累了可歇一歇。',
+      '仔细听，风过檐铃，是宫城在说话呢。'
+    ]
+  };
+  function talkToNpc(wk) {
+    let text = '';
+    if (wk.kind === 'guard') {
+      /* 指向最近的未发现地标 */
+      let best = null, bestD = 1e9;
+      for (let i = 0; i < DISCOVERIES.length; i++) {
+        const d = DISCOVERIES[i];
+        if (discSet[d.name]) continue;
+        const dd = Math.hypot(d.x - WALK.pos.x, d.z - WALK.pos.z);
+        if (dd < bestD) { bestD = dd; best = d; }
+      }
+      if (best) {
+        text = dirWord(best.x - WALK.pos.x, best.z - WALK.pos.z) + '走约 ' + Math.round(bestD / 2) + ' 步，便是' + best.name + '。';
+      } else {
+        text = '十处景致您都走遍了，真是有心人。';
+      }
+    } else {
+      text = NPC_TALK_LINES.maid[Math.floor(Math.random() * NPC_TALK_LINES.maid.length)];
+    }
+    window.__npcTalk = { who: wk.name, text: text, t: 6 };
+    if (wk.obj) wk.obj.greetT = 3.4;
+    achievements.asks = (achievements.asks || 0) + 1;
+    achievementsSave();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    if (achievements.asks >= 5) {
+      setTimeout(function () { showToast('称号达成 · 宫中熟人（问路 5 次）', 4400); }, 1500);
+    }
+    return text;
+  }
+
   function doInteract() {
     if (!WALK.active) return;
     achievements.interacts = (achievements.interacts || 0) + 1;
@@ -1242,6 +1318,14 @@
         if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
         return;
       }
+    }
+    const wk = nearestWalkNpc();
+    if (wk && !nearestInteractive()) {
+      const nowT = performance.now();
+      if (nowT - (window.__lastTalkT || 0) < 700) return;
+      window.__lastTalkT = nowT;
+      talkToNpc(wk);
+      return;
     }
     const fl = nearestSparrowFlocks();
     if (fl && (!nearestInteractive())) {
@@ -1788,6 +1872,7 @@
       { name: '御猫团宠', ok: (achievements.catPlays || 0) >= 3 },
       { name: '摸狮得福', ok: (achievements.petLions || 0) >= 3 },
       { name: '河灯祈愿', ok: (achievements.lanterns || 0) >= 3 },
+      { name: '宫中熟人', ok: (achievements.asks || 0) >= 5 },
       { name: '雀跃', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', ok: (achievements.incense || 0) >= 3 },
@@ -1837,6 +1922,7 @@
       { name: '御猫团宠', cat: '趣味', ok: plays >= 3 },
       { name: '摸狮得福', cat: '趣味', ok: (achievements.petLions || 0) >= 3 },
       { name: '河灯祈愿', cat: '趣味', ok: (achievements.lanterns || 0) >= 3 },
+      { name: '宫中熟人', cat: '探索', ok: (achievements.asks || 0) >= 5 },
       { name: '雀跃', cat: '趣味', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', cat: '趣味', ok: (achievements.incense || 0) >= 3 },
@@ -2009,6 +2095,19 @@
       if (d < bestD) { bestD = d; best = NPC.maids[i]; bestName = '宫女'; bestId = 100 + i; }
     }
     if (!best) { el.classList.remove('show'); bubbleNpcIdx = -1; bubbleTimer = 0; return; }
+    /* 问路/对话覆盖台词 */
+    if (window.__npcTalk && window.__npcTalk.t > 0) {
+      window.__npcTalk.t -= dt;
+      const whoT = $('npcWho'), lineT = $('npcLine');
+      if (whoT) whoT.textContent = window.__npcTalk.who;
+      if (lineT) lineT.textContent = window.__npcTalk.text;
+      const p4 = new THREE.Vector3(best.obj.group.position.x, 2.25, best.obj.group.position.z).project(camera);
+      el.style.left = ((p4.x * 0.5 + 0.5) * window.innerWidth) + 'px';
+      el.style.top = ((-p4.y * 0.5 + 0.5) * window.innerHeight) + 'px';
+      el.classList.add('show');
+      if (window.__npcTalk.t <= 0) window.__npcTalk = null;
+      return;
+    }
     /* 换 NPC 立即换台词；同一 NPC 每 7 秒换一句 */
     if (bestId !== bubbleNpcIdx) { bubbleNpcIdx = bestId; bubbleTimer = 0; }
     bubbleTimer -= dt;
@@ -3915,6 +4014,8 @@
     syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
     codexInfo: codexInfo,
     meteorSoundTest: function () { if (AUDIO.meteorWhoosh) AUDIO.meteorWhoosh(); return true; },
+    talkInfo: function () { return { asks: achievements.asks || 0, active: window.__npcTalk || null }; },
+    nearestWalkNpc: function () { const wk = nearestWalkNpc(); return wk ? { kind: wk.kind, dist: Math.round(wk.dist * 10) / 10 } : null; },
     lanternInfo: function () { return { released: achievements.lanterns || 0, floating: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternPool) ? EFFECTS.riverLanternPool.filter(function (l) { return l.life > 0; }).length : -1, spawns: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternSpawns) || 0 }; },
     petInfo: function () { return { petLions: achievements.petLions || 0, feedBirds: achievements.feedBirds || 0 }; },
     unlockCodex: function (id) { return codexUnlock(id); },
