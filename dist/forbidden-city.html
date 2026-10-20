@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 7.6.0.20261020.0431">
-<meta name="build-time" content="2026-10-20T04:31:36.910Z">
+<meta name="generator" content="forbidden-city-build 7.7.0.20261020.0600">
+<meta name="build-time" content="2026-10-20T06:00:46.914Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-20T04:31:36.910Z
-  version: 7.6.0.20261020.0431
+  build: 2026-10-20T06:00:46.914Z
+  version: 7.7.0.20261020.0600
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -773,7 +773,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '7.6.0',
+  version: '7.7.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -3896,13 +3896,13 @@ const NPC = {
 
     /* 御猫三只 */
     const catRoutes = [
-      { pts: [[30, -318], [62, -330], [58, -358], [26, -344]], speed: 0.55, phase: 0.1 },
-      { pts: [[-40, -300], [-62, -320], [-50, -344]], speed: 0.5, phase: 0.6 },
-      { pts: [[40, 200], [60, 218], [38, 236]], speed: 0.6, phase: 0.35 },
-      { pts: [[-64, -350], [-46, -368], [-62, -386]], speed: 0.5, phase: 0.2 },
-      { pts: [[-18, 262], [16, 262], [2, 276]], speed: 0.55, phase: 0.65 },
-      { pts: [[-62, 60], [-40, 82], [-58, 104]], speed: 0.5, phase: 0.3 },
-      { pts: [[24, -182], [44, -192], [22, -204]], speed: 0.45, phase: 0.55 }
+      { pts: [[30, -318], [62, -330], [58, -358], [26, -344]], speed: 0.55, phase: 0.1, fur: 0xc98a4b, furDark: 0x7a4a22, name: '橘白', trait: '爱晒太阳', area: '御花园东' },
+      { pts: [[-40, -300], [-62, -320], [-50, -344]], speed: 0.5, phase: 0.6, fur: 0xb07a3c, furDark: 0x8b5a2b, name: '三花', trait: '胆小谨慎', area: '御花园西' },
+      { pts: [[40, 200], [60, 218], [38, 236]], speed: 0.6, phase: 0.35, fur: 0x8a7a62, furDark: 0x4a4034, name: '狸花', trait: '机警敏捷', area: '太和门' },
+      { pts: [[-64, -350], [-46, -368], [-62, -386]], speed: 0.5, phase: 0.2, fur: 0x3a3a44, furDark: 0x1e1e26, name: '黑猫', trait: '夜行无声', area: '御花园北' },
+      { pts: [[-18, 262], [16, 262], [2, 276]], speed: 0.55, phase: 0.65, fur: 0xd8d2c4, furDark: 0x9a9488, name: '白猫', trait: '黏人撒娇', area: '乾清宫前' },
+      { pts: [[-62, 60], [-40, 82], [-58, 104]], speed: 0.5, phase: 0.3, fur: 0x6b4a34, furDark: 0x3c2a1c, name: '玳瑁', trait: '沉稳矜持', area: '太和殿侧' },
+      { pts: [[24, -182], [44, -192], [22, -204]], speed: 0.45, phase: 0.55, fur: 0xe8e2d8, furDark: 0x3a3a44, name: '奶牛猫', trait: '调皮好动', area: '中和殿' }
     ];
     this.cats = [];
     /* ---- 午门换岗仪式侍卫（两名） ---- */
@@ -3941,11 +3941,11 @@ const NPC = {
 
     this._pendingSparrows = true;
     for (const r of catRoutes) {
-      const cat = this.makeCat();
+      const cat = this.makeCat({ fur: r.fur, furDark: r.furDark });
       g.add(cat.group);
       let len3 = 0;
       for (let i = 1; i < r.pts.length; i++) len3 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0, chaseT: 0, chaseCd: 6 + Math.random() * 8, pounceT: 0, pounceCd: 10 + Math.random() * 18, pounced: false, pounceTx: 0, pounceTz: 0 });
+      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, breed: { name: r.name, trait: r.trait, area: r.area, fur: r.fur }, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0, chaseT: 0, chaseCd: 6 + Math.random() * 8, pounceT: 0, pounceCd: 10 + Math.random() * 18, pounced: false, pounceTx: 0, pounceTz: 0 });
     }
 
     this.flowerBeds = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396]];
@@ -4088,6 +4088,12 @@ const NPC = {
     }
     return out;
   },
+
+  catBreedInfo: function (i) {
+    const c = (this.cats || [])[i];
+    return c && c.breed ? { idx: i, name: c.breed.name, trait: c.breed.trait, area: c.breed.area } : null;
+  },
+  catCount: function () { return (this.cats || []).length; },
 
   scareSparrows: function (x, z, r) {
     const data = this.sparrowData;
@@ -4768,10 +4774,12 @@ const NPC = {
 /* =============================================================
  *  御猫（程序化四足，可行走）
  * ============================================================= */
-NPC.makeCat = function () {
+NPC.makeCat = function (opts) {
   const M = this._mat();
-  const fur = new THREE.MeshStandardMaterial({ color: 0xb07a3c, roughness: 0.9 });
-  const furDark = new THREE.MeshStandardMaterial({ color: 0x513a22, roughness: 0.9 });
+  const furCol = (opts && opts.fur != null) ? opts.fur : 0xb07a3c;
+  const darkCol = (opts && opts.furDark != null) ? opts.furDark : 0x513a22;
+  const fur = new THREE.MeshStandardMaterial({ color: furCol, roughness: 0.9 });
+  const furDark = new THREE.MeshStandardMaterial({ color: darkCol, roughness: 0.9 });
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), fur);
   body.scale.set(1.5, 0.9, 1.0);
@@ -12027,6 +12035,7 @@ const ASSETS = {
       achievements.petLions = savedA.petLions || 0;
       achievements.lanterns = savedA.lanterns || 0;
       achievements.asks = savedA.asks || 0;
+      achievements.catCodex = Array.isArray(savedA.catCodex) ? savedA.catCodex : [];
       achievements.feedBirds = savedA.feedBirds || 0;
     }
   } catch (e) {}
@@ -12765,6 +12774,57 @@ const ASSETS = {
     };
   }
 
+  /* =========================================================
+   *  御猫图鉴（猫谱）
+   * ======================================================= */
+  function catCodexList() {
+    const list = [];
+    if (typeof NPC === 'undefined' || !NPC.cats) return list;
+    for (let i = 0; i < NPC.cats.length; i++) {
+      const b = NPC.catBreedInfo(i);
+      if (b) list.push(b);
+    }
+    return list;
+  }
+  function catCodexHas(i) {
+    return (achievements.catCodex || []).indexOf(i) >= 0;
+  }
+  function catCodexUnlock(i) {
+    if (!Array.isArray(achievements.catCodex)) achievements.catCodex = [];
+    if (achievements.catCodex.indexOf(i) >= 0) return false;
+    const b = (typeof NPC !== 'undefined' && NPC.catBreedInfo) ? NPC.catBreedInfo(i) : null;
+    achievements.catCodex.push(i);
+    achievementsSave();
+    if (b) {
+      showToast('猫谱收录 · ' + b.name + '（' + b.area + ' · ' + b.trait + '）', 3200);
+      if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    }
+    if (achievements.catCodex.length >= 7) {
+      setTimeout(function () { showToast('称号达成 · 猫谱大家（集齐七只御猫）', 4800); }, 3300);
+    }
+    return true;
+  }
+  let catCodexT = 0;
+  function updateCatCodex(dt) {
+    if (!WALK.active || typeof NPC === 'undefined' || !NPC.cats) return;
+    catCodexT += dt;
+    if (catCodexT < 0.7) return;
+    catCodexT = 0;
+    for (let i = 0; i < NPC.cats.length; i++) {
+      if (catCodexHas(i)) continue;
+      const cp = NPC.cats[i].obj.group.position;
+      if (Math.hypot(cp.x - WALK.pos.x, cp.z - WALK.pos.z) < 4.5) catCodexUnlock(i);
+    }
+  }
+  function catCodexInfo() {
+    const list = catCodexList();
+    return {
+      total: list.length, got: (achievements.catCodex || []).length,
+      names: list.filter(function (b) { return catCodexHas(b.idx); }).map(function (b) { return b.name; }),
+      all: list
+    };
+  }
+
   function syncAchievementLog(notify) {
     if (!Array.isArray(achievements.log)) achievements.log = [];
     let changed = false;
@@ -12781,6 +12841,7 @@ const ASSETS = {
       { name: '摸狮得福', ok: (achievements.petLions || 0) >= 3 },
       { name: '河灯祈愿', ok: (achievements.lanterns || 0) >= 3 },
       { name: '宫中熟人', ok: (achievements.asks || 0) >= 5 },
+      { name: '猫谱大家', ok: (achievements.catCodex || []).length >= 7 },
       { name: '雀跃', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', ok: (achievements.incense || 0) >= 3 },
@@ -12832,6 +12893,7 @@ const ASSETS = {
       { name: '摸狮得福', cat: '趣味', ok: (achievements.petLions || 0) >= 3 },
       { name: '河灯祈愿', cat: '趣味', ok: (achievements.lanterns || 0) >= 3 },
       { name: '宫中熟人', cat: '探索', ok: (achievements.asks || 0) >= 5 },
+      { name: '猫谱大家', cat: '趣味', ok: (achievements.catCodex || []).length >= 7 },
       { name: '雀跃', cat: '趣味', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', cat: '趣味', ok: (achievements.incense || 0) >= 3 },
@@ -12890,6 +12952,16 @@ const ASSETS = {
           html += '<span class="tt' + (it.ok ? '' : ' off') + '">' + (it.ok ? '★ ' : '☆ ') + it.name + '</span>';
         }
       }
+      /* 猫谱 */
+      const ccl = catCodexList();
+      html += '<div class="loglist" style="width:100%"><div class="lbl">御猫图鉴 · ' + ((achievements.catCodex || []).length) + ' / ' + ccl.length + '</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
+      for (let ci2 = 0; ci2 < ccl.length; ci2++) {
+        const cc = ccl[ci2];
+        const cgot = catCodexHas(cc.idx);
+        html += '<span class="tt' + (cgot ? '' : ' off') + '">' + (cgot ? '🐾 ' + cc.name : '☆ ？？？') + '</span>';
+      }
+      html += '</div></div>';
+
       /* 图鉴 */
       html += '<div class="loglist" style="width:100%"><div class="lbl">宫中图鉴 · ' + ((achievements.codex || []).length) + ' / ' + CODEX_DATA.length + '</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
       for (let ci = 0; ci < CODEX_DATA.length; ci++) {
@@ -14651,6 +14723,7 @@ const ASSETS = {
     updateTravel(dt);
     updateTutorial(dt);
     updateCodex(dt);
+    updateCatCodex(dt);
     if (!window.__achvSyncT) window.__achvSyncT = 0;
     window.__achvSyncT += dt;
     if (window.__achvSyncT > 3) { window.__achvSyncT = 0; syncAchievementLog(true); }
@@ -14961,6 +15034,9 @@ const ASSETS = {
     playCats: function () { return playWithCats(); },
     syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
     codexInfo: codexInfo,
+    catCodexInfo: catCodexInfo,
+    catCodexTick: function (dt) { updateCatCodex(dt || 0.016); },
+    unlockCatCodex: function (i) { return catCodexUnlock(i); },
     meteorSoundTest: function () { if (AUDIO.meteorWhoosh) AUDIO.meteorWhoosh(); return true; },
     talkInfo: function () { return { asks: achievements.asks || 0, active: window.__npcTalk || null }; },
     nearestWalkNpc: function () { const wk = nearestWalkNpc(); return wk ? { kind: wk.kind, dist: Math.round(wk.dist * 10) / 10 } : null; },
@@ -15059,6 +15135,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"7.6.0.20261020.0431","time":"2026-10-20T04:31:36.910Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"7.7.0.20261020.0600","time":"2026-10-20T06:00:46.914Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

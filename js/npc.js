@@ -278,13 +278,13 @@ const NPC = {
 
     /* 御猫三只 */
     const catRoutes = [
-      { pts: [[30, -318], [62, -330], [58, -358], [26, -344]], speed: 0.55, phase: 0.1 },
-      { pts: [[-40, -300], [-62, -320], [-50, -344]], speed: 0.5, phase: 0.6 },
-      { pts: [[40, 200], [60, 218], [38, 236]], speed: 0.6, phase: 0.35 },
-      { pts: [[-64, -350], [-46, -368], [-62, -386]], speed: 0.5, phase: 0.2 },
-      { pts: [[-18, 262], [16, 262], [2, 276]], speed: 0.55, phase: 0.65 },
-      { pts: [[-62, 60], [-40, 82], [-58, 104]], speed: 0.5, phase: 0.3 },
-      { pts: [[24, -182], [44, -192], [22, -204]], speed: 0.45, phase: 0.55 }
+      { pts: [[30, -318], [62, -330], [58, -358], [26, -344]], speed: 0.55, phase: 0.1, fur: 0xc98a4b, furDark: 0x7a4a22, name: '橘白', trait: '爱晒太阳', area: '御花园东' },
+      { pts: [[-40, -300], [-62, -320], [-50, -344]], speed: 0.5, phase: 0.6, fur: 0xb07a3c, furDark: 0x8b5a2b, name: '三花', trait: '胆小谨慎', area: '御花园西' },
+      { pts: [[40, 200], [60, 218], [38, 236]], speed: 0.6, phase: 0.35, fur: 0x8a7a62, furDark: 0x4a4034, name: '狸花', trait: '机警敏捷', area: '太和门' },
+      { pts: [[-64, -350], [-46, -368], [-62, -386]], speed: 0.5, phase: 0.2, fur: 0x3a3a44, furDark: 0x1e1e26, name: '黑猫', trait: '夜行无声', area: '御花园北' },
+      { pts: [[-18, 262], [16, 262], [2, 276]], speed: 0.55, phase: 0.65, fur: 0xd8d2c4, furDark: 0x9a9488, name: '白猫', trait: '黏人撒娇', area: '乾清宫前' },
+      { pts: [[-62, 60], [-40, 82], [-58, 104]], speed: 0.5, phase: 0.3, fur: 0x6b4a34, furDark: 0x3c2a1c, name: '玳瑁', trait: '沉稳矜持', area: '太和殿侧' },
+      { pts: [[24, -182], [44, -192], [22, -204]], speed: 0.45, phase: 0.55, fur: 0xe8e2d8, furDark: 0x3a3a44, name: '奶牛猫', trait: '调皮好动', area: '中和殿' }
     ];
     this.cats = [];
     /* ---- 午门换岗仪式侍卫（两名） ---- */
@@ -323,11 +323,11 @@ const NPC = {
 
     this._pendingSparrows = true;
     for (const r of catRoutes) {
-      const cat = this.makeCat();
+      const cat = this.makeCat({ fur: r.fur, furDark: r.furDark });
       g.add(cat.group);
       let len3 = 0;
       for (let i = 1; i < r.pts.length; i++) len3 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0, chaseT: 0, chaseCd: 6 + Math.random() * 8, pounceT: 0, pounceCd: 10 + Math.random() * 18, pounced: false, pounceTx: 0, pounceTz: 0 });
+      this.cats.push({ obj: cat, pts: r.pts, len: len3, speed: r.speed, breed: { name: r.name, trait: r.trait, area: r.area, fur: r.fur }, t: r.phase * len3, legPhase: Math.random() * 6.28, flee: 0, look: 0, curious: 0, tBack: -1, speedBoost: 0, feedT: 0, heartT: 0, chaseT: 0, chaseCd: 6 + Math.random() * 8, pounceT: 0, pounceCd: 10 + Math.random() * 18, pounced: false, pounceTx: 0, pounceTz: 0 });
     }
 
     this.flowerBeds = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396]];
@@ -470,6 +470,12 @@ const NPC = {
     }
     return out;
   },
+
+  catBreedInfo: function (i) {
+    const c = (this.cats || [])[i];
+    return c && c.breed ? { idx: i, name: c.breed.name, trait: c.breed.trait, area: c.breed.area } : null;
+  },
+  catCount: function () { return (this.cats || []).length; },
 
   scareSparrows: function (x, z, r) {
     const data = this.sparrowData;
@@ -1150,10 +1156,12 @@ const NPC = {
 /* =============================================================
  *  御猫（程序化四足，可行走）
  * ============================================================= */
-NPC.makeCat = function () {
+NPC.makeCat = function (opts) {
   const M = this._mat();
-  const fur = new THREE.MeshStandardMaterial({ color: 0xb07a3c, roughness: 0.9 });
-  const furDark = new THREE.MeshStandardMaterial({ color: 0x513a22, roughness: 0.9 });
+  const furCol = (opts && opts.fur != null) ? opts.fur : 0xb07a3c;
+  const darkCol = (opts && opts.furDark != null) ? opts.furDark : 0x513a22;
+  const fur = new THREE.MeshStandardMaterial({ color: furCol, roughness: 0.9 });
+  const furDark = new THREE.MeshStandardMaterial({ color: darkCol, roughness: 0.9 });
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), fur);
   body.scale.set(1.5, 0.9, 1.0);

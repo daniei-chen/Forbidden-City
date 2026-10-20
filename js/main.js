@@ -1120,6 +1120,7 @@
       achievements.petLions = savedA.petLions || 0;
       achievements.lanterns = savedA.lanterns || 0;
       achievements.asks = savedA.asks || 0;
+      achievements.catCodex = Array.isArray(savedA.catCodex) ? savedA.catCodex : [];
       achievements.feedBirds = savedA.feedBirds || 0;
     }
   } catch (e) {}
@@ -1858,6 +1859,57 @@
     };
   }
 
+  /* =========================================================
+   *  御猫图鉴（猫谱）
+   * ======================================================= */
+  function catCodexList() {
+    const list = [];
+    if (typeof NPC === 'undefined' || !NPC.cats) return list;
+    for (let i = 0; i < NPC.cats.length; i++) {
+      const b = NPC.catBreedInfo(i);
+      if (b) list.push(b);
+    }
+    return list;
+  }
+  function catCodexHas(i) {
+    return (achievements.catCodex || []).indexOf(i) >= 0;
+  }
+  function catCodexUnlock(i) {
+    if (!Array.isArray(achievements.catCodex)) achievements.catCodex = [];
+    if (achievements.catCodex.indexOf(i) >= 0) return false;
+    const b = (typeof NPC !== 'undefined' && NPC.catBreedInfo) ? NPC.catBreedInfo(i) : null;
+    achievements.catCodex.push(i);
+    achievementsSave();
+    if (b) {
+      showToast('猫谱收录 · ' + b.name + '（' + b.area + ' · ' + b.trait + '）', 3200);
+      if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    }
+    if (achievements.catCodex.length >= 7) {
+      setTimeout(function () { showToast('称号达成 · 猫谱大家（集齐七只御猫）', 4800); }, 3300);
+    }
+    return true;
+  }
+  let catCodexT = 0;
+  function updateCatCodex(dt) {
+    if (!WALK.active || typeof NPC === 'undefined' || !NPC.cats) return;
+    catCodexT += dt;
+    if (catCodexT < 0.7) return;
+    catCodexT = 0;
+    for (let i = 0; i < NPC.cats.length; i++) {
+      if (catCodexHas(i)) continue;
+      const cp = NPC.cats[i].obj.group.position;
+      if (Math.hypot(cp.x - WALK.pos.x, cp.z - WALK.pos.z) < 4.5) catCodexUnlock(i);
+    }
+  }
+  function catCodexInfo() {
+    const list = catCodexList();
+    return {
+      total: list.length, got: (achievements.catCodex || []).length,
+      names: list.filter(function (b) { return catCodexHas(b.idx); }).map(function (b) { return b.name; }),
+      all: list
+    };
+  }
+
   function syncAchievementLog(notify) {
     if (!Array.isArray(achievements.log)) achievements.log = [];
     let changed = false;
@@ -1874,6 +1926,7 @@
       { name: '摸狮得福', ok: (achievements.petLions || 0) >= 3 },
       { name: '河灯祈愿', ok: (achievements.lanterns || 0) >= 3 },
       { name: '宫中熟人', ok: (achievements.asks || 0) >= 5 },
+      { name: '猫谱大家', ok: (achievements.catCodex || []).length >= 7 },
       { name: '雀跃', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', ok: (achievements.incense || 0) >= 3 },
@@ -1925,6 +1978,7 @@
       { name: '摸狮得福', cat: '趣味', ok: (achievements.petLions || 0) >= 3 },
       { name: '河灯祈愿', cat: '趣味', ok: (achievements.lanterns || 0) >= 3 },
       { name: '宫中熟人', cat: '探索', ok: (achievements.asks || 0) >= 5 },
+      { name: '猫谱大家', cat: '趣味', ok: (achievements.catCodex || []).length >= 7 },
       { name: '雀跃', cat: '趣味', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', cat: '趣味', ok: (achievements.incense || 0) >= 3 },
@@ -1983,6 +2037,16 @@
           html += '<span class="tt' + (it.ok ? '' : ' off') + '">' + (it.ok ? '★ ' : '☆ ') + it.name + '</span>';
         }
       }
+      /* 猫谱 */
+      const ccl = catCodexList();
+      html += '<div class="loglist" style="width:100%"><div class="lbl">御猫图鉴 · ' + ((achievements.catCodex || []).length) + ' / ' + ccl.length + '</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
+      for (let ci2 = 0; ci2 < ccl.length; ci2++) {
+        const cc = ccl[ci2];
+        const cgot = catCodexHas(cc.idx);
+        html += '<span class="tt' + (cgot ? '' : ' off') + '">' + (cgot ? '🐾 ' + cc.name : '☆ ？？？') + '</span>';
+      }
+      html += '</div></div>';
+
       /* 图鉴 */
       html += '<div class="loglist" style="width:100%"><div class="lbl">宫中图鉴 · ' + ((achievements.codex || []).length) + ' / ' + CODEX_DATA.length + '</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
       for (let ci = 0; ci < CODEX_DATA.length; ci++) {
@@ -3744,6 +3808,7 @@
     updateTravel(dt);
     updateTutorial(dt);
     updateCodex(dt);
+    updateCatCodex(dt);
     if (!window.__achvSyncT) window.__achvSyncT = 0;
     window.__achvSyncT += dt;
     if (window.__achvSyncT > 3) { window.__achvSyncT = 0; syncAchievementLog(true); }
@@ -4054,6 +4119,9 @@
     playCats: function () { return playWithCats(); },
     syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
     codexInfo: codexInfo,
+    catCodexInfo: catCodexInfo,
+    catCodexTick: function (dt) { updateCatCodex(dt || 0.016); },
+    unlockCatCodex: function (i) { return catCodexUnlock(i); },
     meteorSoundTest: function () { if (AUDIO.meteorWhoosh) AUDIO.meteorWhoosh(); return true; },
     talkInfo: function () { return { asks: achievements.asks || 0, active: window.__npcTalk || null }; },
     nearestWalkNpc: function () { const wk = nearestWalkNpc(); return wk ? { kind: wk.kind, dist: Math.round(wk.dist * 10) / 10 } : null; },

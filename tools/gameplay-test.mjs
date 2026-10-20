@@ -133,6 +133,19 @@ const codex = await evl(`(function(){
 })()`);
 check('图鉴可收录', codex && codex.got >= 3 && codex.total === 16, JSON.stringify({ got: codex && codex.got, total: codex && codex.total }));
 
+/* 6b. 御猫图鉴：走近七只猫即可收录 */
+const catCodex = await evl(`(async function(){
+  var A = window.__app, W = window.WALK, N = window.__NPC;
+  for (var i = 0; i < N.cats.length; i++) {
+    var cp = N.cats[i].obj.group.position;
+    W.pos.set(cp.x + 1.2, 0, cp.z + 1.2); W.pos.y = W.groundAt(W.pos.x, W.pos.z);
+    for (var k = 0; k < 50; k++) A.catCodexTick(1 / 60);
+    await new Promise(function(r){ setTimeout(r, 120); });
+  }
+  return A.catCodexInfo();
+})()`);
+check('御猫图鉴可收集', catCodex && catCodex.total === 7 && catCodex.got === 7, JSON.stringify({ got: catCodex && catCodex.got, total: catCodex && catCodex.total }));
+
 /* 7. 成就日志 */
 const log = await evl(`(function(){
   var A = window.__app;
