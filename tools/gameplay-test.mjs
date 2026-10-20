@@ -269,6 +269,23 @@ const spect = await evl(`(function(){
 })()`);
 check('舞龙观众驻足', spect && spect.events >= 1 && spect.maxActive >= 1 && spect.off && spect.off.active === false, JSON.stringify({ events: spect && spect.events, maxWatching: spect && spect.maxActive }));
 
+/* 13c. 灯会观灯：灯会夜里 NPC 驻足抬头看灯 */
+const lamp = await evl(`(function(){
+  var A = window.__app, N = window.__NPC;
+  A.lanternNpcSet(true);
+  var maxActive = 0, events = 0;
+  for (var i = 0; i < 3600; i++) {
+    N.update(1 / 60);
+    var st = N.lanternInfo();
+    if (st.active > maxActive) maxActive = st.active;
+    events = st.events;
+  }
+  A.lanternNpcSet(false);
+  for (var j = 0; j < 200; j++) N.update(1 / 60);
+  return { maxActive: maxActive, events: events, after: N.lanternInfo() };
+})()`);
+check('灯会 NPC 观灯', lamp && lamp.events >= 1 && lamp.maxActive >= 1 && lamp.after.active === 0, JSON.stringify({ events: lamp && lamp.events, maxWatching: lamp && lamp.maxActive }));
+
 /* 14. 设置与 HUD */
 const ui = await evl(`(function(){
   var A = window.__app;

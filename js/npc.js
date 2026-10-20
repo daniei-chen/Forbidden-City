@@ -273,7 +273,7 @@ const NPC = {
       maid.group.add(umb2);
       let len2 = 0;
       for (let i = 1; i < r.pts.length; i++) len2 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.maids.push({ obj: maid, watchT: 0, watchCd: 0, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0, greetT: 0, greetCd: 0, greetWith: null, admireT: 0, admireCd: 18 + Math.random() * 25, petalT: 0 });
+      this.maids.push({ obj: maid, watchT: 0, watchCd: 0, lampT: 0, lampCd: 0, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0, greetT: 0, greetCd: 0, greetWith: null, admireT: 0, admireCd: 18 + Math.random() * 25, petalT: 0 });
     }
 
     /* 御猫三只 */
@@ -384,6 +384,16 @@ const NPC = {
   sparrows: null,
   sparrowData: null,
   sparrowTime: 0,
+  /* ---------------- 灯会观灯 ---------------- */
+  lanternFest: false,
+  lanternAnchors: [[0, 250], [0, 300], [0, -146], [0, -196], [0, -320], [44, -312], [-44, -314]],
+  lanternInfo: function () {
+    let active = 0;
+    for (let i = 0; i < (this.patrols || []).length; i++) if (this.patrols[i].lampT > 0) active++;
+    for (let j = 0; j < (this.maids || []).length; j++) if (this.maids[j].lampT > 0) active++;
+    return { active: active, events: this.lampEvents || 0 };
+  },
+
   /* ---------------- 灯会舞龙 ---------------- */
   initDragon: function (g) {
     const gold = new THREE.MeshStandardMaterial({ color: 0xd8a74a, roughness: 0.35, metalness: 0.75 });
@@ -938,6 +948,47 @@ const NPC = {
         }
       }
 
+      /* 灯会观灯：靠近灯笼停步抬头 */
+      if (mw.lampT > 0) {
+        mw.lampT -= dt;
+        const curL2 = this.pathPos(mw.pts, mw.t);
+        mw.obj.group.position.set(curL2.x, 0, curL2.z);
+        let bdm = 1e9, bxm = 0, bzm = 0;
+        for (let lm = 0; lm < this.lanternAnchors.length; lm++) {
+          const an3 = this.lanternAnchors[lm];
+          const ddm = Math.hypot(an3[0] - curL2.x, an3[1] - curL2.z);
+          if (ddm < bdm) { bdm = ddm; bxm = an3[0]; bzm = an3[1]; }
+        }
+        const tyM = Math.atan2(bxm - curL2.x, bzm - curL2.z);
+        let dyM = tyM - mw.obj.group.rotation.y;
+        dyM = Math.atan2(Math.sin(dyM), Math.cos(dyM));
+        mw.obj.group.rotation.y += dyM * Math.min(1, dt * 4);
+        mw.legPhase += dt * 1.1;
+        const sm2 = Math.sin(mw.legPhase) * 0.03;
+        mw.obj.parts.legL.rotation.x = sm2;
+        mw.obj.parts.legR.rotation.x = -sm2;
+        mw.obj.parts.armL.rotation.x = -0.4;
+        mw.obj.parts.armR.rotation.x = -0.4;
+        mw.obj.parts.body.position.y = 0.52 + Math.sin(this.time * 1.6 + mi) * 0.006;
+        mw.obj.parts.body.rotation.x = -0.06;
+        if (mw.lampT <= 0) { mw.lampCd = 12 + Math.random() * 8; mw.obj.parts.body.rotation.x = 0; }
+        continue;
+      }
+      if (mw.lampCd > 0) mw.lampCd -= dt;
+      if (this.lanternFest && !(mw.lampCd > 0)) {
+        let bdm2 = 1e9;
+        for (let lm2 = 0; lm2 < this.lanternAnchors.length; lm2++) {
+          const an4 = this.lanternAnchors[lm2];
+          const ddm2 = Math.hypot(an4[0] - cur0.x, an4[1] - cur0.z);
+          if (ddm2 < bdm2) bdm2 = ddm2;
+        }
+        if (bdm2 < 10) {
+          mw.lampT = 2.6;
+          mw.lampCd = 14;
+          this.lampEvents = (this.lampEvents || 0) + 1;
+        }
+      }
+
       let dist = 1e9;
       if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
       if (dist < 6.0) mw.alert = Math.min(1, mw.alert + dt * 4.5);
@@ -1274,6 +1325,47 @@ const NPC = {
           p.watchT = 2.4;
           p.watchCd = 10;
           this.spectatorEvents = (this.spectatorEvents || 0) + 1;
+        }
+      }
+
+      /* 灯会观灯：靠近灯笼停步抬头 */
+      if (p.lampT > 0) {
+        p.lampT -= dt;
+        const curL = this.pathPos(p.pts, p.t);
+        p.obj.group.position.set(curL.x, 0, curL.z);
+        let bd2 = 1e9, bx2 = 0, bz2 = 0;
+        for (let la = 0; la < this.lanternAnchors.length; la++) {
+          const an = this.lanternAnchors[la];
+          const dd = Math.hypot(an[0] - curL.x, an[1] - curL.z);
+          if (dd < bd2) { bd2 = dd; bx2 = an[0]; bz2 = an[1]; }
+        }
+        const tyL = Math.atan2(bx2 - curL.x, bz2 - curL.z);
+        let dyL = tyL - p.obj.group.rotation.y;
+        dyL = Math.atan2(Math.sin(dyL), Math.cos(dyL));
+        p.obj.group.rotation.y += dyL * Math.min(1, dt * 4);
+        p.legPhase += dt * 1.1;
+        const sl = Math.sin(p.legPhase) * 0.03;
+        p.obj.parts.legL.rotation.x = sl;
+        p.obj.parts.legR.rotation.x = -sl;
+        p.obj.parts.armL.rotation.x = -0.45;
+        p.obj.parts.armR.rotation.x = -0.45;
+        p.obj.parts.body.position.y = 0.52 + Math.sin(this.time * 1.6 + i) * 0.006;
+        p.obj.parts.body.rotation.x = -0.06;
+        if (p.lampT <= 0) { p.lampCd = 12 + Math.random() * 8; p.obj.parts.body.rotation.x = 0; }
+        continue;
+      }
+      if (p.lampCd > 0) p.lampCd -= dt;
+      if (this.lanternFest && !(p.lampCd > 0)) {
+        let bd3 = 1e9;
+        for (let la2 = 0; la2 < this.lanternAnchors.length; la2++) {
+          const an2 = this.lanternAnchors[la2];
+          const dd2 = Math.hypot(an2[0] - cur0.x, an2[1] - cur0.z);
+          if (dd2 < bd3) bd3 = dd2;
+        }
+        if (bd3 < 10) {
+          p.lampT = 2.6;
+          p.lampCd = 14;
+          this.lampEvents = (this.lampEvents || 0) + 1;
         }
       }
 
