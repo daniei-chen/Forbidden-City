@@ -2183,7 +2183,7 @@
     return weather;
   }
   /* 雨天湿润：地面材质变暗、粗糙度降低、反射增强 */
-  const WET_MATS = ['paving', 'marble', 'marbleRail', 'stoneDark', 'terraceTop', 'brick', 'path', 'groundMottle'];
+  const WET_MATS = ['paving', 'marble', 'marbleRail', 'stoneDark', 'terraceTop', 'brick', 'path', 'groundMottle', 'roof', 'roofBlack', 'gold', 'goldDark', 'bronze', 'bronzeGreens', 'plaqueFrame', 'ridge'];
   const WET_COLOR = new THREE.Color(0x6d6a63);
   function applyWetMaterials(rain) {
     for (let i = 0; i < WET_MATS.length; i++) {
@@ -3823,6 +3823,7 @@
           try {
             ASSETS.applyMaterials(scene);
             updateEnvironment(currentTheme);
+            if (typeof applyEnvBoost === 'function') applyEnvBoost();
             scene.traverse(function (o) {
               if (o.material) {
                 const ms = Array.isArray(o.material) ? o.material : [o.material];
@@ -3842,6 +3843,27 @@
           if (ms[mi] && ms[mi].isMeshStandardMaterial) ms[mi].envMapIntensity = 0.6;
         }
       });
+      /* 金属/琉璃瓦专属环境反射强度（更接近实景高光） */
+      function applyEnvBoost() {
+        const boost = {
+          gold: 1.7, goldDark: 1.45, plaqueFrame: 1.25, bronze: 1.2,
+          bronzeGreens: 1.0, ridge: 0.85, roof: 1.15, roofBlack: 0.9, water: 1.35
+        };
+        for (const key in boost) {
+          if (typeof MATS !== 'undefined' && MATS[key]) MATS[key].envMapIntensity = boost[key];
+        }
+        /* 场景中其他铜器（太平缸/铜狮/铜鼎等）同步提升 */
+        scene.traverse(function (m) {
+          if (!m.material) return;
+          const ms = Array.isArray(m.material) ? m.material : [m.material];
+          for (let mi = 0; mi < ms.length; mi++) {
+            const mm = ms[mi];
+            if (!mm || !mm.isMeshStandardMaterial) continue;
+            if (mm === (typeof MATS !== 'undefined' && MATS.bronze)) mm.envMapIntensity = 1.2;
+          }
+        });
+      }
+      applyEnvBoost();
       buildLabels();
       buildNav();
 
@@ -4016,6 +4038,7 @@
     meteorSoundTest: function () { if (AUDIO.meteorWhoosh) AUDIO.meteorWhoosh(); return true; },
     talkInfo: function () { return { asks: achievements.asks || 0, active: window.__npcTalk || null }; },
     nearestWalkNpc: function () { const wk = nearestWalkNpc(); return wk ? { kind: wk.kind, dist: Math.round(wk.dist * 10) / 10 } : null; },
+    materialInfo: function () { return { goldEnv: MATS.gold ? Math.round(MATS.gold.envMapIntensity * 100) / 100 : -1, roofEnv: MATS.roof ? Math.round(MATS.roof.envMapIntensity * 100) / 100 : -1, roofRough: MATS.roof ? Math.round(MATS.roof.roughness * 100) / 100 : -1, waterEnv: MATS.water ? Math.round(MATS.water.envMapIntensity * 100) / 100 : -1 }; },
     lanternInfo: function () { return { released: achievements.lanterns || 0, floating: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternPool) ? EFFECTS.riverLanternPool.filter(function (l) { return l.life > 0; }).length : -1, spawns: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternSpawns) || 0 }; },
     petInfo: function () { return { petLions: achievements.petLions || 0, feedBirds: achievements.feedBirds || 0 }; },
     unlockCodex: function (id) { return codexUnlock(id); },

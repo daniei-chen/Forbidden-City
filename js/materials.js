@@ -86,6 +86,15 @@ MATS.init = function () {
   });
   MATS.water.map.repeat.set(1, 1);
 MATS.water.envMapIntensity = 1.35;
+  /* 金属与琉璃瓦的环境反射强度（更接近实景高光） */
+  if (MATS.gold) MATS.gold.envMapIntensity = 1.7;
+  if (MATS.goldDark) MATS.goldDark.envMapIntensity = 1.45;
+  if (MATS.plaqueFrame) MATS.plaqueFrame.envMapIntensity = 1.25;
+  if (MATS.bronze) MATS.bronze.envMapIntensity = 1.2;
+  if (MATS.bronzeGreens) MATS.bronzeGreens.envMapIntensity = 1.0;
+  if (MATS.ridge) MATS.ridge.envMapIntensity = 0.85;
+  if (MATS.roof) MATS.roof.envMapIntensity = 1.15;
+  if (MATS.roofBlack) MATS.roofBlack.envMapIntensity = 0.9;
 
   /* ---- 室内 ---- */
   MATS.coffer = S({ map: TEX.coffer(), color: 0xffffff, roughness: 0.72, emissive: 0x18211f, emissiveIntensity: 0.7 });

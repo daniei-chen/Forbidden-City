@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 7.4.0.20261020.0332">
-<meta name="build-time" content="2026-10-20T03:32:13.416Z">
+<meta name="generator" content="forbidden-city-build 7.5.0.20261020.0401">
+<meta name="build-time" content="2026-10-20T04:01:26.907Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-20T03:32:13.416Z
-  version: 7.4.0.20261020.0332
+  build: 2026-10-20T04:01:26.907Z
+  version: 7.5.0.20261020.0401
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -773,7 +773,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '7.4.0',
+  version: '7.5.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -1911,6 +1911,15 @@ MATS.init = function () {
   });
   MATS.water.map.repeat.set(1, 1);
 MATS.water.envMapIntensity = 1.35;
+  /* 金属与琉璃瓦的环境反射强度（更接近实景高光） */
+  if (MATS.gold) MATS.gold.envMapIntensity = 1.7;
+  if (MATS.goldDark) MATS.goldDark.envMapIntensity = 1.45;
+  if (MATS.plaqueFrame) MATS.plaqueFrame.envMapIntensity = 1.25;
+  if (MATS.bronze) MATS.bronze.envMapIntensity = 1.2;
+  if (MATS.bronzeGreens) MATS.bronzeGreens.envMapIntensity = 1.0;
+  if (MATS.ridge) MATS.ridge.envMapIntensity = 0.85;
+  if (MATS.roof) MATS.roof.envMapIntensity = 1.15;
+  if (MATS.roofBlack) MATS.roofBlack.envMapIntensity = 0.9;
 
   /* ---- 室内 ---- */
   MATS.coffer = S({ map: TEX.coffer(), color: 0xffffff, roughness: 0.72, emissive: 0x18211f, emissiveIntensity: 0.7 });
@@ -13081,7 +13090,7 @@ const ASSETS = {
     return weather;
   }
   /* 雨天湿润：地面材质变暗、粗糙度降低、反射增强 */
-  const WET_MATS = ['paving', 'marble', 'marbleRail', 'stoneDark', 'terraceTop', 'brick', 'path', 'groundMottle'];
+  const WET_MATS = ['paving', 'marble', 'marbleRail', 'stoneDark', 'terraceTop', 'brick', 'path', 'groundMottle', 'roof', 'roofBlack', 'gold', 'goldDark', 'bronze', 'bronzeGreens', 'plaqueFrame', 'ridge'];
   const WET_COLOR = new THREE.Color(0x6d6a63);
   function applyWetMaterials(rain) {
     for (let i = 0; i < WET_MATS.length; i++) {
@@ -14721,6 +14730,7 @@ const ASSETS = {
           try {
             ASSETS.applyMaterials(scene);
             updateEnvironment(currentTheme);
+            if (typeof applyEnvBoost === 'function') applyEnvBoost();
             scene.traverse(function (o) {
               if (o.material) {
                 const ms = Array.isArray(o.material) ? o.material : [o.material];
@@ -14740,6 +14750,27 @@ const ASSETS = {
           if (ms[mi] && ms[mi].isMeshStandardMaterial) ms[mi].envMapIntensity = 0.6;
         }
       });
+      /* 金属/琉璃瓦专属环境反射强度（更接近实景高光） */
+      function applyEnvBoost() {
+        const boost = {
+          gold: 1.7, goldDark: 1.45, plaqueFrame: 1.25, bronze: 1.2,
+          bronzeGreens: 1.0, ridge: 0.85, roof: 1.15, roofBlack: 0.9, water: 1.35
+        };
+        for (const key in boost) {
+          if (typeof MATS !== 'undefined' && MATS[key]) MATS[key].envMapIntensity = boost[key];
+        }
+        /* 场景中其他铜器（太平缸/铜狮/铜鼎等）同步提升 */
+        scene.traverse(function (m) {
+          if (!m.material) return;
+          const ms = Array.isArray(m.material) ? m.material : [m.material];
+          for (let mi = 0; mi < ms.length; mi++) {
+            const mm = ms[mi];
+            if (!mm || !mm.isMeshStandardMaterial) continue;
+            if (mm === (typeof MATS !== 'undefined' && MATS.bronze)) mm.envMapIntensity = 1.2;
+          }
+        });
+      }
+      applyEnvBoost();
       buildLabels();
       buildNav();
 
@@ -14914,6 +14945,7 @@ const ASSETS = {
     meteorSoundTest: function () { if (AUDIO.meteorWhoosh) AUDIO.meteorWhoosh(); return true; },
     talkInfo: function () { return { asks: achievements.asks || 0, active: window.__npcTalk || null }; },
     nearestWalkNpc: function () { const wk = nearestWalkNpc(); return wk ? { kind: wk.kind, dist: Math.round(wk.dist * 10) / 10 } : null; },
+    materialInfo: function () { return { goldEnv: MATS.gold ? Math.round(MATS.gold.envMapIntensity * 100) / 100 : -1, roofEnv: MATS.roof ? Math.round(MATS.roof.envMapIntensity * 100) / 100 : -1, roofRough: MATS.roof ? Math.round(MATS.roof.roughness * 100) / 100 : -1, waterEnv: MATS.water ? Math.round(MATS.water.envMapIntensity * 100) / 100 : -1 }; },
     lanternInfo: function () { return { released: achievements.lanterns || 0, floating: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternPool) ? EFFECTS.riverLanternPool.filter(function (l) { return l.life > 0; }).length : -1, spawns: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternSpawns) || 0 }; },
     petInfo: function () { return { petLions: achievements.petLions || 0, feedBirds: achievements.feedBirds || 0 }; },
     unlockCodex: function (id) { return codexUnlock(id); },
@@ -15008,6 +15040,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"7.4.0.20261020.0332","time":"2026-10-20T03:32:13.416Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"7.5.0.20261020.0401","time":"2026-10-20T04:01:26.907Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
