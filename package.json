@@ -1,6 +1,6 @@
 {
   "name": "forbidden-city-digital-restoration",
-  "version": "7.23.0",
+  "version": "7.24.0",
   "private": true,
   "description": "紫禁城数字复原 — Three.js 程序化建模 / 四时段 / 中轴巡礼 / 后期调色",
   "type": "module",
@@ -15,6 +15,8 @@
     "test:game": "node tools/gameplay-test.mjs",
     "test:mobile": "node tools/mobile-check.mjs",
     "test:hud": "node tools/hud-check.mjs",
+    "test:npc": "node tools/npc-check.mjs",
+    "test:festival": "node tools/festival-check.mjs",
     "check": "node tools/check.mjs"
   },
   "engines": {

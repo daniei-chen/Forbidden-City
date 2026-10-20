@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 7.23.0.20261020.1303">
-<meta name="build-time" content="2026-10-20T13:03:22.910Z">
+<meta name="generator" content="forbidden-city-build 7.24.0.20261020.1639">
+<meta name="build-time" content="2026-10-20T16:39:31.476Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-20T13:03:22.910Z
-  version: 7.23.0.20261020.1303
+  build: 2026-10-20T16:39:31.476Z
+  version: 7.24.0.20261020.1639
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -822,7 +822,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '7.23.0',
+  version: '7.24.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -13938,7 +13938,8 @@ const ASSETS = {
       }
     }
     if (typeof EFFECTS !== 'undefined' && EFFECTS.setRain) EFFECTS.setRain(weather.rain);
-    if (typeof MATS !== 'undefined') applyWetMaterials(weather.rain);
+    const festivalSheen = (settings.festival && (currentTheme === 'night' || currentTheme === 'dusk')) ? 0.3 : 0;
+    if (typeof MATS !== 'undefined') applyWetMaterials(Math.max(weather.rain, festivalSheen));
     if (typeof AUDIO !== 'undefined' && AUDIO.setRain) AUDIO.setRain(weather.rain);
     return weather;
   }
@@ -15984,6 +15985,7 @@ const ASSETS = {
     meteorSoundTest: function () { if (AUDIO.meteorWhoosh) AUDIO.meteorWhoosh(); return true; },
     talkInfo: function () { return { asks: achievements.asks || 0, active: window.__npcTalk || null }; },
     nearestWalkNpc: function () { const wk = nearestWalkNpc(); return wk ? { kind: wk.kind, dist: Math.round(wk.dist * 10) / 10 } : null; },
+    wetInfo: function () { return { rain: Math.round(weather.rain * 100) / 100, sheen: (settings.festival && (currentTheme === 'night' || currentTheme === 'dusk')) ? 0.3 : 0, pavingRough: MATS.paving ? Math.round(MATS.paving.roughness * 1000) / 1000 : -1, pavingEnv: MATS.paving ? Math.round(MATS.paving.envMapIntensity * 100) / 100 : -1 }; },
     materialInfo: function () { return { goldEnv: MATS.gold ? Math.round(MATS.gold.envMapIntensity * 100) / 100 : -1, roofEnv: MATS.roof ? Math.round(MATS.roof.envMapIntensity * 100) / 100 : -1, roofRough: MATS.roof ? Math.round(MATS.roof.roughness * 100) / 100 : -1, waterEnv: MATS.water ? Math.round(MATS.water.envMapIntensity * 100) / 100 : -1 }; },
     lanternNpcInfo: function () { return (typeof NPC !== 'undefined' && NPC.lanternInfo) ? NPC.lanternInfo() : null; },
     lanternNpcSet: function (on) { if (typeof NPC !== 'undefined') NPC.lanternFest = !!on; return this.lanternNpcInfo(); },
@@ -16103,6 +16105,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"7.23.0.20261020.1303","time":"2026-10-20T13:03:22.910Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"7.24.0.20261020.1639","time":"2026-10-20T16:39:31.476Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

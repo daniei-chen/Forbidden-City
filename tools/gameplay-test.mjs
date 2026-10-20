@@ -36,15 +36,27 @@ ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data);
   if (m.id && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); m.error ? p.rej(new Error(JSON.stringify(m.error))) : p.res(m.result); }
 };
-const send = (method, params = {}) => new Promise((res, rej) => { const i = ++id; pending.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); });
+const send = (method, params = {}) => new Promise((res, rej) => {
+  const i = ++id;
+  const to = setTimeout(() => { pending.delete(i); rej(new Error('CDP timeout: ' + method)); }, 180000);
+  pending.set(i, {
+    res: (v) => { clearTimeout(to); res(v); },
+    rej: (e) => { clearTimeout(to); rej(e); }
+  });
+  ws.send(JSON.stringify({ id: i, method, params }));
+});
 async function evl(expr) {
+  const tag = String(expr).replace(/\s+/g, ' ').slice(0, 55);
+  console.log('[eval] start:', tag);
   const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true });
+  console.log('[eval] done :', tag);
   if (r.exceptionDetails) throw new Error(r.exceptionDetails.text || 'eval error');
   return r.result && r.result.value;
 }
 
 await send('Page.enable');
 await send('Runtime.enable');
+await send('Page.bringToFront');
 await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
 await send('Page.navigate', { url: pathToFileURL(file).href + '?still=1&quality=low&theme=day&view=1&nomap=1' });
 
@@ -69,7 +81,8 @@ await evl(`(function(){
   } catch(e){}
   return true;
 })()`);
-await send('Page.reload', { ignoreCache: true });
+await send('Page.navigate', { url: pathToFileURL(file).href + '?still=1&quality=low&theme=day&view=1&nomap=1' });
+await sleep(3000);
 ready = false;
 for (let i = 0; i < 120; i++) {
   try { if (await evl('!!(window.__app && window.__app.ready)')) { ready = true; break; } } catch (e) {}
@@ -246,6 +259,18 @@ const preset = await evl(`(function(){
 })()`);
 check('氛围预设切换', preset && preset.theme === 'night' && preset.weather === 'rain' && preset.festival === true, JSON.stringify(preset));
 
+/* mid-suite reload: 清理累积的 WebGL/页面状态，避免重负载后渲染器卡死 */
+await send('Page.navigate', { url: pathToFileURL(file).href + '?still=1&quality=low&theme=day&view=1&nomap=1' });
+await sleep(3000);
+ready = false;
+for (let i = 0; i < 120; i++) {
+  try { if (await evl('!!(window.__app && window.__app.ready)')) { ready = true; break; } } catch (e) {}
+  await sleep(300);
+}
+await sleep(700);
+await evl('window.__app.startWalk()');
+await sleep(400);
+
 /* 13. NPC 生态统计 */
 const npc = await evl(`(function(){
   var A = window.__app, N = window.__NPC;
@@ -264,104 +289,6 @@ const npc = await evl(`(function(){
   };
 })()`);
 check('NPC 生态（伞/仪式/生活/寒暄）', npc && npc.umbrellas.total > 0 && npc.ceremony.cycles >= 1 && npc.life.eunuch && npc.life.sweeper, JSON.stringify({ umb: npc && npc.umbrellas, cyc: npc && npc.ceremony.cycles }));
-
-/* 13b. 舞龙观众：金龙经过时 NPC 驻足观看 */
-const spect = await evl(`(function(){
-  var A = window.__app, N = window.__NPC;
-  A.dragonSet(true);
-  var maxActive = 0, events = 0;
-  for (var i = 0; i < 3600; i++) {
-    N.update(1 / 60);
-    var st = N.spectatorInfo();
-    if (st.active > maxActive) maxActive = st.active;
-    events = st.events;
-  }
-  var off = A.dragonSet(false);
-  return { maxActive: maxActive, events: events, off: off };
-})()`);
-check('舞龙观众驻足', spect && spect.events >= 1 && spect.maxActive >= 1 && spect.off && spect.off.active === false, JSON.stringify({ events: spect && spect.events, maxWatching: spect && spect.maxActive }));
-
-/* 13c. 灯会观灯：灯会夜里 NPC 驻足抬头看灯 */
-const lamp = await evl(`(function(){
-  var A = window.__app, N = window.__NPC;
-  A.lanternNpcSet(true);
-  var maxActive = 0, events = 0;
-  for (var i = 0; i < 3600; i++) {
-    N.update(1 / 60);
-    var st = N.lanternInfo();
-    if (st.active > maxActive) maxActive = st.active;
-    events = st.events;
-  }
-  A.lanternNpcSet(false);
-  for (var j = 0; j < 200; j++) N.update(1 / 60);
-  return { maxActive: maxActive, events: events, after: N.lanternInfo() };
-})()`);
-check('灯会 NPC 观灯', lamp && lamp.events >= 1 && lamp.maxActive >= 1 && lamp.after.active === 0, JSON.stringify({ events: lamp && lamp.events, maxWatching: lamp && lamp.maxActive }));
-
-/* 13d. 灯会锣鼓队：节拍计数与显隐 */
-const band = await evl(`(function(){
-  var A = window.__app, N = window.__NPC;
-  A.drumBandSet(true);
-  for (var i = 0; i < 1200; i++) N.update(1 / 60);
-  var on = A.drumBandInfo();
-  A.drumBandSet(false);
-  N.update(1 / 60);
-  return { on: on, off: A.drumBandInfo() };
-})()`);
-check('灯会锣鼓队节拍', band && band.on && band.on.beats >= 20 && band.off && band.off.visible === false, JSON.stringify({ beats: band && band.on && band.on.beats }));
-
-/* 13e. 灯会夜游导览：五站全至 */
-const tour = await evl(`(function(){
-  var A = window.__app, W = window.WALK;
-  A.resetFestivalTour();
-  A.setFestival(true);
-  A.setTheme('night');
-  var st = A.festivalTourInfo();
-  var stops = [[0,430],[30,296],[0,320],[30,370],[-44,-300]];
-  for (var i = 0; i < stops.length; i++) {
-    W.pos.set(stops[i][0], 0, stops[i][1]); W.pos.y = W.groundAt(W.pos.x, W.pos.z);
-    A.festivalTourTick();
-  }
-  A.walkGameTick();
-  var en = A.festivalTourInfo();
-  return { start: st.got, got: en.got, total: en.total, hint: document.getElementById('wgHint').textContent };
-})()`);
-check('灯会夜游导览五站', tour && tour.start === 0 && tour.got === 5 && tour.total === 5, JSON.stringify({ got: tour && tour.got, hint: tour && tour.hint }));
-
-/* 13f. 宫灯串：灯会 40 盏横跨御道的小灯 */
-const strings = await evl(`(function(){
-  var A = window.__app;
-  A.setFestival(true);
-  A.festivalStringsTick();
-  return A.festivalStringsInfo();
-})()`);
-check('灯会宫灯串', strings && strings.count === 40 && strings.anchors === 40 && strings.visible === true, JSON.stringify({ count: strings && strings.count, firstY: strings && strings.firstY }));
-
-/* 13g. 灯会地面光池：夜里亮、白天极弱 */
-const glow = await evl(`(function(){
-  var A = window.__app;
-  A.setFestival(true);
-  A.setTheme('night');
-  A.festivalStringsTick();
-  var night = A.festivalGlowInfo();
-  A.setTheme('day');
-  A.festivalStringsTick();
-  var day = A.festivalGlowInfo();
-  return { night: night, day: day };
-})()`);
-check('灯会地面光池', glow && glow.night && glow.night.opacity >= 0.4 && glow.night.count >= 100 && glow.day && glow.day.opacity < 0.1, JSON.stringify({ night: glow && glow.night, day: glow && glow.day }));
-
-/* 13h. 放河灯宫女：灯会夜会持续放灯 */
-const lampMaid = await evl(`(function(){
-  var A = window.__app, N = window.__NPC;
-  var s0 = EFFECTS.riverLanternSpawns || 0;
-  A.riverLampMaidSet(true);
-  for (var i = 0; i < 5400; i++) N.update(1 / 60);
-  var info = A.riverLampMaidInfo();
-  A.riverLampMaidSet(false);
-  return { info: info, spawned: (EFFECTS.riverLanternSpawns || 0) - s0 };
-})()`);
-check('放河灯宫女', lampMaid && lampMaid.info && lampMaid.info.visible === true && lampMaid.info.released >= 2 && lampMaid.spawned >= 2, JSON.stringify({ released: lampMaid && lampMaid.info && lampMaid.info.released, spawned: lampMaid && lampMaid.spawned }));
 
 /* 14. 设置与 HUD */
 const ui = await evl(`(function(){
