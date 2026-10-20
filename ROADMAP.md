@@ -159,3 +159,4 @@ pm run smoke` → ④ 多机位截图 → ⑤ 更新文档/版本 → ⑥ 记录
 | R99 | 银河星带 + 流星 | 昼夜可见性/流星测试 + 冒烟 + harness |
 | R100 | 性能守护（自适应粒子 LOD）| 降级/恢复测试 + 冒烟 + harness |
 | R101 | **v7.0.0 里程碑**：完整链路验收 + 文档 | gameplay-test + smoke + harness + realism |
+| R102 | 屋檐水流线（大雨檐口 92 道水线）| 粒子测试 + 冒烟 + harness |

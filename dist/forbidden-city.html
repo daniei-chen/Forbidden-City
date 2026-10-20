@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 7.0.0.20261020.0158">
-<meta name="build-time" content="2026-10-20T01:58:55.579Z">
+<meta name="generator" content="forbidden-city-build 7.1.0.20261020.0230">
+<meta name="build-time" content="2026-10-20T02:30:27.627Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-20T01:58:55.579Z
-  version: 7.0.0.20261020.0158
+  build: 2026-10-20T02:30:27.627Z
+  version: 7.1.0.20261020.0230
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -773,7 +773,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '7.0.0',
+  version: '7.1.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -8927,6 +8927,7 @@ const EFFECTS = {
     this.initSplashes(scene);
     this.initRipples(scene);
     this.initGalaxy(scene);
+    this.initEaveStreams(scene);
     this.initDripDrops(scene);
     this.initCoins(scene);
     this.initIncense(scene);
@@ -8991,6 +8992,66 @@ const EFFECTS = {
       const o = i * 6;
       arr[o] = px; arr[o + 1] = d.y; arr[o + 2] = pz;
       arr[o + 3] = px + 0.03; arr[o + 4] = d.y - d.len * 6; arr[o + 5] = pz;
+    }
+    lines.geometry.attributes.position.needsUpdate = true;
+  },
+
+  /* ---------------- 屋檐水流线（大雨时檐口成串滴水） ---------------- */
+  eaveStreams: null,
+  eaveData: null,
+  initEaveStreams: function (scene) {
+    /* 大殿参数：z 位置、半宽、半深、檐口高度、落点高度 */
+    const halls = [
+      { z: -100, hw: 21, hd: 20, top: 26.5, bottom: 8.13, n: 26 },   /* 太和殿（三台） */
+      { z: -244, hw: 18, hd: 17, top: 25.0, bottom: 8.13, n: 22 },   /* 保和殿（三台） */
+      { z: -196, hw: 19, hd: 18, top: 25.5, bottom: 0.15, n: 24 },   /* 乾清宫 */
+      { z: 546, hw: 22, hd: 15, top: 24.0, bottom: 0.15, n: 20 }     /* 午门 */
+    ];
+    const pts = [];
+    for (let hi = 0; hi < halls.length; hi++) {
+      const h = halls[hi];
+      for (let i = 0; i < h.n; i++) {
+        const along = (i / (h.n - 1) - 0.5) * 2;
+        const side = i % 2 === 0 ? 1 : -1;
+        /* 长边两点 + 短边一点混合，沿檐口分布 */
+        const x = (i % 3 === 0) ? (side * (h.hw + 1.2)) : Math.round(along * h.hw);
+        const z = (i % 3 === 0) ? Math.round(along * h.hd) + h.z : h.z + side * (h.hd + 1.2);
+        pts.push({ x: x, z: z, top: h.top, bottom: h.bottom, phase: Math.random() * 12, speed: 7 + Math.random() * 4 });
+      }
+    }
+    const N = pts.length;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(N * 2 * 3);
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.LineBasicMaterial({
+      color: 0xcfe3f2, transparent: true, opacity: 0, depthWrite: false
+    });
+    const lines = new THREE.LineSegments(geo, mat);
+    lines.frustumCulled = false;
+    lines.visible = false;
+    scene.add(lines);
+    this.eaveStreams = lines;
+    this.eaveData = pts;
+  },
+  updateEaveStreams: function (dt) {
+    const lines = this.eaveStreams;
+    const data = this.eaveData;
+    if (!lines || !data) return;
+    const rain = this.rainAmt || 0;
+    const visible = rain > 0.28;
+    lines.visible = visible;
+    if (!visible) return;
+    lines.material.opacity = Math.min(0.55, rain * 0.55);
+    const arr = lines.geometry.attributes.position.array;
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i];
+      d.phase += dt * d.speed;
+      const span = d.top - d.bottom;
+      const head = d.bottom + (span - (d.phase % span));
+      const tail = head + 1.6 + Math.random() * 0.3;
+      const o = i * 6;
+      arr[o] = d.x; arr[o + 1] = Math.min(d.top, tail); arr[o + 2] = d.z;
+      arr[o + 3] = d.x; arr[o + 4] = Math.max(d.bottom, head); arr[o + 5] = d.z;
     }
     lines.geometry.attributes.position.needsUpdate = true;
   },
@@ -9936,6 +9997,7 @@ const EFFECTS = {
       if (this.butterflies) this.butterflies.visible = false;
       if (this.rain) this.rain.visible = false;
       if (this.galaxy) this.galaxy.visible = false;
+      if (this.eaveStreams) this.eaveStreams.visible = false;
       if (this.meteorPool) { for (let mi2 = 0; mi2 < this.meteorPool.length; mi2++) this.meteorPool[mi2].line.visible = false; }
       if (this.splashPool) { for (let si = 0; si < this.splashPool.length; si++) this.splashPool[si].sp.visible = false; }
       if (this.lanternCaps) this.lanternCaps.visible = false;
@@ -9955,6 +10017,7 @@ const EFFECTS = {
     this.updateSplashes(dt, camRef);
     this.updateRipples(dt);
     this.updateGalaxy(dt, st);
+    this.updateEaveStreams(dt);
     if (this.rainAmt > 0.18 && camRef) {
       if (!this._rippleSpawnT) this._rippleSpawnT = 0;
       this._rippleSpawnT += dt * (6 + this.rainAmt * 14) * (this.lodScale || 1);
@@ -14677,6 +14740,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"7.0.0.20261020.0158","time":"2026-10-20T01:58:55.579Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"7.1.0.20261020.0230","time":"2026-10-20T02:30:27.627Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>
