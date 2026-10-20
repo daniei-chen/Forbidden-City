@@ -1,5 +1,7 @@
 # 紫禁城 · 数字复原
 
+> **v7.0.0 里程碑（第 50 轮）**：50 轮游戏化迭代，48 个线上版本；漫游手感、探索任务、图鉴收集、拍照相册、小游戏、互动彩蛋、天气昼夜、NPC 生态、音频氛围、自动化测试与性能守护全部就绪。
+
 以 **Three.js 程序化建模** 从零复刻的紫禁城中轴线三维场景。双击单个 HTML 即可在浏览器中游览，无服务器、无外部图片、无网络依赖。
 
 [![Release](https://img.shields.io/github/v/release/daniei-chen/Forbidden-City?label=release)](https://github.com/daniei-chen/Forbidden-City/releases)
@@ -257,7 +259,7 @@ npm run shots     # 批量渲染机位截图
 - 性能未在真实 GPU 实测（无头环境为软件渲染），已内置 FPS 监控与自动降级
 ## 版本
 
-见 [CHANGELOG.md](CHANGELOG.md)。当前 **v6.48.0**。
+见 [CHANGELOG.md](CHANGELOG.md)。当前 **v7.0.0**（50 轮迭代里程碑）。
 
 ## v6.0.0 里程碑
 
