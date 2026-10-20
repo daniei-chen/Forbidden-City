@@ -339,6 +339,18 @@ const glow = await evl(`(function(){
 })()`);
 check('灯会地面光池', glow && glow.night && glow.night.opacity >= 0.4 && glow.night.count >= 100 && glow.day && glow.day.opacity < 0.1, JSON.stringify({ night: glow && glow.night, day: glow && glow.day }));
 
+/* 13h. 放河灯宫女：灯会夜会持续放灯 */
+const lampMaid = await evl(`(function(){
+  var A = window.__app, N = window.__NPC;
+  var s0 = EFFECTS.riverLanternSpawns || 0;
+  A.riverLampMaidSet(true);
+  for (var i = 0; i < 5400; i++) N.update(1 / 60);
+  var info = A.riverLampMaidInfo();
+  A.riverLampMaidSet(false);
+  return { info: info, spawned: (EFFECTS.riverLanternSpawns || 0) - s0 };
+})()`);
+check('放河灯宫女', lampMaid && lampMaid.info && lampMaid.info.visible === true && lampMaid.info.released >= 2 && lampMaid.spawned >= 2, JSON.stringify({ released: lampMaid && lampMaid.info && lampMaid.info.released, spawned: lampMaid && lampMaid.spawned }));
+
 /* 14. 设置与 HUD */
 const ui = await evl(`(function(){
   var A = window.__app;

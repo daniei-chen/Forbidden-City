@@ -4358,6 +4358,8 @@
     materialInfo: function () { return { goldEnv: MATS.gold ? Math.round(MATS.gold.envMapIntensity * 100) / 100 : -1, roofEnv: MATS.roof ? Math.round(MATS.roof.envMapIntensity * 100) / 100 : -1, roofRough: MATS.roof ? Math.round(MATS.roof.roughness * 100) / 100 : -1, waterEnv: MATS.water ? Math.round(MATS.water.envMapIntensity * 100) / 100 : -1 }; },
     lanternNpcInfo: function () { return (typeof NPC !== 'undefined' && NPC.lanternInfo) ? NPC.lanternInfo() : null; },
     lanternNpcSet: function (on) { if (typeof NPC !== 'undefined') NPC.lanternFest = !!on; return this.lanternNpcInfo(); },
+    riverLampMaidInfo: function () { return (typeof NPC !== 'undefined' && NPC.riverLampMaidInfo) ? NPC.riverLampMaidInfo() : null; },
+    riverLampMaidSet: function (on) { if (typeof NPC !== 'undefined') NPC.lanternFest = !!on; return this.riverLampMaidInfo(); },
     drumBandInfo: function () { return (typeof NPC !== 'undefined' && NPC.drumBandInfo) ? NPC.drumBandInfo() : null; },
     drumBandSet: function (on) { if (typeof NPC !== 'undefined') NPC.bandEnabled = !!on; return this.drumBandInfo(); },
     dragonInfo: function () { return (typeof NPC !== 'undefined' && NPC.dragonInfo) ? NPC.dragonInfo() : null; },

@@ -332,6 +332,7 @@ const NPC = {
 
     this.initDragon(g);
     this.initDrumBand(g);
+    this.initRiverLampMaid(g);
     this.flowerBeds = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396]];
     this.group = g;
     if (this._pendingSparrows) { this._pendingSparrows = false; this.initSparrows(); }
@@ -398,6 +399,50 @@ const NPC = {
   /* ---------------- 灯会舞龙 ---------------- */
   /* ---------------- 灯会锣鼓队 ---------------- */
   bandEnabled: false,
+  /* ---------------- 放河灯宫女（灯会夜） ---------------- */
+  initRiverLampMaid: function (g) {
+    const maid2 = this.makeGuard({ robeColor: 0xc0717c, trimColor: 0xd8b45f, spear: false });
+    maid2.group.position.set(24, 0, 372);
+    maid2.group.rotation.y = Math.PI; /* 面向河面 */
+    /* 竹篮 */
+    const basket = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8a5f33, roughness: 0.9 });
+    const body2 = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.2, 0.24, 10, 1, true), wood);
+    const bottom = new THREE.Mesh(new THREE.CircleGeometry(0.2, 10), wood);
+    bottom.rotation.x = -Math.PI / 2;
+    bottom.position.y = -0.12;
+    basket.add(body2, bottom);
+    basket.position.set(0.28, 0.75, 0.28);
+    maid2.group.add(basket);
+    g.add(maid2.group);
+    this.riverLampMaid = { obj: maid2, t: 6 + Math.random() * 10, released: 0, visible: false };
+  },
+  updateRiverLampMaid: function (dt) {
+    const M = this.riverLampMaid;
+    if (!M) return;
+    const on = !!this.lanternFest;
+    M.obj.group.visible = on;
+    M.visible = on;
+    if (!on) return;
+    /* 轻轻摆动的放灯动作 */
+    M.obj.parts.armL.rotation.x = -0.55 + Math.sin(this.time * 1.2) * 0.12;
+    M.obj.parts.armR.rotation.x = -0.5 - Math.sin(this.time * 1.2) * 0.1;
+    M.obj.parts.body.position.y = 0.52 + Math.sin(this.time * 1.6) * 0.008;
+    M.t -= dt;
+    if (M.t <= 0) {
+      M.t = 22 + Math.random() * 20;
+      M.released++;
+      if (typeof EFFECTS !== 'undefined' && EFFECTS.spawnRiverLantern) {
+        EFFECTS.spawnRiverLantern(28 + Math.random() * 4, 350 + 14 * Math.sin(Math.PI * ((30 + 112) / 224)));
+      }
+    }
+  },
+  riverLampMaidInfo: function () {
+    const M = this.riverLampMaid;
+    if (!M) return null;
+    return { visible: M.visible, released: M.released, timer: Math.round(M.t * 10) / 10 };
+  },
+
   initDrumBand: function (g) {
     const wood = new THREE.MeshStandardMaterial({ color: 0x6b3d22, roughness: 0.85 });
     const skin = new THREE.MeshStandardMaterial({ color: 0xd9c9a3, roughness: 0.8 });
@@ -911,6 +956,7 @@ const NPC = {
     this.updateCeremony(dt);
     this.updateDragon(dt);
     this.updateDrumBand(dt);
+    this.updateRiverLampMaid(dt);
     /* 雨伞随雨量显隐 */
     if (this.umbrellas && this.umbrellas.length) {
       const rainAmt = (typeof EFFECTS !== 'undefined') ? (EFFECTS.rainAmt || 0) : 0;
