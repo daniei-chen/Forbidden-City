@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.43.0.20261019.2312">
-<meta name="build-time" content="2026-10-19T23:12:44.429Z">
+<meta name="generator" content="forbidden-city-build 6.44.0.20261019.2350">
+<meta name="build-time" content="2026-10-19T23:50:01.165Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T23:12:44.429Z
-  version: 6.43.0.20261019.2312
+  build: 2026-10-19T23:50:01.165Z
+  version: 6.44.0.20261019.2350
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -773,7 +773,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.43.0',
+  version: '6.44.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -11610,6 +11610,8 @@ const ASSETS = {
   ];
   let nearInteractive = null;
   let lastInteractT = 0;
+  let lastWishT = 0;
+  let lastIncenseT = 0;
   function nearestInteractive() {
     if (!WALK.active) return null;
     let best = null, bestD = 1e9;
@@ -11742,15 +11744,15 @@ const ASSETS = {
     if (!it) return;
     if (it.wish) {
       const nowW = performance.now();
-      if (nowW - lastInteractT < 800) return;
-      lastInteractT = nowW;
+      if (nowW - lastWishT < 800) return;
+      lastWishT = nowW;
       tossWish(it);
       return;
     }
     if (it.incense) {
       const nowI = performance.now();
-      if (nowI - lastInteractT < 900) return;
-      lastInteractT = nowI;
+      if (nowI - lastIncenseT < 900) return;
+      lastIncenseT = nowI;
       burnIncense(it);
       return;
     }
@@ -14358,6 +14360,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.43.0.20261019.2312","time":"2026-10-19T23:12:44.429Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.44.0.20261019.2350","time":"2026-10-19T23:50:01.165Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

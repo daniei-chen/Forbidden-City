@@ -1035,6 +1035,8 @@
   ];
   let nearInteractive = null;
   let lastInteractT = 0;
+  let lastWishT = 0;
+  let lastIncenseT = 0;
   function nearestInteractive() {
     if (!WALK.active) return null;
     let best = null, bestD = 1e9;
@@ -1167,15 +1169,15 @@
     if (!it) return;
     if (it.wish) {
       const nowW = performance.now();
-      if (nowW - lastInteractT < 800) return;
-      lastInteractT = nowW;
+      if (nowW - lastWishT < 800) return;
+      lastWishT = nowW;
       tossWish(it);
       return;
     }
     if (it.incense) {
       const nowI = performance.now();
-      if (nowI - lastInteractT < 900) return;
-      lastInteractT = nowI;
+      if (nowI - lastIncenseT < 900) return;
+      lastIncenseT = nowI;
       burnIncense(it);
       return;
     }
