@@ -1,0 +1,98 @@
+PASS 移动端页面加载 — ready=true
+PASS WebGL 渲染器可用 — ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Ti (0x00002D04) Direct3D11 vs_5_0 ps_5_0,
+PASS 移动端安全区 CSS — safe-area-inset 存在
+PASS 触屏摇杆与按钮 — {"display":"block","opacity":"1","stickW":132,"buttons":5}
+[mobile-debug] {
+ "photo": {
+  "id": "tbPhoto",
+  "cls": "tbtn",
+  "rect": [
+   240,
+   730,
+   58,
+   58
+  ],
+  "pos": "absolute",
+  "right": "92px",
+  "bottom": "56px",
+  "left": "240px",
+  "top": "730px",
+  "display": "flex",
+  "z": "auto"
+ },
+ "jump": {
+  "id": "tbJump",
+  "cls": "tbtn",
+  "rect": [
+   240,
+   658,
+   58,
+   58
+  ],
+  "pos": "absolute",
+  "right": "92px",
+  "bottom": "128px",
+  "left": "240px",
+  "top": "658px",
+  "display": "flex",
+  "z": "auto"
+ },
+ "tutorial": {
+  "id": "tutorial",
+  "cls": "tutorial show",
+  "rect": [
+   0,
+   0,
+   390,
+   63
+  ],
+  "pos": "static",
+  "right": "auto",
+  "bottom": "auto",
+  "left": "auto",
+  "top": "auto",
+  "display": "block",
+  "z": "auto"
+ },
+ "wg": {
+  "id": "walkgame",
+  "cls": "walkgame",
+  "rect": [
+   10,
+   497,
+   370,
+   79
+  ],
+  "pos": "fixed",
+  "right": "10px",
+  "bottom": "268px",
+  "left": "10px",
+  "top": "497px",
+  "display": "block",
+  "z": "6"
+ },
+ "quests": {
+  "id": "wgQuests",
+  "cls": "wg-quests",
+  "rect": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "pos": "static",
+  "right": "auto",
+  "bottom": "auto",
+  "left": "auto",
+  "top": "auto",
+  "display": "none",
+  "z": "auto"
+ },
+ "bodycls": "touch walking"
+}
+PASS HUD 与触控区不重叠 — {"overlaps":[],"walkgame":{"top":497,"bottom":576,"left":10,"right":380}}
+PASS 摇杆驱动移动 — {"touch":{"x":0,"y":1},"moved":2.32}
+PASS 移动端低画质帧率 — {"frames":471,"ms":2504,"fps":188}
+PASS 竖屏/横屏截图 — portrait=170203B landscape=188166B
+
+[mobile-check] 8/8 通过，报告写入 MOBILE_CHECK.md
