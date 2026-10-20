@@ -155,6 +155,18 @@ const log = await evl(`(function(){
 })()`);
 check('成就解锁记录', log && log.n >= 1, JSON.stringify(log));
 
+/* 7b. 成就墙分组：5 类、23 称号 */
+const achv = await evl(`(function(){
+  var A = window.__app;
+  A.openAchievements(true);
+  var heads = document.querySelectorAll('#achvTitles .group-prog');
+  var groups = heads.length;
+  var d = A.achievementsPanel();
+  A.openAchievements(false);
+  return { groups: groups, total: d.titleTotal };
+})()`);
+check('成就墙分组', achv && achv.groups === 5 && achv.total === 23, JSON.stringify(achv));
+
 /* 8. 拍照 + 相册 + 灯箱 */
 const photo = await evl(`(async function(){
   var A = window.__app, W = window.WALK;

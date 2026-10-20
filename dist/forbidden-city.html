@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 7.19.0.20261020.1059">
-<meta name="build-time" content="2026-10-20T10:59:23.943Z">
+<meta name="generator" content="forbidden-city-build 7.20.0.20261020.1121">
+<meta name="build-time" content="2026-10-20T11:21:48.609Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-20T10:59:23.943Z
-  version: 7.19.0.20261020.1059
+  build: 2026-10-20T11:21:48.609Z
+  version: 7.20.0.20261020.1121
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -773,7 +773,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '7.19.0',
+  version: '7.20.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -13666,10 +13666,17 @@ const ASSETS = {
     const tt = $('achvTitles');
     if (tt) {
       let html = '';
-      html += '<div style="width:100%;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:11px;letter-spacing:1px;color:rgba(230,224,208,.55)">称号收集</span><b style="color:var(--gold);font-weight:400;font-size:12px">' + d.titleDone + ' / ' + d.titleTotal + '</b></div>';
+      const pctT = Math.round(d.titleDone / Math.max(1, d.titleTotal) * 100);
+      html += '<div style="width:100%;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:11px;letter-spacing:1px;color:rgba(230,224,208,.55)">称号收集</span><b style="color:var(--gold);font-weight:400;font-size:12px">' + d.titleDone + ' / ' + d.titleTotal + ' · ' + pctT + '%</b></div>';
+      html += '<div style="width:100%;height:4px;background:rgba(216,180,95,.14);margin-bottom:2px"><i style="display:block;height:100%;width:' + pctT + '%;background:linear-gradient(90deg,#b98c33,#e6c878)"></i></div>';
       for (let gi = 0; gi < d.groups.length; gi++) {
         const g = d.groups[gi];
-        html += '<div style="width:100%;font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.38);margin:8px 0 4px">' + g.name + '</div>';
+        let gDone = 0;
+        for (let q = 0; q < g.items.length; q++) if (g.items[q].ok) gDone++;
+        const gp = Math.round(gDone / Math.max(1, g.items.length) * 100);
+        html += '<div class="group-prog" style="width:100%;display:flex;justify-content:space-between;align-items:baseline;font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.38);margin:9px 0 4px">' +
+          '<span>' + g.name + '</span><span style="color:' + (gp >= 100 ? 'var(--gold)' : 'rgba(230,224,208,.35)') + ';letter-spacing:0">' + gDone + '/' + g.items.length + '</span></div>' +
+          '<div style="width:100%;height:2px;background:rgba(216,180,95,.10);margin-bottom:3px"><i style="display:block;height:100%;width:' + gp + '%;background:' + (gp >= 100 ? 'var(--gold)' : 'rgba(216,180,95,.45)') + '"></i></div>';
         for (let i = 0; i < g.items.length; i++) {
           const it = g.items[i];
           html += '<span class="tt' + (it.ok ? '' : ' off') + '">' + (it.ok ? '★ ' : '☆ ') + it.name + '</span>';
@@ -16044,6 +16051,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"7.19.0.20261020.1059","time":"2026-10-20T10:59:23.943Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"7.20.0.20261020.1121","time":"2026-10-20T11:21:48.609Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

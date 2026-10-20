@@ -2096,10 +2096,17 @@
     const tt = $('achvTitles');
     if (tt) {
       let html = '';
-      html += '<div style="width:100%;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:11px;letter-spacing:1px;color:rgba(230,224,208,.55)">称号收集</span><b style="color:var(--gold);font-weight:400;font-size:12px">' + d.titleDone + ' / ' + d.titleTotal + '</b></div>';
+      const pctT = Math.round(d.titleDone / Math.max(1, d.titleTotal) * 100);
+      html += '<div style="width:100%;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><span style="font-size:11px;letter-spacing:1px;color:rgba(230,224,208,.55)">称号收集</span><b style="color:var(--gold);font-weight:400;font-size:12px">' + d.titleDone + ' / ' + d.titleTotal + ' · ' + pctT + '%</b></div>';
+      html += '<div style="width:100%;height:4px;background:rgba(216,180,95,.14);margin-bottom:2px"><i style="display:block;height:100%;width:' + pctT + '%;background:linear-gradient(90deg,#b98c33,#e6c878)"></i></div>';
       for (let gi = 0; gi < d.groups.length; gi++) {
         const g = d.groups[gi];
-        html += '<div style="width:100%;font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.38);margin:8px 0 4px">' + g.name + '</div>';
+        let gDone = 0;
+        for (let q = 0; q < g.items.length; q++) if (g.items[q].ok) gDone++;
+        const gp = Math.round(gDone / Math.max(1, g.items.length) * 100);
+        html += '<div class="group-prog" style="width:100%;display:flex;justify-content:space-between;align-items:baseline;font-size:10px;letter-spacing:2px;color:rgba(230,224,208,.38);margin:9px 0 4px">' +
+          '<span>' + g.name + '</span><span style="color:' + (gp >= 100 ? 'var(--gold)' : 'rgba(230,224,208,.35)') + ';letter-spacing:0">' + gDone + '/' + g.items.length + '</span></div>' +
+          '<div style="width:100%;height:2px;background:rgba(216,180,95,.10);margin-bottom:3px"><i style="display:block;height:100%;width:' + gp + '%;background:' + (gp >= 100 ? 'var(--gold)' : 'rgba(216,180,95,.45)') + '"></i></div>';
         for (let i = 0; i < g.items.length; i++) {
           const it = g.items[i];
           html += '<span class="tt' + (it.ok ? '' : ' off') + '">' + (it.ok ? '★ ' : '☆ ') + it.name + '</span>';
