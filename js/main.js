@@ -3831,7 +3831,19 @@
     updateFestivalSway();
     if (typeof NPC !== 'undefined') {
       const festL = !!(festivalGroup && festivalGroup.visible);
-      NPC.lanternFest = festL && (currentTheme === 'night' || currentTheme === 'dusk');
+      const isNightL = (currentTheme === 'night' || currentTheme === 'dusk');
+      NPC.lanternFest = festL && isNightL;
+      NPC.bandEnabled = festL && isNightL;
+      if (typeof NPC.drumBandInfo === 'function') {
+        const bi = NPC.drumBandInfo();
+        if (bi) {
+          if (window.__lastBandBeats == null) window.__lastBandBeats = bi.beats;
+          if (bi.beats !== window.__lastBandBeats) {
+            window.__lastBandBeats = bi.beats;
+            if (AUDIO.bandBeat) AUDIO.bandBeat();
+          }
+        }
+      }
     }
     if (typeof NPC !== 'undefined' && NPC.dragon) {
       const festD = !!(festivalGroup && festivalGroup.visible);
@@ -4168,6 +4180,8 @@
     materialInfo: function () { return { goldEnv: MATS.gold ? Math.round(MATS.gold.envMapIntensity * 100) / 100 : -1, roofEnv: MATS.roof ? Math.round(MATS.roof.envMapIntensity * 100) / 100 : -1, roofRough: MATS.roof ? Math.round(MATS.roof.roughness * 100) / 100 : -1, waterEnv: MATS.water ? Math.round(MATS.water.envMapIntensity * 100) / 100 : -1 }; },
     lanternNpcInfo: function () { return (typeof NPC !== 'undefined' && NPC.lanternInfo) ? NPC.lanternInfo() : null; },
     lanternNpcSet: function (on) { if (typeof NPC !== 'undefined') NPC.lanternFest = !!on; return this.lanternNpcInfo(); },
+    drumBandInfo: function () { return (typeof NPC !== 'undefined' && NPC.drumBandInfo) ? NPC.drumBandInfo() : null; },
+    drumBandSet: function (on) { if (typeof NPC !== 'undefined') NPC.bandEnabled = !!on; return this.drumBandInfo(); },
     dragonInfo: function () { return (typeof NPC !== 'undefined' && NPC.dragonInfo) ? NPC.dragonInfo() : null; },
     dragonSet: function (on) { if (typeof NPC !== 'undefined' && NPC.dragon) { NPC.dragon.enabled = !!on; if (!on) { NPC.dragon.active = false; NPC.dragon.group.visible = false; } } return this.dragonInfo(); },
     fireworkTest: function () { if (typeof EFFECTS !== 'undefined' && EFFECTS.launchFirework) { return EFFECTS.launchFirework(0, 30, 440); } return false; },

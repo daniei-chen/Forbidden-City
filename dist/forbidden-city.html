@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 7.13.0.20261020.0822">
-<meta name="build-time" content="2026-10-20T08:22:49.922Z">
+<meta name="generator" content="forbidden-city-build 7.14.0.20261020.0850">
+<meta name="build-time" content="2026-10-20T08:50:59.840Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-20T08:22:49.922Z
-  version: 7.13.0.20261020.0822
+  build: 2026-10-20T08:50:59.840Z
+  version: 7.14.0.20261020.0850
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -773,7 +773,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '7.13.0',
+  version: '7.14.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -3949,6 +3949,7 @@ const NPC = {
     }
 
     this.initDragon(g);
+    this.initDrumBand(g);
     this.flowerBeds = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396]];
     this.group = g;
     if (this._pendingSparrows) { this._pendingSparrows = false; this.initSparrows(); }
@@ -4013,6 +4014,76 @@ const NPC = {
   },
 
   /* ---------------- 灯会舞龙 ---------------- */
+  /* ---------------- 灯会锣鼓队 ---------------- */
+  bandEnabled: false,
+  initDrumBand: function (g) {
+    const wood = new THREE.MeshStandardMaterial({ color: 0x6b3d22, roughness: 0.85 });
+    const skin = new THREE.MeshStandardMaterial({ color: 0xd9c9a3, roughness: 0.8 });
+    const gold2 = new THREE.MeshStandardMaterial({ color: 0xd8a74a, roughness: 0.34, metalness: 0.8 });
+    const group = new THREE.Group();
+    /* 鼓手 */
+    const drummer = this.makeGuard({ robeColor: 0x8d2f2a, trimColor: 0xd8b45f, spear: false });
+    drummer.group.position.set(0, 0, 430);
+    drummer.group.rotation.y = Math.PI;
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.5, 14), wood);
+    drum.rotation.x = Math.PI / 2;
+    drum.position.set(0, 0.95, 0.55);
+    const drumFace = new THREE.Mesh(new THREE.CylinderGeometry(0.39, 0.39, 0.04, 14), skin);
+    drumFace.rotation.x = Math.PI / 2;
+    drumFace.position.set(0, 0.95, 0.31);
+    drummer.group.add(drum, drumFace);
+    group.add(drummer.group);
+    /* 两名镲手 */
+    const cymbalists = [];
+    for (let i = 0; i < 2; i++) {
+      const cy = this.makeGuard({ robeColor: 0x8d2f2a, trimColor: 0xd8b45f, spear: false });
+      cy.group.position.set(i === 0 ? -2.4 : 2.4, 0, 430);
+      cy.group.rotation.y = Math.PI;
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.035, 14), gold2);
+      disc.position.set(0.25, 1.05, 0.45);
+      disc.rotation.z = 0.5;
+      cy.group.add(disc);
+      group.add(cy.group);
+      cymbalists.push({ obj: cy, disc: disc });
+    }
+    group.visible = false;
+    g.add(group);
+    this.drumBand = { group: group, drummer: drummer, cymbals: cymbalists, active: false, beats: 0, t: 0 };
+  },
+  updateDrumBand: function (dt) {
+    const D = this.drumBand;
+    if (!D) return;
+    const on = !!this.bandEnabled;
+    D.active = on;
+    D.group.visible = on;
+    if (!on) return;
+    D.t += dt;
+    /* 0.62 秒一拍：鼓手落槌、镲手合击 */
+    const beat = 0.62;
+    const phase = D.t % beat;
+    const hit = phase < 0.12 ? 1 - phase / 0.12 : 0;
+    D.drummer.parts.armL.rotation.x = -0.9 - hit * 0.9;
+    D.drummer.parts.armR.rotation.x = -0.9 - hit * 0.9;
+    D.drummer.parts.body.position.y = 0.52 + hit * 0.02;
+    for (let i = 0; i < D.cymbals.length; i++) {
+      const cy = D.cymbals[i];
+      const off = i === 0 ? 0.06 : 0;
+      const h2 = Math.max(0, hit - off);
+      cy.obj.parts.armL.rotation.x = -0.7 - h2 * 0.8;
+      cy.obj.parts.armR.rotation.x = -0.7 - h2 * 0.8;
+      cy.disc.rotation.z = 0.5 + h2 * 0.5;
+      cy.obj.parts.body.position.y = 0.52 + h2 * 0.015;
+    }
+    const prevBeats = D.beats;
+    D.beats = Math.floor(D.t / beat);
+    if (D.beats > prevBeats) this.bandBeat = (this.bandBeat || 0) + 1;
+  },
+  drumBandInfo: function () {
+    const D = this.drumBand;
+    if (!D) return null;
+    return { active: D.active, visible: D.group.visible, beats: D.beats, enabled: !!this.bandEnabled };
+  },
+
   initDragon: function (g) {
     const gold = new THREE.MeshStandardMaterial({ color: 0xd8a74a, roughness: 0.35, metalness: 0.75 });
     const red = new THREE.MeshStandardMaterial({ color: 0xb2362b, roughness: 0.62 });
@@ -4457,6 +4528,7 @@ const NPC = {
     this.time += dt;
     this.updateCeremony(dt);
     this.updateDragon(dt);
+    this.updateDrumBand(dt);
     /* 雨伞随雨量显隐 */
     if (this.umbrellas && this.umbrellas.length) {
       const rainAmt = (typeof EFFECTS !== 'undefined') ? (EFFECTS.rainAmt || 0) : 0;
@@ -5375,6 +5447,36 @@ const AUDIO = {
       o.connect(g); g.connect(this.master);
       o.start(s); o.stop(s + 0.75);
     }
+  },
+
+  /* 锣鼓队：鼓 + 镲 */
+  bandBeat: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    /* 鼓 */
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(110, t0);
+    o.frequency.exponentialRampToValueAtTime(58, t0 + 0.16);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.055, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+    o.connect(g); g.connect(this.master);
+    o.start(t0); o.stop(t0 + 0.3);
+    /* 镲：短促高频噪声 */
+    const buf = c.createBuffer(1, Math.floor(c.sampleRate * 0.18), c.sampleRate);
+    const dd = buf.getChannelData(0);
+    for (let i = 0; i < dd.length; i++) dd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / dd.length, 3);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 4200;
+    const g2 = c.createGain();
+    g2.gain.value = 0.022;
+    src.connect(hp); hp.connect(g2); g2.connect(this.master);
+    src.start(t0 + 0.02);
   },
 
   /* 舞龙鼓：低频闷鼓两连击 */
@@ -15253,7 +15355,19 @@ const ASSETS = {
     updateFestivalSway();
     if (typeof NPC !== 'undefined') {
       const festL = !!(festivalGroup && festivalGroup.visible);
-      NPC.lanternFest = festL && (currentTheme === 'night' || currentTheme === 'dusk');
+      const isNightL = (currentTheme === 'night' || currentTheme === 'dusk');
+      NPC.lanternFest = festL && isNightL;
+      NPC.bandEnabled = festL && isNightL;
+      if (typeof NPC.drumBandInfo === 'function') {
+        const bi = NPC.drumBandInfo();
+        if (bi) {
+          if (window.__lastBandBeats == null) window.__lastBandBeats = bi.beats;
+          if (bi.beats !== window.__lastBandBeats) {
+            window.__lastBandBeats = bi.beats;
+            if (AUDIO.bandBeat) AUDIO.bandBeat();
+          }
+        }
+      }
     }
     if (typeof NPC !== 'undefined' && NPC.dragon) {
       const festD = !!(festivalGroup && festivalGroup.visible);
@@ -15590,6 +15704,8 @@ const ASSETS = {
     materialInfo: function () { return { goldEnv: MATS.gold ? Math.round(MATS.gold.envMapIntensity * 100) / 100 : -1, roofEnv: MATS.roof ? Math.round(MATS.roof.envMapIntensity * 100) / 100 : -1, roofRough: MATS.roof ? Math.round(MATS.roof.roughness * 100) / 100 : -1, waterEnv: MATS.water ? Math.round(MATS.water.envMapIntensity * 100) / 100 : -1 }; },
     lanternNpcInfo: function () { return (typeof NPC !== 'undefined' && NPC.lanternInfo) ? NPC.lanternInfo() : null; },
     lanternNpcSet: function (on) { if (typeof NPC !== 'undefined') NPC.lanternFest = !!on; return this.lanternNpcInfo(); },
+    drumBandInfo: function () { return (typeof NPC !== 'undefined' && NPC.drumBandInfo) ? NPC.drumBandInfo() : null; },
+    drumBandSet: function (on) { if (typeof NPC !== 'undefined') NPC.bandEnabled = !!on; return this.drumBandInfo(); },
     dragonInfo: function () { return (typeof NPC !== 'undefined' && NPC.dragonInfo) ? NPC.dragonInfo() : null; },
     dragonSet: function (on) { if (typeof NPC !== 'undefined' && NPC.dragon) { NPC.dragon.enabled = !!on; if (!on) { NPC.dragon.active = false; NPC.dragon.group.visible = false; } } return this.dragonInfo(); },
     fireworkTest: function () { if (typeof EFFECTS !== 'undefined' && EFFECTS.launchFirework) { return EFFECTS.launchFirework(0, 30, 440); } return false; },
@@ -15688,6 +15804,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"7.13.0.20261020.0822","time":"2026-10-20T08:22:49.922Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"7.14.0.20261020.0850","time":"2026-10-20T08:50:59.840Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

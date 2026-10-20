@@ -240,6 +240,36 @@ const AUDIO = {
     }
   },
 
+  /* 锣鼓队：鼓 + 镲 */
+  bandBeat: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    /* 鼓 */
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(110, t0);
+    o.frequency.exponentialRampToValueAtTime(58, t0 + 0.16);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.055, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+    o.connect(g); g.connect(this.master);
+    o.start(t0); o.stop(t0 + 0.3);
+    /* 镲：短促高频噪声 */
+    const buf = c.createBuffer(1, Math.floor(c.sampleRate * 0.18), c.sampleRate);
+    const dd = buf.getChannelData(0);
+    for (let i = 0; i < dd.length; i++) dd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / dd.length, 3);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 4200;
+    const g2 = c.createGain();
+    g2.gain.value = 0.022;
+    src.connect(hp); hp.connect(g2); g2.connect(this.master);
+    src.start(t0 + 0.02);
+  },
+
   /* 舞龙鼓：低频闷鼓两连击 */
   dragonDrum: function () {
     if (!this.ready || this.muted) return;

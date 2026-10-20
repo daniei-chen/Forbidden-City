@@ -286,6 +286,18 @@ const lamp = await evl(`(function(){
 })()`);
 check('灯会 NPC 观灯', lamp && lamp.events >= 1 && lamp.maxActive >= 1 && lamp.after.active === 0, JSON.stringify({ events: lamp && lamp.events, maxWatching: lamp && lamp.maxActive }));
 
+/* 13d. 灯会锣鼓队：节拍计数与显隐 */
+const band = await evl(`(function(){
+  var A = window.__app, N = window.__NPC;
+  A.drumBandSet(true);
+  for (var i = 0; i < 1200; i++) N.update(1 / 60);
+  var on = A.drumBandInfo();
+  A.drumBandSet(false);
+  N.update(1 / 60);
+  return { on: on, off: A.drumBandInfo() };
+})()`);
+check('灯会锣鼓队节拍', band && band.on && band.on.beats >= 20 && band.off && band.off.visible === false, JSON.stringify({ beats: band && band.on && band.on.beats }));
+
 /* 14. 设置与 HUD */
 const ui = await evl(`(function(){
   var A = window.__app;

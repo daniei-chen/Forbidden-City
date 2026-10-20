@@ -331,6 +331,7 @@ const NPC = {
     }
 
     this.initDragon(g);
+    this.initDrumBand(g);
     this.flowerBeds = [[18, -350], [-18, -352], [44, -312], [-44, -314], [0, -396]];
     this.group = g;
     if (this._pendingSparrows) { this._pendingSparrows = false; this.initSparrows(); }
@@ -395,6 +396,76 @@ const NPC = {
   },
 
   /* ---------------- 灯会舞龙 ---------------- */
+  /* ---------------- 灯会锣鼓队 ---------------- */
+  bandEnabled: false,
+  initDrumBand: function (g) {
+    const wood = new THREE.MeshStandardMaterial({ color: 0x6b3d22, roughness: 0.85 });
+    const skin = new THREE.MeshStandardMaterial({ color: 0xd9c9a3, roughness: 0.8 });
+    const gold2 = new THREE.MeshStandardMaterial({ color: 0xd8a74a, roughness: 0.34, metalness: 0.8 });
+    const group = new THREE.Group();
+    /* 鼓手 */
+    const drummer = this.makeGuard({ robeColor: 0x8d2f2a, trimColor: 0xd8b45f, spear: false });
+    drummer.group.position.set(0, 0, 430);
+    drummer.group.rotation.y = Math.PI;
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.5, 14), wood);
+    drum.rotation.x = Math.PI / 2;
+    drum.position.set(0, 0.95, 0.55);
+    const drumFace = new THREE.Mesh(new THREE.CylinderGeometry(0.39, 0.39, 0.04, 14), skin);
+    drumFace.rotation.x = Math.PI / 2;
+    drumFace.position.set(0, 0.95, 0.31);
+    drummer.group.add(drum, drumFace);
+    group.add(drummer.group);
+    /* 两名镲手 */
+    const cymbalists = [];
+    for (let i = 0; i < 2; i++) {
+      const cy = this.makeGuard({ robeColor: 0x8d2f2a, trimColor: 0xd8b45f, spear: false });
+      cy.group.position.set(i === 0 ? -2.4 : 2.4, 0, 430);
+      cy.group.rotation.y = Math.PI;
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.035, 14), gold2);
+      disc.position.set(0.25, 1.05, 0.45);
+      disc.rotation.z = 0.5;
+      cy.group.add(disc);
+      group.add(cy.group);
+      cymbalists.push({ obj: cy, disc: disc });
+    }
+    group.visible = false;
+    g.add(group);
+    this.drumBand = { group: group, drummer: drummer, cymbals: cymbalists, active: false, beats: 0, t: 0 };
+  },
+  updateDrumBand: function (dt) {
+    const D = this.drumBand;
+    if (!D) return;
+    const on = !!this.bandEnabled;
+    D.active = on;
+    D.group.visible = on;
+    if (!on) return;
+    D.t += dt;
+    /* 0.62 秒一拍：鼓手落槌、镲手合击 */
+    const beat = 0.62;
+    const phase = D.t % beat;
+    const hit = phase < 0.12 ? 1 - phase / 0.12 : 0;
+    D.drummer.parts.armL.rotation.x = -0.9 - hit * 0.9;
+    D.drummer.parts.armR.rotation.x = -0.9 - hit * 0.9;
+    D.drummer.parts.body.position.y = 0.52 + hit * 0.02;
+    for (let i = 0; i < D.cymbals.length; i++) {
+      const cy = D.cymbals[i];
+      const off = i === 0 ? 0.06 : 0;
+      const h2 = Math.max(0, hit - off);
+      cy.obj.parts.armL.rotation.x = -0.7 - h2 * 0.8;
+      cy.obj.parts.armR.rotation.x = -0.7 - h2 * 0.8;
+      cy.disc.rotation.z = 0.5 + h2 * 0.5;
+      cy.obj.parts.body.position.y = 0.52 + h2 * 0.015;
+    }
+    const prevBeats = D.beats;
+    D.beats = Math.floor(D.t / beat);
+    if (D.beats > prevBeats) this.bandBeat = (this.bandBeat || 0) + 1;
+  },
+  drumBandInfo: function () {
+    const D = this.drumBand;
+    if (!D) return null;
+    return { active: D.active, visible: D.group.visible, beats: D.beats, enabled: !!this.bandEnabled };
+  },
+
   initDragon: function (g) {
     const gold = new THREE.MeshStandardMaterial({ color: 0xd8a74a, roughness: 0.35, metalness: 0.75 });
     const red = new THREE.MeshStandardMaterial({ color: 0xb2362b, roughness: 0.62 });
@@ -839,6 +910,7 @@ const NPC = {
     this.time += dt;
     this.updateCeremony(dt);
     this.updateDragon(dt);
+    this.updateDrumBand(dt);
     /* 雨伞随雨量显隐 */
     if (this.umbrellas && this.umbrellas.length) {
       const rainAmt = (typeof EFFECTS !== 'undefined') ? (EFFECTS.rainAmt || 0) : 0;
