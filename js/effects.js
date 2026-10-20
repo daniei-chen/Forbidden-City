@@ -204,6 +204,12 @@ const EFFECTS = {
     pts.visible = false;
     scene.add(pts);
     this.fireworks = pts;
+    /* 烟花瞬时照明：单个复用点光源 */
+    const light = new THREE.PointLight(0xffcc88, 0, 160, 2);
+    light.position.set(0, 30, 300);
+    scene.add(light);
+    this.fireworkLight = light;
+    this.fireworkLightColor = new THREE.Color(0xffcc88);
     const data = [];
     for (let i = 0; i < MAXP; i++) {
       data.push({ life: 0, ttl: 1, vx: 0, vy: 0, vz: 0, r: 0, g: 0, b: 0 });
@@ -240,6 +246,13 @@ const EFFECTS = {
       if (made >= 46) break;
     }
     this.fireworkSpawns = (this.fireworkSpawns || 0) + 1;
+    /* 爆发瞬间点亮场景 */
+    if (this.fireworkLight) {
+      this.fireworkLight.position.set(x, y - 4, z);
+      this.fireworkLightColor.setRGB(base[0], base[1], base[2]);
+      this.fireworkLight.color.copy(this.fireworkLightColor);
+      this.fireworkLight.intensity = 5.5;
+    }
     return made > 0;
   },
   updateFireworks: function (dt, st) {
@@ -287,6 +300,14 @@ const EFFECTS = {
     pts.visible = idx > 0 || on;
     pts.geometry.attributes.position.needsUpdate = true;
     pts.geometry.attributes.color.needsUpdate = true;
+    if (this.fireworkLight) {
+      const li = this.fireworkLight;
+      if (li.intensity > 0.02) {
+        li.intensity = Math.max(0, li.intensity * Math.exp(-4.5 * dt));
+      } else {
+        li.intensity = 0;
+      }
+    }
   },
 
   /* ---------------- 内金水河 · 莲花河灯 ---------------- */
@@ -1363,6 +1384,7 @@ const EFFECTS = {
       if (this.galaxy) this.galaxy.visible = false;
       if (this.eaveStreams) this.eaveStreams.visible = false;
       if (this.fireworks) this.fireworks.visible = false;
+      if (this.fireworkLight) this.fireworkLight.intensity = 0;
       if (this.riverLanternPool) { for (let li2 = 0; li2 < this.riverLanternPool.length; li2++) this.riverLanternPool[li2].sp.visible = false; }
       if (this.meteorPool) { for (let mi2 = 0; mi2 < this.meteorPool.length; mi2++) this.meteorPool[mi2].line.visible = false; }
       if (this.splashPool) { for (let si = 0; si < this.splashPool.length; si++) this.splashPool[si].sp.visible = false; }
