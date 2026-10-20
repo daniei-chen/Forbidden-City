@@ -111,6 +111,7 @@ const EFFECTS = {
     this.initRipples(scene);
     this.initGalaxy(scene);
     this.initEaveStreams(scene);
+    this.initRiverLanterns(scene);
     this.initDripDrops(scene);
     this.initCoins(scene);
     this.initIncense(scene);
@@ -177,6 +178,77 @@ const EFFECTS = {
       arr[o + 3] = px + 0.03; arr[o + 4] = d.y - d.len * 6; arr[o + 5] = pz;
     }
     lines.geometry.attributes.position.needsUpdate = true;
+  },
+
+  /* ---------------- 内金水河 · 莲花河灯 ---------------- */
+  riverLanternPool: null,
+  riverLanternSpawns: 0,
+  initRiverLanterns: function (scene) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const g2 = cv.getContext('2d');
+    g2.clearRect(0, 0, 64, 64);
+    const grd = g2.createRadialGradient(32, 32, 2, 32, 32, 30);
+    grd.addColorStop(0, 'rgba(255,236,190,0.95)');
+    grd.addColorStop(0.35, 'rgba(255,190,120,0.55)');
+    grd.addColorStop(1, 'rgba(255,150,90,0)');
+    g2.fillStyle = grd;
+    g2.fillRect(0, 0, 64, 64);
+    g2.fillStyle = 'rgba(238,120,110,0.9)';
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      g2.beginPath();
+      g2.ellipse(32 + Math.cos(a) * 13, 32 + Math.sin(a) * 13, 7, 4, a, 0, Math.PI * 2);
+      g2.fill();
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.needsUpdate = true;
+    const pool = [];
+    for (let i = 0; i < 8; i++) {
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+      const sp = new THREE.Sprite(mat);
+      sp.visible = false;
+      scene.add(sp);
+      pool.push({ sp: sp, life: 0, ttl: 70, ph: 0, x: 0, z: 0, speed: 0 });
+    }
+    this.riverLanternPool = pool;
+  },
+  spawnRiverLantern: function (x, z) {
+    if (!this.riverLanternPool) {
+      if (!this.scene) return;
+      this.initRiverLanterns(this.scene);
+    }
+    const pool = this.riverLanternPool;
+    for (let i = 0; i < pool.length; i++) {
+      const l = pool[i];
+      if (l.life > 0) continue;
+      l.life = l.ttl;
+      l.x = x; l.z = z; l.ph = Math.random() * 6.28; l.speed = 0.32 + Math.random() * 0.18;
+      l.sp.position.set(x, 0.16, z);
+      l.sp.scale.set(0.42, 0.28, 1);
+      l.sp.material.opacity = 0.95;
+      l.sp.visible = true;
+      this.riverLanternSpawns = (this.riverLanternSpawns || 0) + 1;
+      return true;
+    }
+    return false;
+  },
+  updateRiverLanterns: function (dt, camera) {
+    const pool = this.riverLanternPool;
+    if (!pool) return;
+    for (let i = 0; i < pool.length; i++) {
+      const l = pool[i];
+      if (l.life <= 0) continue;
+      l.life -= dt;
+      if (l.life <= 0) { l.sp.visible = false; l.sp.material.opacity = 0; continue; }
+      l.x += l.speed * dt;
+      l.ph += dt * 1.6;
+      const t = Math.max(0, Math.min(1, (l.x + 112) / 224));
+      l.z = 350 + 14 * Math.sin(Math.PI * t);
+      l.sp.position.set(l.x, 0.16 + Math.sin(l.ph) * 0.012, l.z);
+      l.sp.material.opacity = l.life < 4 ? Math.max(0, l.life / 4) * 0.95 : 0.95;
+      if (l.x > 112) { l.life = 0; l.sp.visible = false; l.sp.material.opacity = 0; }
+    }
   },
 
   /* ---------------- 屋檐水流线（大雨时檐口成串滴水） ---------------- */
@@ -1181,6 +1253,7 @@ const EFFECTS = {
       if (this.rain) this.rain.visible = false;
       if (this.galaxy) this.galaxy.visible = false;
       if (this.eaveStreams) this.eaveStreams.visible = false;
+      if (this.riverLanternPool) { for (let li2 = 0; li2 < this.riverLanternPool.length; li2++) this.riverLanternPool[li2].sp.visible = false; }
       if (this.meteorPool) { for (let mi2 = 0; mi2 < this.meteorPool.length; mi2++) this.meteorPool[mi2].line.visible = false; }
       if (this.splashPool) { for (let si = 0; si < this.splashPool.length; si++) this.splashPool[si].sp.visible = false; }
       if (this.lanternCaps) this.lanternCaps.visible = false;
@@ -1201,6 +1274,7 @@ const EFFECTS = {
     this.updateRipples(dt);
     this.updateGalaxy(dt, st);
     this.updateEaveStreams(dt);
+    this.updateRiverLanterns(dt, camRef);
     if (this.rainAmt > 0.18 && camRef) {
       if (!this._rippleSpawnT) this._rippleSpawnT = 0;
       this._rippleSpawnT += dt * (6 + this.rainAmt * 14) * (this.lodScale || 1);

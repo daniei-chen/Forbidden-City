@@ -1031,7 +1031,9 @@
     { x: 26, z: -372, r: 2.8, title: '石桌石凳', text: '御花园中的石桌石凳，供帝王后妃游憩小坐。' },
     { x: -26, z: -372, r: 2.8, title: '石桌石凳', text: '御花园中的石桌石凳，供帝王后妃游憩小坐。' },
     { x: 7.5, z: 176, r: 2.6, title: '品级山', text: '大朝时文武百官按品级立于山形石标之后，故称品级山。' },
-    { x: 20, z: 100, r: 3.2, title: '月台铜鼎', incense: true, text: '太和殿月台陈设铜鼎，象征江山永固。' }
+    { x: 20, z: 100, r: 3.2, title: '月台铜鼎', incense: true, text: '太和殿月台陈设铜鼎，象征江山永固。' },
+    { x: 30, z: 370, r: 4.6, title: '内金水河', lantern: true, text: '内金水河自西北蜿蜒而来，五座金水桥并列其上；灯会时河面漂满莲花灯。' },
+    { x: -30, z: 370, r: 4.6, title: '内金水河', lantern: true, text: '内金水河自西北蜿蜒而来，五座金水桥并列其上；灯会时河面漂满莲花灯。' }
   ];
   let nearInteractive = null;
   let lastInteractT = 0;
@@ -1089,7 +1091,7 @@
     nearInteractive = it;
     if (it) {
       el.classList.add('show');
-      if (lab) lab.textContent = (it.wish ? '投币许愿 · ' : (it.incense ? '上香祈福 · ' : (it.pet ? '摸摸铜狮 · ' : '查看 · '))) + it.title;
+      if (lab) lab.textContent = (it.wish ? '投币许愿 · ' : (it.incense ? '上香祈福 · ' : (it.pet ? '摸摸铜狮 · ' : (it.lantern ? '放河灯 · ' : '查看 · ')))) + it.title;
     } else {
       el.classList.remove('show');
     }
@@ -1110,6 +1112,7 @@
       achievements.log = Array.isArray(savedA.log) ? savedA.log : [];
       achievements.codex = Array.isArray(savedA.codex) ? savedA.codex : [];
       achievements.petLions = savedA.petLions || 0;
+      achievements.lanterns = savedA.lanterns || 0;
       achievements.feedBirds = savedA.feedBirds || 0;
     }
   } catch (e) {}
@@ -1206,6 +1209,23 @@
     }
   }
 
+  const LANTERN_TEXT = ['一盏河灯，愿顺水平安', '灯随水去，愿心事皆成', '莲灯入河，愿岁月从容'];
+  function releaseLantern(it) {
+    const x = WALK.pos.x + (WALK.pos.x > it.x ? -1 : 1) * 2.0;
+    const t2 = Math.max(0, Math.min(1, (x + 112) / 224));
+    const z = 350 + 14 * Math.sin(Math.PI * t2);
+    let ok = false;
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.spawnRiverLantern) ok = EFFECTS.spawnRiverLantern(x, z);
+    achievements.lanterns = (achievements.lanterns || 0) + 1;
+    achievementsSave();
+    if (typeof AUDIO !== 'undefined' && AUDIO.chime) AUDIO.chime();
+    showToast('放河灯 · ' + LANTERN_TEXT[Math.floor(Math.random() * LANTERN_TEXT.length)] + '（河灯 ' + achievements.lanterns + ' 盏）', 3600);
+    if (achievements.lanterns >= 3) {
+      setTimeout(function () { showToast('称号达成 · 河灯祈愿（放河灯 3 盏）', 4600); }, 3700);
+    }
+    return ok;
+  }
+
   function doInteract() {
     if (!WALK.active) return;
     achievements.interacts = (achievements.interacts || 0) + 1;
@@ -1238,6 +1258,13 @@
       if (nowP - (window.__lastPetT || 0) < 800) return;
       window.__lastPetT = nowP;
       petLion(it);
+      return;
+    }
+    if (it.lantern) {
+      const nowL = performance.now();
+      if (nowL - (window.__lastLanternT || 0) < 900) return;
+      window.__lastLanternT = nowL;
+      releaseLantern(it);
       return;
     }
     if (it.wish) {
@@ -1760,6 +1787,7 @@
       { name: '灯谜雅士', ok: (achievements.riddles || []).length >= 3 },
       { name: '御猫团宠', ok: (achievements.catPlays || 0) >= 3 },
       { name: '摸狮得福', ok: (achievements.petLions || 0) >= 3 },
+      { name: '河灯祈愿', ok: (achievements.lanterns || 0) >= 3 },
       { name: '雀跃', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', ok: (achievements.incense || 0) >= 3 },
@@ -1808,6 +1836,7 @@
       { name: '灯谜雅士', cat: '趣味', ok: riddleN >= 3 },
       { name: '御猫团宠', cat: '趣味', ok: plays >= 3 },
       { name: '摸狮得福', cat: '趣味', ok: (achievements.petLions || 0) >= 3 },
+      { name: '河灯祈愿', cat: '趣味', ok: (achievements.lanterns || 0) >= 3 },
       { name: '雀跃', cat: '趣味', ok: (achievements.feedBirds || 0) >= 3 },
       { name: '心愿达成', cat: '趣味', ok: (achievements.wishes || 0) >= 3 },
       { name: '心香一瓣', cat: '趣味', ok: (achievements.incense || 0) >= 3 },
@@ -3868,6 +3897,7 @@
     playCats: function () { return playWithCats(); },
     syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
     codexInfo: codexInfo,
+    lanternInfo: function () { return { released: achievements.lanterns || 0, floating: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternPool) ? EFFECTS.riverLanternPool.filter(function (l) { return l.life > 0; }).length : -1, spawns: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternSpawns) || 0 }; },
     petInfo: function () { return { petLions: achievements.petLions || 0, feedBirds: achievements.feedBirds || 0 }; },
     unlockCodex: function (id) { return codexUnlock(id); },
     achievementLog: function () { return (achievements.log || []).slice(-20); },
