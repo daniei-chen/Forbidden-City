@@ -2346,7 +2346,8 @@
     meow: { t: 15 + Math.random() * 20, n: 0 },
     drip: { t: 1, n: 0 },
     windchime: { t: 12 + Math.random() * 18, n: 0 },
-    patter: { t: 4 + Math.random() * 5, n: 0 }
+    patter: { t: 4 + Math.random() * 5, n: 0 },
+    cricket: { t: 6 + Math.random() * 8, n: 0 }
   };
   function updateAmbientAudio(dt) {
     if (typeof AUDIO === 'undefined' || !AUDIO.ready) return;
@@ -2384,6 +2385,15 @@
       if (near < 12) {
         AMBIENT.meow.n++;
         if (AUDIO.meow) AUDIO.meow();
+      }
+    }
+
+    AMBIENT.cricket.t -= dt;
+    if (AMBIENT.cricket.t <= 0) {
+      AMBIENT.cricket.t = 4 + Math.random() * 7;
+      if (currentTheme === 'night' && zone !== 'interior' && rain < 0.5) {
+        AMBIENT.cricket.n++;
+        if (AUDIO.cricket) AUDIO.cricket();
       }
     }
 
@@ -3622,6 +3632,13 @@
     updatePerfHud(dt);
     updatePerfGovernor(dt);
     updateFestivalSway();
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.meteorSpawns) {
+      if (window.__lastMeteorSpawns == null) window.__lastMeteorSpawns = EFFECTS.meteorSpawns;
+      if (EFFECTS.meteorSpawns !== window.__lastMeteorSpawns) {
+        window.__lastMeteorSpawns = EFFECTS.meteorSpawns;
+        if (AUDIO.meteorWhoosh) AUDIO.meteorWhoosh();
+      }
+    }
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -3892,11 +3909,12 @@
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
-    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, patter: AMBIENT.patter.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
+    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, patter: AMBIENT.patter.n, cricket: AMBIENT.cricket.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
     syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
     codexInfo: codexInfo,
+    meteorSoundTest: function () { if (AUDIO.meteorWhoosh) AUDIO.meteorWhoosh(); return true; },
     lanternInfo: function () { return { released: achievements.lanterns || 0, floating: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternPool) ? EFFECTS.riverLanternPool.filter(function (l) { return l.life > 0; }).length : -1, spawns: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternSpawns) || 0 }; },
     petInfo: function () { return { petLions: achievements.petLions || 0, feedBirds: achievements.feedBirds || 0 }; },
     unlockCodex: function (id) { return codexUnlock(id); },

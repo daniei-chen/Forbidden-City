@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 7.2.0.20261020.0252">
-<meta name="build-time" content="2026-10-20T02:52:56.087Z">
+<meta name="generator" content="forbidden-city-build 7.3.0.20261020.0313">
+<meta name="build-time" content="2026-10-20T03:13:00.367Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-20T02:52:56.087Z
-  version: 7.2.0.20261020.0252
+  build: 2026-10-20T03:13:00.367Z
+  version: 7.3.0.20261020.0313
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -773,7 +773,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '7.2.0',
+  version: '7.3.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -5050,6 +5050,51 @@ const AUDIO = {
       o.connect(g); g.connect(this.master);
       o.start(s); o.stop(s + 0.75);
     }
+  },
+
+  /* 夜虫：短促高频颤音串 */
+  cricket: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    const n = 3 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      const base = 3900 + Math.random() * 900;
+      const s = t0 + i * (0.085 + Math.random() * 0.03);
+      o.frequency.setValueAtTime(base, s);
+      o.frequency.linearRampToValueAtTime(base * 0.82, s + 0.035);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.010, s + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.06);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 0.075);
+    }
+  },
+
+  /* 流星：轻微噪声扫频 */
+  meteorWhoosh: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    const buf = c.createBuffer(1, Math.floor(c.sampleRate * 0.5), c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2.2);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(2600, t0);
+    bp.frequency.exponentialRampToValueAtTime(700, t0 + 0.45);
+    bp.Q.value = 1.4;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.022, t0 + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
+    src.connect(bp); bp.connect(g); g.connect(this.master);
+    src.start(t0);
   },
 
   /* 风铃：高频清脆分音 */
@@ -13199,7 +13244,8 @@ const ASSETS = {
     meow: { t: 15 + Math.random() * 20, n: 0 },
     drip: { t: 1, n: 0 },
     windchime: { t: 12 + Math.random() * 18, n: 0 },
-    patter: { t: 4 + Math.random() * 5, n: 0 }
+    patter: { t: 4 + Math.random() * 5, n: 0 },
+    cricket: { t: 6 + Math.random() * 8, n: 0 }
   };
   function updateAmbientAudio(dt) {
     if (typeof AUDIO === 'undefined' || !AUDIO.ready) return;
@@ -13237,6 +13283,15 @@ const ASSETS = {
       if (near < 12) {
         AMBIENT.meow.n++;
         if (AUDIO.meow) AUDIO.meow();
+      }
+    }
+
+    AMBIENT.cricket.t -= dt;
+    if (AMBIENT.cricket.t <= 0) {
+      AMBIENT.cricket.t = 4 + Math.random() * 7;
+      if (currentTheme === 'night' && zone !== 'interior' && rain < 0.5) {
+        AMBIENT.cricket.n++;
+        if (AUDIO.cricket) AUDIO.cricket();
       }
     }
 
@@ -14475,6 +14530,13 @@ const ASSETS = {
     updatePerfHud(dt);
     updatePerfGovernor(dt);
     updateFestivalSway();
+    if (typeof EFFECTS !== 'undefined' && EFFECTS.meteorSpawns) {
+      if (window.__lastMeteorSpawns == null) window.__lastMeteorSpawns = EFFECTS.meteorSpawns;
+      if (EFFECTS.meteorSpawns !== window.__lastMeteorSpawns) {
+        window.__lastMeteorSpawns = EFFECTS.meteorSpawns;
+        if (AUDIO.meteorWhoosh) AUDIO.meteorWhoosh();
+      }
+    }
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -14745,11 +14807,12 @@ const ASSETS = {
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
-    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, patter: AMBIENT.patter.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
+    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, patter: AMBIENT.patter.n, cricket: AMBIENT.cricket.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
     syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
     codexInfo: codexInfo,
+    meteorSoundTest: function () { if (AUDIO.meteorWhoosh) AUDIO.meteorWhoosh(); return true; },
     lanternInfo: function () { return { released: achievements.lanterns || 0, floating: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternPool) ? EFFECTS.riverLanternPool.filter(function (l) { return l.life > 0; }).length : -1, spawns: (typeof EFFECTS !== 'undefined' && EFFECTS.riverLanternSpawns) || 0 }; },
     petInfo: function () { return { petLions: achievements.petLions || 0, feedBirds: achievements.feedBirds || 0 }; },
     unlockCodex: function (id) { return codexUnlock(id); },
@@ -14844,6 +14907,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"7.2.0.20261020.0252","time":"2026-10-20T02:52:56.087Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"7.3.0.20261020.0313","time":"2026-10-20T03:13:00.367Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

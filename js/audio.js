@@ -240,6 +240,51 @@ const AUDIO = {
     }
   },
 
+  /* 夜虫：短促高频颤音串 */
+  cricket: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    const n = 3 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'sine';
+      const base = 3900 + Math.random() * 900;
+      const s = t0 + i * (0.085 + Math.random() * 0.03);
+      o.frequency.setValueAtTime(base, s);
+      o.frequency.linearRampToValueAtTime(base * 0.82, s + 0.035);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.010, s + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.06);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 0.075);
+    }
+  },
+
+  /* 流星：轻微噪声扫频 */
+  meteorWhoosh: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    const buf = c.createBuffer(1, Math.floor(c.sampleRate * 0.5), c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2.2);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(2600, t0);
+    bp.frequency.exponentialRampToValueAtTime(700, t0 + 0.45);
+    bp.Q.value = 1.4;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.022, t0 + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
+    src.connect(bp); bp.connect(g); g.connect(this.master);
+    src.start(t0);
+  },
+
   /* 风铃：高频清脆分音 */
   windchime: function () {
     if (!this.ready || this.muted) return;
