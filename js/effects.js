@@ -109,6 +109,7 @@ const EFFECTS = {
     this.initRain(scene);
     this.initSplashes(scene);
     this.initRipples(scene);
+    this.initGalaxy(scene);
     this.initDripDrops(scene);
     this.initCoins(scene);
     this.initIncense(scene);
@@ -168,6 +169,115 @@ const EFFECTS = {
       arr[o + 3] = px + 0.03; arr[o + 4] = d.y - d.len * 6; arr[o + 5] = pz;
     }
     lines.geometry.attributes.position.needsUpdate = true;
+  },
+
+  /* ---------------- 银河星带 + 流星 ---------------- */
+  galaxy: null,
+  meteorPool: null,
+  meteorTimer: 6,
+  meteorSpawns: 0,
+  initGalaxy: function (scene) {
+    const N = 750;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(N * 3);
+    const col = new Float32Array(N * 3);
+    const R = 3050;
+    /* 倾斜大圆带：银道面近似 */
+    const tilt = 0.62;
+    for (let i = 0; i < N; i++) {
+      const th = Math.random() * Math.PI * 2;
+      const lat = (Math.random() + Math.random() + Math.random() - 1.5) * 0.16;
+      const x = Math.cos(th) * R;
+      const y = Math.sin(lat) * R * 0.65;
+      const z = Math.sin(th) * R;
+      /* 绕 x 轴倾斜 */
+      const y2 = y * Math.cos(tilt) - z * Math.sin(tilt) * 0.55;
+      const z2 = z * Math.cos(tilt) + y * Math.sin(tilt);
+      pos[i * 3] = x; pos[i * 3 + 1] = y2; pos[i * 3 + 2] = z2;
+      const tint = 0.65 + Math.random() * 0.35;
+      col[i * 3] = 0.72 * tint; col[i * 3 + 1] = 0.8 * tint; col[i * 3 + 2] = 1.0 * tint;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const mat = new THREE.PointsMaterial({
+      size: 2.2, vertexColors: true, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending
+    });
+    const pts = new THREE.Points(geo, mat);
+    pts.frustumCulled = false;
+    pts.visible = false;
+    scene.add(pts);
+    this.galaxy = pts;
+
+    /* 流星：3 条线对象 */
+    const pool = [];
+    for (let m = 0; m < 3; m++) {
+      const g2 = new THREE.BufferGeometry();
+      g2.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0], 3));
+      const mat2 = new THREE.LineBasicMaterial({ color: 0xdfe9ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+      const line = new THREE.Line(g2, mat2);
+      line.frustumCulled = false;
+      line.visible = false;
+      scene.add(line);
+      pool.push({ line: line, life: 0, ttl: 0.7, sx: 0, sy: 0, sz: 0, dx: 0, dy: 0, dz: 0, span: 900 });
+    }
+    this.meteorPool = pool;
+  },
+  updateGalaxy: function (dt, st) {
+    const g = this.galaxy;
+    if (!g) return;
+    const stars = st ? st.stars : 0;
+    const op = Math.max(0, Math.min(1, stars)) * 0.7;
+    g.visible = op > 0.02;
+    g.material.opacity = op;
+    g.rotation.y += dt * 0.004;
+    /* 流星 */
+    if (!g.visible) {
+      for (let i = 0; i < this.meteorPool.length; i++) { this.meteorPool[i].line.visible = false; this.meteorPool[i].life = 0; }
+      return;
+    }
+    this.meteorTimer -= dt;
+    if (this.meteorTimer <= 0) {
+      this.meteorTimer = 9 + Math.random() * 22;
+      const m2 = this.meteorPool;
+      for (let i = 0; i < m2.length; i++) {
+        const mm = m2[i];
+        if (mm.life > 0) continue;
+        mm.life = mm.ttl = 0.55 + Math.random() * 0.35;
+        const ang = Math.random() * Math.PI * 2;
+        const elev = 0.35 + Math.random() * 0.6;
+        mm.sx = Math.cos(ang) * 2400;
+        mm.sy = elev * 1900;
+        mm.sz = Math.sin(ang) * 2400;
+        const da = ang + Math.PI * (0.25 + Math.random() * 0.5);
+        mm.dx = Math.cos(da) * 1500;
+        mm.dy = -700 - Math.random() * 500;
+        mm.dz = Math.sin(da) * 1500;
+        mm.line.visible = true;
+        mm.line.material.opacity = 0.95;
+        this.meteorSpawns = (this.meteorSpawns || 0) + 1;
+        break;
+      }
+    }
+    for (let i = 0; i < this.meteorPool.length; i++) {
+      const mm = this.meteorPool[i];
+      if (mm.life <= 0) continue;
+      mm.life -= dt;
+      const k = 1 - mm.life / mm.ttl;
+      const hx = mm.sx + mm.dx * k;
+      const hy = mm.sy + mm.dy * k;
+      const hz = mm.sz + mm.dz * k;
+      const tailK = Math.max(0, k - 0.25);
+      const tx = mm.sx + mm.dx * tailK;
+      const ty = mm.sy + mm.dy * tailK;
+      const tz = mm.sz + mm.dz * tailK;
+      const arr = mm.line.geometry.attributes.position.array;
+      arr[0] = hx; arr[1] = hy; arr[2] = hz;
+      arr[3] = tx; arr[4] = ty; arr[5] = tz;
+      mm.line.geometry.attributes.position.needsUpdate = true;
+      mm.line.material.opacity = Math.max(0, 1 - k) * 0.9;
+      if (mm.life <= 0) { mm.line.visible = false; mm.line.material.opacity = 0; }
+    }
   },
 
   /* ---------------- 地面雨滴涟漪 ---------------- */
@@ -1001,6 +1111,8 @@ const EFFECTS = {
       if (this.lanternBodies) this.lanternBodies.visible = false;
       if (this.butterflies) this.butterflies.visible = false;
       if (this.rain) this.rain.visible = false;
+      if (this.galaxy) this.galaxy.visible = false;
+      if (this.meteorPool) { for (let mi2 = 0; mi2 < this.meteorPool.length; mi2++) this.meteorPool[mi2].line.visible = false; }
       if (this.splashPool) { for (let si = 0; si < this.splashPool.length; si++) this.splashPool[si].sp.visible = false; }
       if (this.lanternCaps) this.lanternCaps.visible = false;
       if (this.lanternPosts) this.lanternPosts.visible = false;
@@ -1018,6 +1130,7 @@ const EFFECTS = {
     this.updateRain(dt, camRef);
     this.updateSplashes(dt, camRef);
     this.updateRipples(dt);
+    this.updateGalaxy(dt, st);
     if (this.rainAmt > 0.18 && camRef) {
       if (!this._rippleSpawnT) this._rippleSpawnT = 0;
       this._rippleSpawnT += dt * (6 + this.rainAmt * 14);
