@@ -273,7 +273,7 @@ const NPC = {
       maid.group.add(umb2);
       let len2 = 0;
       for (let i = 1; i < r.pts.length; i++) len2 += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
-      this.maids.push({ obj: maid, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0, greetT: 0, greetCd: 0, greetWith: null, admireT: 0, admireCd: 18 + Math.random() * 25, petalT: 0 });
+      this.maids.push({ obj: maid, watchT: 0, watchCd: 0, pts: r.pts, len: len2, speed: r.speed, t: r.phase * len2, legPhase: Math.random() * 6.28, alert: 0, greetT: 0, greetCd: 0, greetWith: null, admireT: 0, admireCd: 18 + Math.random() * 25, petalT: 0 });
     }
 
     /* 御猫三只 */
@@ -515,6 +515,13 @@ const NPC = {
       D.poles[i].mesh.rotation.y = h.yaw;
     }
   },
+  spectatorInfo: function () {
+    let active = 0;
+    for (let i = 0; i < (this.patrols || []).length; i++) if (this.patrols[i].watchT > 0) active++;
+    for (let j = 0; j < (this.maids || []).length; j++) if (this.maids[j].watchT > 0) active++;
+    return { active: active, events: this.spectatorEvents || 0 };
+  },
+
   dragonInfo: function () {
     const D = this.dragon;
     if (!D) return null;
@@ -899,6 +906,38 @@ const NPC = {
         mw.obj.parts.body.position.y = 0.52 - Math.abs(Math.sin(this.time * 2.4)) * 0.02;
         continue;
       }
+      /* 舞龙观众：驻足看向金龙 */
+      if (mw.watchT > 0) {
+        mw.watchT -= dt;
+        const curW2 = this.pathPos(mw.pts, mw.t);
+        mw.obj.group.position.set(curW2.x, 0, curW2.z);
+        if (this.dragon && this.dragon.segs[1]) {
+          const dh3 = this.dragon.segs[1].mesh.position;
+          const tyw2 = Math.atan2(dh3.x - curW2.x, dh3.z - curW2.z);
+          let dyw2 = tyw2 - mw.obj.group.rotation.y;
+          dyw2 = Math.atan2(Math.sin(dyw2), Math.cos(dyw2));
+          mw.obj.group.rotation.y += dyw2 * Math.min(1, dt * 5);
+        }
+        mw.legPhase += dt * 1.2;
+        const swm = Math.sin(mw.legPhase) * 0.05;
+        mw.obj.parts.legL.rotation.x = swm;
+        mw.obj.parts.legR.rotation.x = -swm;
+        mw.obj.parts.armL.rotation.x = -0.06;
+        mw.obj.parts.armR.rotation.x = 0.06;
+        mw.obj.parts.body.position.y = 0.52 + Math.sin(this.time * 1.8 + mi) * 0.006;
+        if (mw.watchT <= 0) mw.watchCd = 7 + Math.random() * 6;
+        continue;
+      }
+      if (mw.watchCd > 0) mw.watchCd -= dt;
+      if (this.dragon && this.dragon.active && mw.watchCd <= 0) {
+        const dh4 = this.dragon.segs[1].mesh.position;
+        if (Math.hypot(dh4.x - cur0.x, dh4.z - cur0.z) < 14) {
+          mw.watchT = 2.4;
+          mw.watchCd = 10;
+          this.spectatorEvents = (this.spectatorEvents || 0) + 1;
+        }
+      }
+
       let dist = 1e9;
       if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
       if (dist < 6.0) mw.alert = Math.min(1, mw.alert + dt * 4.5);
@@ -1205,6 +1244,39 @@ const NPC = {
         p.obj.parts.body.position.y = 0.52 - Math.abs(Math.sin(this.time * 2.4)) * 0.02;
         continue;
       }
+      /* 舞龙观众：驻足看向金龙 */
+      if (p.watchT > 0) {
+        p.watchT -= dt;
+        const curW = this.pathPos(p.pts, p.t);
+        p.obj.group.position.set(curW.x, 0, curW.z);
+        if (this.dragon && this.dragon.segs[1]) {
+          const dh = this.dragon.segs[1].mesh.position;
+          const tyw = Math.atan2(dh.x - curW.x, dh.z - curW.z);
+          let dyw = tyw - p.obj.group.rotation.y;
+          dyw = Math.atan2(Math.sin(dyw), Math.cos(dyw));
+          p.obj.group.rotation.y += dyw * Math.min(1, dt * 5);
+        }
+        p.legPhase += dt * 1.2;
+        const swg = Math.sin(p.legPhase) * 0.05;
+        p.obj.parts.legL.rotation.x = swg;
+        p.obj.parts.legR.rotation.x = -swg;
+        p.obj.parts.armL.rotation.x = -0.08;
+        p.obj.parts.armR.rotation.x = 0.08;
+        p.obj.parts.body.position.y = 0.52 + Math.sin(this.time * 1.8 + i) * 0.006;
+        if (p.watchT <= 0) p.watchCd = 7 + Math.random() * 6;
+        continue;
+      }
+      if (p.watchCd > 0) p.watchCd -= dt;
+      if (p.watchCd == null) p.watchCd = 0;
+      if (this.dragon && this.dragon.active && !(p.watchCd > 0)) {
+        const dh2 = this.dragon.segs[1].mesh.position;
+        if (Math.hypot(dh2.x - cur0.x, dh2.z - cur0.z) < 14) {
+          p.watchT = 2.4;
+          p.watchCd = 10;
+          this.spectatorEvents = (this.spectatorEvents || 0) + 1;
+        }
+      }
+
       let dist = 1e9;
       if (pl) dist = Math.hypot(pl.x - cur0.x, pl.z - cur0.z);
       if (dist < 6.5) p.alert = Math.min(1, p.alert + dt * 5);

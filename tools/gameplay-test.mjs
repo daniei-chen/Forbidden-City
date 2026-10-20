@@ -253,6 +253,22 @@ const npc = await evl(`(function(){
 })()`);
 check('NPC 生态（伞/仪式/生活/寒暄）', npc && npc.umbrellas.total > 0 && npc.ceremony.cycles >= 1 && npc.life.eunuch && npc.life.sweeper, JSON.stringify({ umb: npc && npc.umbrellas, cyc: npc && npc.ceremony.cycles }));
 
+/* 13b. 舞龙观众：金龙经过时 NPC 驻足观看 */
+const spect = await evl(`(function(){
+  var A = window.__app, N = window.__NPC;
+  A.dragonSet(true);
+  var maxActive = 0, events = 0;
+  for (var i = 0; i < 3600; i++) {
+    N.update(1 / 60);
+    var st = N.spectatorInfo();
+    if (st.active > maxActive) maxActive = st.active;
+    events = st.events;
+  }
+  var off = A.dragonSet(false);
+  return { maxActive: maxActive, events: events, off: off };
+})()`);
+check('舞龙观众驻足', spect && spect.events >= 1 && spect.maxActive >= 1 && spect.off && spect.off.active === false, JSON.stringify({ events: spect && spect.events, maxWatching: spect && spect.maxActive }));
+
 /* 14. 设置与 HUD */
 const ui = await evl(`(function(){
   var A = window.__app;
