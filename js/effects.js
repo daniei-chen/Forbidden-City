@@ -143,6 +143,11 @@ const EFFECTS = {
       });
     }
   },
+  lodScale: 1,
+  setLod: function (s) {
+    this.lodScale = Math.max(0.25, Math.min(1, s));
+    return this.lodScale;
+  },
   setRain: function (v) { this.rainAmt = Math.max(0, Math.min(1, v)); },
   updateRain: function (dt, camera) {
     const lines = this.rain;
@@ -154,7 +159,9 @@ const EFFECTS = {
     const arr = lines.geometry.attributes.position.array;
     const cx = camera ? camera.position.x : 0;
     const cz = camera ? camera.position.z : 0;
-    for (let i = 0; i < this.rainData.length; i++) {
+    const activeN = Math.max(60, Math.floor(this.rainData.length * (this.lodScale || 1)));
+    lines.geometry.setDrawRange(0, activeN * 2);
+    for (let i = 0; i < activeN; i++) {
       const d = this.rainData[i];
       d.y -= d.v * dt;
       if (d.y < -1) {
@@ -1133,7 +1140,7 @@ const EFFECTS = {
     this.updateGalaxy(dt, st);
     if (this.rainAmt > 0.18 && camRef) {
       if (!this._rippleSpawnT) this._rippleSpawnT = 0;
-      this._rippleSpawnT += dt * (6 + this.rainAmt * 14);
+      this._rippleSpawnT += dt * (6 + this.rainAmt * 14) * (this.lodScale || 1);
       while (this._rippleSpawnT >= 1) {
         this._rippleSpawnT -= 1;
         this.spawnRipple(

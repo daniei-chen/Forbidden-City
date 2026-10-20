@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.47.0.20261020.0111">
-<meta name="build-time" content="2026-10-20T01:11:47.876Z">
+<meta name="generator" content="forbidden-city-build 6.48.0.20261020.0124">
+<meta name="build-time" content="2026-10-20T01:24:48.626Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-20T01:11:47.876Z
-  version: 6.47.0.20261020.0111
+  build: 2026-10-20T01:24:48.626Z
+  version: 6.48.0.20261020.0124
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -773,7 +773,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.47.0',
+  version: '6.48.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -8960,6 +8960,11 @@ const EFFECTS = {
       });
     }
   },
+  lodScale: 1,
+  setLod: function (s) {
+    this.lodScale = Math.max(0.25, Math.min(1, s));
+    return this.lodScale;
+  },
   setRain: function (v) { this.rainAmt = Math.max(0, Math.min(1, v)); },
   updateRain: function (dt, camera) {
     const lines = this.rain;
@@ -8971,7 +8976,9 @@ const EFFECTS = {
     const arr = lines.geometry.attributes.position.array;
     const cx = camera ? camera.position.x : 0;
     const cz = camera ? camera.position.z : 0;
-    for (let i = 0; i < this.rainData.length; i++) {
+    const activeN = Math.max(60, Math.floor(this.rainData.length * (this.lodScale || 1)));
+    lines.geometry.setDrawRange(0, activeN * 2);
+    for (let i = 0; i < activeN; i++) {
       const d = this.rainData[i];
       d.y -= d.v * dt;
       if (d.y < -1) {
@@ -9950,7 +9957,7 @@ const EFFECTS = {
     this.updateGalaxy(dt, st);
     if (this.rainAmt > 0.18 && camRef) {
       if (!this._rippleSpawnT) this._rippleSpawnT = 0;
-      this._rippleSpawnT += dt * (6 + this.rainAmt * 14);
+      this._rippleSpawnT += dt * (6 + this.rainAmt * 14) * (this.lodScale || 1);
       while (this._rippleSpawnT >= 1) {
         this._rippleSpawnT -= 1;
         this.spawnRipple(
@@ -13404,6 +13411,41 @@ const ASSETS = {
    * ======================================================= */
   const ZONE_LABELS = { plaza: '广场', garden: '御花园', interior: '殿内' };
   let perfAcc = 0, perfFps = 0, perfTimer = 0;
+  /* =========================================================
+   *  性能守护：持续低帧时自动降低粒子密度
+   * ======================================================= */
+  const perfGovernor = { t: 0, sum: 0, n: 0, lowT: 0, highT: 0, downgraded: false, lastAvgFps: 60 };
+  function updatePerfGovernor(dt) {
+    if (!WALK.active || dt <= 0) return;
+    const fps = 1 / Math.max(dt, 0.0001);
+    perfGovernor.sum += Math.min(fps, 240);
+    perfGovernor.n++;
+    perfGovernor.t += dt;
+    if (perfGovernor.t < 2) return;
+    const avg = perfGovernor.sum / Math.max(1, perfGovernor.n);
+    perfGovernor.lastAvgFps = Math.round(avg);
+    perfGovernor.t = 0; perfGovernor.sum = 0; perfGovernor.n = 0;
+    if (avg < 38) {
+      perfGovernor.lowT += 2;
+      perfGovernor.highT = 0;
+    } else if (avg > 55) {
+      perfGovernor.highT += 2;
+      perfGovernor.lowT = 0;
+    } else {
+      perfGovernor.lowT = 0;
+      perfGovernor.highT = 0;
+    }
+    if (perfGovernor.lowT >= 6 && !perfGovernor.downgraded) {
+      perfGovernor.downgraded = true;
+      if (typeof EFFECTS !== 'undefined' && EFFECTS.setLod) EFFECTS.setLod(0.45);
+      showToast('帧率偏低 · 已自动降低粒子密度（性能守护）', 3600);
+    } else if (perfGovernor.highT >= 8 && perfGovernor.downgraded) {
+      perfGovernor.downgraded = false;
+      if (typeof EFFECTS !== 'undefined' && EFFECTS.setLod) EFFECTS.setLod(1);
+      showToast('帧率恢复 · 粒子密度已还原', 3000);
+    }
+  }
+
   function updatePerfHud(dt) {
     const el = $('perfhud');
     if (!el) return;
@@ -14265,6 +14307,7 @@ const ASSETS = {
     window.__achvSyncT += dt;
     if (window.__achvSyncT > 3) { window.__achvSyncT = 0; syncAchievementLog(true); }
     updatePerfHud(dt);
+    updatePerfGovernor(dt);
     updateFestivalSway();
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
@@ -14549,6 +14592,9 @@ const ASSETS = {
     tutorialTick: function (dt) { updateTutorial(dt || 0.016); },
     incenseInfo: function () { return { count: achievements.incense || 0, smokeActive: (typeof EFFECTS !== 'undefined' && EFFECTS.incensePool) ? EFFECTS.incensePool.filter(function (s) { return s.life > 0; }).length : -1 }; },
     wishInfo: function () { return { wishes: achievements.wishes || 0, coinsActive: (typeof EFFECTS !== 'undefined' && EFFECTS.coinPool) ? EFFECTS.coinPool.filter(function (c) { return c.life > 0; }).length : -1 }; },
+    perfGovernorTick: function (dt) { updatePerfGovernor(dt || 0.016); },
+    perfGovernorSet: function (v) { perfGovernor.downgraded = !!v; if (typeof EFFECTS !== 'undefined' && EFFECTS.setLod) EFFECTS.setLod(v ? 0.45 : 1); },
+    perfGovernor: function () { return { avgFps: perfGovernor.lastAvgFps, downgraded: perfGovernor.downgraded, lod: (typeof EFFECTS !== 'undefined' && EFFECTS.lodScale) || 1 }; },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
     settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle, moveSens: settings.moveSens == null ? 1 : settings.moveSens, lookSens: settings.lookSens == null ? 1 : settings.lookSens }; },
     togglePerfHud: togglePerfHud,
@@ -14631,6 +14677,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.47.0.20261020.0111","time":"2026-10-20T01:11:47.876Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.48.0.20261020.0124","time":"2026-10-20T01:24:48.626Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

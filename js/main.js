@@ -2695,6 +2695,41 @@
    * ======================================================= */
   const ZONE_LABELS = { plaza: '广场', garden: '御花园', interior: '殿内' };
   let perfAcc = 0, perfFps = 0, perfTimer = 0;
+  /* =========================================================
+   *  性能守护：持续低帧时自动降低粒子密度
+   * ======================================================= */
+  const perfGovernor = { t: 0, sum: 0, n: 0, lowT: 0, highT: 0, downgraded: false, lastAvgFps: 60 };
+  function updatePerfGovernor(dt) {
+    if (!WALK.active || dt <= 0) return;
+    const fps = 1 / Math.max(dt, 0.0001);
+    perfGovernor.sum += Math.min(fps, 240);
+    perfGovernor.n++;
+    perfGovernor.t += dt;
+    if (perfGovernor.t < 2) return;
+    const avg = perfGovernor.sum / Math.max(1, perfGovernor.n);
+    perfGovernor.lastAvgFps = Math.round(avg);
+    perfGovernor.t = 0; perfGovernor.sum = 0; perfGovernor.n = 0;
+    if (avg < 38) {
+      perfGovernor.lowT += 2;
+      perfGovernor.highT = 0;
+    } else if (avg > 55) {
+      perfGovernor.highT += 2;
+      perfGovernor.lowT = 0;
+    } else {
+      perfGovernor.lowT = 0;
+      perfGovernor.highT = 0;
+    }
+    if (perfGovernor.lowT >= 6 && !perfGovernor.downgraded) {
+      perfGovernor.downgraded = true;
+      if (typeof EFFECTS !== 'undefined' && EFFECTS.setLod) EFFECTS.setLod(0.45);
+      showToast('帧率偏低 · 已自动降低粒子密度（性能守护）', 3600);
+    } else if (perfGovernor.highT >= 8 && perfGovernor.downgraded) {
+      perfGovernor.downgraded = false;
+      if (typeof EFFECTS !== 'undefined' && EFFECTS.setLod) EFFECTS.setLod(1);
+      showToast('帧率恢复 · 粒子密度已还原', 3000);
+    }
+  }
+
   function updatePerfHud(dt) {
     const el = $('perfhud');
     if (!el) return;
@@ -3556,6 +3591,7 @@
     window.__achvSyncT += dt;
     if (window.__achvSyncT > 3) { window.__achvSyncT = 0; syncAchievementLog(true); }
     updatePerfHud(dt);
+    updatePerfGovernor(dt);
     updateFestivalSway();
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
@@ -3840,6 +3876,9 @@
     tutorialTick: function (dt) { updateTutorial(dt || 0.016); },
     incenseInfo: function () { return { count: achievements.incense || 0, smokeActive: (typeof EFFECTS !== 'undefined' && EFFECTS.incensePool) ? EFFECTS.incensePool.filter(function (s) { return s.life > 0; }).length : -1 }; },
     wishInfo: function () { return { wishes: achievements.wishes || 0, coinsActive: (typeof EFFECTS !== 'undefined' && EFFECTS.coinPool) ? EFFECTS.coinPool.filter(function (c) { return c.life > 0; }).length : -1 }; },
+    perfGovernorTick: function (dt) { updatePerfGovernor(dt || 0.016); },
+    perfGovernorSet: function (v) { perfGovernor.downgraded = !!v; if (typeof EFFECTS !== 'undefined' && EFFECTS.setLod) EFFECTS.setLod(v ? 0.45 : 1); },
+    perfGovernor: function () { return { avgFps: perfGovernor.lastAvgFps, downgraded: perfGovernor.downgraded, lod: (typeof EFFECTS !== 'undefined' && EFFECTS.lodScale) || 1 }; },
     perfHud: function () { return { enabled: !!settings.perfhud, text: ($('perfhud') || {}).innerText || '' }; },
     settingsInfo: function () { return { objective: settings.objective !== false, perfhud: !!settings.perfhud, minimap: settings.minimap !== false, audio: settings.audio !== false, festival: !!settings.festival, weatherAuto: !!settings.weatherAuto, dayCycle: !!settings.autoCycle, moveSens: settings.moveSens == null ? 1 : settings.moveSens, lookSens: settings.lookSens == null ? 1 : settings.lookSens }; },
     togglePerfHud: togglePerfHud,
