@@ -1869,6 +1869,7 @@
       { name: '猫薄荷', ok: (achievements.catFeeds || 0) >= 5 },
       { name: '投壶高手', ok: (achievements.potBest || 0) >= 5 },
       { name: '灯谜雅士', ok: (achievements.riddles || []).length >= 3 },
+      { name: '灯谜状元', ok: (achievements.riddles || []).length >= 5 },
       { name: '御猫团宠', ok: (achievements.catPlays || 0) >= 3 },
       { name: '摸狮得福', ok: (achievements.petLions || 0) >= 3 },
       { name: '河灯祈愿', ok: (achievements.lanterns || 0) >= 3 },
@@ -1919,6 +1920,7 @@
       { name: '猫薄荷', cat: '趣味', ok: feeds >= 5 },
       { name: '投壶高手', cat: '趣味', ok: potBest >= 5 },
       { name: '灯谜雅士', cat: '趣味', ok: riddleN >= 3 },
+      { name: '灯谜状元', cat: '趣味', ok: riddleN >= 5 },
       { name: '御猫团宠', cat: '趣味', ok: plays >= 3 },
       { name: '摸狮得福', cat: '趣味', ok: (achievements.petLions || 0) >= 3 },
       { name: '河灯祈愿', cat: '趣味', ok: (achievements.lanterns || 0) >= 3 },
@@ -2337,7 +2339,10 @@
   const RIDDLE_SPOTS = [
     { x: 0, z: -160, r: 3.6, idx: 0 },
     { x: 0, z: -320, r: 3.8, idx: 1 },
-    { x: 0, z: 240, r: 3.6, idx: 2 }
+    { x: 0, z: 240, r: 3.6, idx: 2 },
+    /* 灯会限定：太和门广场东侧 / 御花园西侧 */
+    { x: 30, z: 296, r: 4.0, idx: 3, festivalOnly: true },
+    { x: -44, z: -300, r: 4.0, idx: 4, festivalOnly: true }
   ];
   const RIDDLES = [
     {
@@ -2354,6 +2359,16 @@
       q: '有面没有口，有脚没有手，虽有四只脚，自己不会走。（打一物）',
       opts: ['椅子', '桌子', '铜缸'],
       ans: 1
+    },
+    {
+      q: '身穿绿衣裳，肚里水汪汪，生的子儿多，个个黑脸膛。（打一水果）',
+      opts: ['西瓜', '冬瓜', '南瓜'],
+      ans: 0
+    },
+    {
+      q: '越洗越不净，越洗越脏。（打一物）',
+      opts: ['水', '泥', '布'],
+      ans: 0
     }
   ];
   const riddle = { active: false, spot: -1, riddleIdx: -1 };
@@ -2365,6 +2380,7 @@
     if (!WALK.active) return null;
     for (let i = 0; i < RIDDLE_SPOTS.length; i++) {
       const s = RIDDLE_SPOTS[i];
+      if (s.festivalOnly && !settings.festival) continue;
       if (Math.hypot(WALK.pos.x - s.x, WALK.pos.z - s.z) < s.r) return s;
     }
     return null;
@@ -2376,7 +2392,7 @@
     const r = RIDDLES[riddle.riddleIdx];
     if (!r) { el.classList.remove('show'); return; }
     const q = $('rdQ'), opts = $('rdOpts'), head = $('rdHead');
-    if (head) head.textContent = '宫灯 · 灯谜（' + (solvedRiddles().length) + '/3 已解）';
+    if (head) head.textContent = '宫灯 · 灯谜（' + (solvedRiddles().length) + '/' + RIDDLES.length + ' 已解）';
     if (q) q.textContent = r.q;
     if (opts) {
       let html = '';
@@ -2398,7 +2414,7 @@
     if (!s) return false;
     const solved = solvedRiddles();
     if (solved.indexOf(s.idx) >= 0) {
-      showToast('这盏宫灯的谜题已经解开了（' + solved.length + '/3）', 2600);
+      showToast('这盏宫灯的谜题已经解开了（' + solved.length + '/' + RIDDLES.length + '）', 2600);
       return false;
     }
     riddle.active = true;
@@ -2423,10 +2439,13 @@
       ok = true;
       if (solved.indexOf(riddle.riddleIdx) < 0) solved.push(riddle.riddleIdx);
       achievementsSave();
-      showToast('答对了！' + (i === r.ans ? '' : '') + '（已解 ' + solved.length + '/3）', 3000);
+      showToast('答对了！（已解 ' + solved.length + '/' + RIDDLES.length + '）', 3000);
       if (typeof AUDIO !== 'undefined' && AUDIO.discover) AUDIO.discover();
       if (solved.length >= 3) {
         setTimeout(function () { showToast('称号达成 · 灯谜雅士（三盏宫灯谜题全解）', 5200); }, 3200);
+      }
+      if (solved.length >= 5) {
+        setTimeout(function () { showToast('称号达成 · 灯谜状元（灯会五谜全解）', 5200); }, 3400);
       }
       closeRiddle();
     } else {
@@ -4074,7 +4093,7 @@
     travelTick: function (dt) { updateTravel(dt || 0.016); },
     ambientTick: function (dt) { updateAmbientAudio(dt || 0.016); },
     minigameInfo: function () { return { active: minigame.active, power: Math.round(minigame.power * 100) / 100, throws: minigame.throws, score: minigame.score, finished: minigame.finished, best: achievements.potBest || 0 }; },
-    riddleInfo: function () { return { active: riddle.active, idx: riddle.riddleIdx, solved: (achievements.riddles || []).slice(), near: !!nearRiddle() }; },
+    riddleInfo: function () { const nr = nearRiddle(); return { active: riddle.active, idx: riddle.riddleIdx, solved: (achievements.riddles || []).slice(), near: !!nr, nearIdx: nr ? nr.idx : -1, total: RIDDLES.length }; },
     openRiddle: function () { return openRiddle(); },
     answerRiddle: function (i) { return answerRiddle(i); },
     startMinigame: function () { return startMinigame(); },
