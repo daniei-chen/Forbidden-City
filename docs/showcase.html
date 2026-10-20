@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>紫禁城 · 数字复原 — v7 展示画廊</title>
+<style>
+  :root { --gold: #d8b45f; --ink: #0b0d12; --paper: #f7f2e6; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: radial-gradient(1200px 600px at 50% -10%, #1a1f2b 0%, var(--ink) 60%);
+    color: var(--paper); font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", serif;
+  }
+  header { text-align: center; padding: 64px 24px 36px; }
+  header .kicker { letter-spacing: 10px; font-size: 12px; color: rgba(216,180,95,.8); margin-bottom: 14px; }
+  header h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 52px); font-weight: 500; letter-spacing: 6px; }
+  header h1 span { color: var(--gold); }
+  header p { margin: 0 auto; max-width: 680px; font-size: 14px; line-height: 1.9; color: rgba(247,242,230,.6); }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px 24px 80px; }
+  .shot { margin: 0 0 26px; border: 1px solid rgba(216,180,95,.22); background: rgba(255,255,255,.02); overflow: hidden; }
+  .shot img { display: block; width: 100%; height: auto; }
+  .shot figcaption { padding: 16px 20px 20px; }
+  .shot h3 { margin: 0 0 8px; font-size: 17px; letter-spacing: 3px; color: var(--gold); font-weight: 500; }
+  .shot p { margin: 0; font-size: 13px; line-height: 1.8; color: rgba(247,242,230,.62); }
+  .shot.hero h3 { font-size: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 26px; }
+  footer { text-align: center; padding: 0 24px 64px; font-size: 12px; letter-spacing: 2px; color: rgba(247,242,230,.35); }
+  footer a { color: var(--gold); text-decoration: none; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } header { padding-top: 40px; } }
+</style>
+</head>
+<body>
+  <header>
+    <div class="kicker">FORBIDDEN CITY · DIGITAL RESTORATION</div>
+    <h1>紫禁城 · <span>数字复原</span></h1>
+    <p>v7 展示画廊 · 程序化重建的宫城，可自由漫游、探索、拍照与过节。<br>
+    以下机位由 tools/showcase.mjs 自动拍摄，覆盖晴日、黄昏灯会、灯会之夜、内廷夜色、雨中檐水与雪景。</p>
+  </header>
+  <main>
+    <div class="grid">
+      <figure class="shot hero">
+        <img src="showcase-img/day-hall.jpg" alt="晴日宫城" loading="lazy">
+        <figcaption><h3>晴日宫城</h3><p>午后的三台之上，重檐庑殿顶在日光里泛着金光。</p></figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="showcase-img/dusk-lantern.jpg" alt="黄昏灯会" loading="lazy">
+        <figcaption><h3>黄昏灯会</h3><p>黄昏点灯，71 组宫灯沿廊悬挂，幡旗随风轻摆。</p></figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="showcase-img/night-festival.jpg" alt="灯会之夜" loading="lazy">
+        <figcaption><h3>灯会之夜</h3><p>烟花、舞龙、锣鼓队与观灯的人群，把宫城变成不夜的节日。</p></figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="showcase-img/night-inner.jpg" alt="内廷夜色" loading="lazy">
+        <figcaption><h3>内廷夜色</h3><p>穿过廊柱望向乾清宫，银河与流星在殿顶之上。</p></figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="showcase-img/rain-eave.jpg" alt="雨 · 檐水成串" loading="lazy">
+        <figcaption><h3>雨 · 檐水成串</h3><p>大雨落在琉璃瓦上，檐口垂下成串水线，地面泛起涟漪。</p></figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="showcase-img/snow-palace.jpg" alt="雪落宫城" loading="lazy">
+        <figcaption><h3>雪落宫城</h3><p>雪覆黄瓦与丹陛，脚印在广场上留下漫游的痕迹。</p></figcaption>
+      </figure>
+    </div>
+  </main>
+  <footer>
+    <a href="../">返回项目首页 / README</a> · <a href="gallery.html">评测画廊（harness）</a>
+  </footer>
+</body>
+</html>

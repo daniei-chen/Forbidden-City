@@ -1,0 +1,47 @@
+{
+  "generatedAt": "2026-10-20T09:16:13.061Z",
+  "shots": [
+    {
+      "id": "day-hall",
+      "title": "晴日宫城",
+      "desc": "午后的三台之上，重檐庑殿顶在日光里泛着金光。",
+      "file": "showcase-img/day-hall.jpg",
+      "bytes": 191202
+    },
+    {
+      "id": "dusk-lantern",
+      "title": "黄昏灯会",
+      "desc": "黄昏点灯，71 组宫灯沿廊悬挂，幡旗随风轻摆。",
+      "file": "showcase-img/dusk-lantern.jpg",
+      "bytes": 174213
+    },
+    {
+      "id": "night-festival",
+      "title": "灯会之夜",
+      "desc": "烟花、舞龙、锣鼓队与观灯的人群，把宫城变成不夜的节日。",
+      "file": "showcase-img/night-festival.jpg",
+      "bytes": 136717
+    },
+    {
+      "id": "night-inner",
+      "title": "内廷夜色",
+      "desc": "穿过廊柱望向乾清宫，银河与流星在殿顶之上。",
+      "file": "showcase-img/night-inner.jpg",
+      "bytes": 97380
+    },
+    {
+      "id": "rain-eave",
+      "title": "雨 · 檐水成串",
+      "desc": "大雨落在琉璃瓦上，檐口垂下成串水线，地面泛起涟漪。",
+      "file": "showcase-img/rain-eave.jpg",
+      "bytes": 157905
+    },
+    {
+      "id": "snow-palace",
+      "title": "雪落宫城",
+      "desc": "雪覆黄瓦与丹陛，脚印在广场上留下漫游的痕迹。",
+      "file": "showcase-img/snow-palace.jpg",
+      "bytes": 180664
+    }
+  ]
+}
