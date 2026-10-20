@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta name="generator" content="forbidden-city-build 6.44.0.20261019.2350">
-<meta name="build-time" content="2026-10-19T23:50:01.165Z">
+<meta name="generator" content="forbidden-city-build 6.45.0.20261020.0021">
+<meta name="build-time" content="2026-10-20T00:21:21.926Z">
 <!--
   紫禁城 · 数字复原 — 单文件构建
-  build: 2026-10-19T23:50:01.165Z
-  version: 6.44.0.20261019.2350
+  build: 2026-10-20T00:21:21.926Z
+  version: 6.45.0.20261020.0021
   three.js r149 (MIT License, https://threejs.org)
   所有几何与贴图均由代码程序化生成，无外部资源。
 -->
@@ -773,7 +773,7 @@
  *  质量档位 / 时段主题 / 版本信息
  * ============================================================= */
 const CONFIG = {
-  version: '6.44.0',
+  version: '6.45.0',
   storageKey: 'forbidden-city-settings-v2',
 
   /* ---------------- 画质档位 ---------------- */
@@ -5158,6 +5158,26 @@ const AUDIO = {
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
     o.connect(g); g.connect(this.master);
     o.start(t0); o.stop(t0 + 0.14);
+  },
+
+  /* 雨落伞面：细碎密雨点 */
+  umbrellaPatter: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    const n = 4 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'triangle';
+      o.frequency.value = 2200 + Math.random() * 1400;
+      const s = t0 + i * (0.05 + Math.random() * 0.09);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.012, s + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.06);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 0.07);
+    }
   },
 
   setRain: function (v) {
@@ -12814,7 +12834,8 @@ const ASSETS = {
     pigeon: { t: 18 + Math.random() * 30, n: 0 },
     meow: { t: 15 + Math.random() * 20, n: 0 },
     drip: { t: 1, n: 0 },
-    windchime: { t: 12 + Math.random() * 18, n: 0 }
+    windchime: { t: 12 + Math.random() * 18, n: 0 },
+    patter: { t: 4 + Math.random() * 5, n: 0 }
   };
   function updateAmbientAudio(dt) {
     if (typeof AUDIO === 'undefined' || !AUDIO.ready) return;
@@ -12853,6 +12874,21 @@ const ASSETS = {
         AMBIENT.meow.n++;
         if (AUDIO.meow) AUDIO.meow();
       }
+    }
+
+    AMBIENT.patter.t -= dt;
+    if (AMBIENT.patter.t <= 0) {
+      AMBIENT.patter.t = 4 + Math.random() * 5;
+      let nearUmb = false;
+      if (rain > 0.45 && typeof NPC !== 'undefined') {
+        const groups = [];
+        if (NPC.patrols) for (let i = 0; i < NPC.patrols.length; i++) groups.push(NPC.patrols[i].obj.group);
+        if (NPC.maids) for (let i = 0; i < NPC.maids.length; i++) groups.push(NPC.maids[i].obj.group);
+        for (let i = 0; i < groups.length; i++) {
+          if (Math.hypot(groups[i].position.x - WALK.pos.x, groups[i].position.z - WALK.pos.z) < 13) { nearUmb = true; break; }
+        }
+      }
+      if (nearUmb) { AMBIENT.patter.n++; if (AUDIO.umbrellaPatter) AUDIO.umbrellaPatter(); }
     }
 
     AMBIENT.windchime.t -= dt;
@@ -13015,6 +13051,7 @@ const ASSETS = {
    *  节庆灯会：主轴上挂红灯笼与幡旗（可开关）
    * ======================================================= */
   let festivalGroup = null;
+  let festivalRefs = null;
   let festivalCount = 0;
   function buildFestival() {
     if (festivalGroup) return;
@@ -13077,8 +13114,41 @@ const ASSETS = {
     flags.instanceMatrix.needsUpdate = true;
     g.add(flags);
     g.visible = !!settings.festival;
+    festivalRefs = { bodies: bodies, caps: caps, flags: flags, spots: spots, m4: m4, q: new THREE.Quaternion(), e: new THREE.Euler(), s: new THREE.Vector3(1, 1, 1), v: new THREE.Vector3() };
     scene.add(g);
     festivalGroup = g;
+  }
+  function updateFestivalSway() {
+    const r = festivalRefs;
+    if (!r || !festivalGroup || !festivalGroup.visible) return;
+    const tt = performance.now() * 0.001;
+    for (let i = 0; i < r.spots.length; i++) {
+      const x = r.spots[i][0], z = r.spots[i][1];
+      const ph = i * 1.7;
+      const sway = Math.sin(tt * 1.1 + ph) * 0.045;
+      const sway2 = Math.cos(tt * 0.9 + ph * 0.7) * 0.04;
+      r.e.set(sway2, 0, sway);
+      r.q.setFromEuler(r.e);
+      r.v.set(x, 2.85, z);
+      r.m4.compose(r.v, r.q, r.s);
+      r.bodies.setMatrixAt(i, r.m4);
+      r.v.set(x + sway * 0.6, 3.14, z + sway2 * 0.6);
+      r.m4.compose(r.v, r.q, r.s);
+      r.caps.setMatrixAt(i, r.m4);
+    }
+    r.bodies.instanceMatrix.needsUpdate = true;
+    r.caps.instanceMatrix.needsUpdate = true;
+    /* 幡旗飘动 */
+    const fq = new THREE.Quaternion();
+    const fe = new THREE.Euler(0, 0, 0);
+    for (let f = 0; f < 12; f++) {
+      fe.set(Math.sin(tt * 2.2 + f) * 0.10, Math.sin(tt * 1.4 + f) * 0.25, 0.12 + Math.sin(tt * 2.6 + f) * 0.06);
+      fq.setFromEuler(fe);
+      r.v.set((f % 2 === 0 ? -7.6 : 7.6), 2.2, 310 + Math.floor(f / 2) * 24);
+      r.m4.compose(r.v, fq, r.s);
+      r.flags.setMatrixAt(f, r.m4);
+    }
+    r.flags.instanceMatrix.needsUpdate = true;
   }
   function setFestival(on, silent) {
     settings.festival = !!on;
@@ -14004,6 +14074,7 @@ const ASSETS = {
     window.__achvSyncT += dt;
     if (window.__achvSyncT > 3) { window.__achvSyncT = 0; syncAchievementLog(true); }
     updatePerfHud(dt);
+    updateFestivalSway();
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -14274,7 +14345,7 @@ const ASSETS = {
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
-    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
+    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, patter: AMBIENT.patter.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
     syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
@@ -14293,6 +14364,14 @@ const ASSETS = {
     catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },
     preset: function (id) { return applyScenePreset(id); },
     presetInfo: function () { return Array.prototype.slice.call(document.querySelectorAll('#presets button')).map(function (b) { return { id: b.getAttribute('data-preset'), on: b.classList.contains('on') }; }); },
+    festivalSwayTick: function () { updateFestivalSway(); },
+    festivalSwayInfo: function () {
+      if (!festivalRefs) return null;
+      const m = new THREE.Matrix4();
+      festivalRefs.bodies.getMatrixAt(0, m);
+      const e2 = m.elements;
+      return { tilts: [Math.round(e2[1] * 1000) / 1000, Math.round(e2[2] * 1000) / 1000], visible: !!(festivalGroup && festivalGroup.visible) };
+    },
     setFestival: function (on) { setFestival(on); return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     festivalInfo: function () { return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     objectiveInfo: function () { const tg = getObjectiveTarget(); const mk = $('objMarker'), ar = $('objArrow'); return { target: tg, markerShown: !!(mk && mk.classList.contains('show')), arrowShown: !!(ar && ar.classList.contains('show')), label: ($('objLabel') || {}).textContent, arrowTransform: ar ? ar.style.transform : null, enabled: settings.objective !== false }; },
@@ -14360,6 +14439,6 @@ const ASSETS = {
 })();
 
 </script>
-<script>window.__BUILD__ = {"version":"6.44.0.20261019.2350","time":"2026-10-19T23:50:01.165Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
+<script>window.__BUILD__ = {"version":"6.45.0.20261020.0021","time":"2026-10-20T00:21:21.926Z","files":["three.min.js","js/config.js","js/textures.js","js/materials.js","js/geometry.js","js/details.js","js/avatar.js","js/npc.js","js/audio.js","js/buildings.js","js/layout.js","js/garden.js","js/interior.js","js/walk.js","js/effects.js","js/post.js","js/assets.js","js/main.js"]};</script>
 </body>
 </html>

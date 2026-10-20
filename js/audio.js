@@ -349,6 +349,26 @@ const AUDIO = {
     o.start(t0); o.stop(t0 + 0.14);
   },
 
+  /* 雨落伞面：细碎密雨点 */
+  umbrellaPatter: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.01;
+    const n = 4 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) {
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'triangle';
+      o.frequency.value = 2200 + Math.random() * 1400;
+      const s = t0 + i * (0.05 + Math.random() * 0.09);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(0.012, s + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.06);
+      o.connect(g); g.connect(this.master);
+      o.start(s); o.stop(s + 0.07);
+    }
+  },
+
   setRain: function (v) {
     this.rainAmt = v;
     if (!this.ready || !this.rainGain) return;

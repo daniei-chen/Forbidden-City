@@ -2239,7 +2239,8 @@
     pigeon: { t: 18 + Math.random() * 30, n: 0 },
     meow: { t: 15 + Math.random() * 20, n: 0 },
     drip: { t: 1, n: 0 },
-    windchime: { t: 12 + Math.random() * 18, n: 0 }
+    windchime: { t: 12 + Math.random() * 18, n: 0 },
+    patter: { t: 4 + Math.random() * 5, n: 0 }
   };
   function updateAmbientAudio(dt) {
     if (typeof AUDIO === 'undefined' || !AUDIO.ready) return;
@@ -2278,6 +2279,21 @@
         AMBIENT.meow.n++;
         if (AUDIO.meow) AUDIO.meow();
       }
+    }
+
+    AMBIENT.patter.t -= dt;
+    if (AMBIENT.patter.t <= 0) {
+      AMBIENT.patter.t = 4 + Math.random() * 5;
+      let nearUmb = false;
+      if (rain > 0.45 && typeof NPC !== 'undefined') {
+        const groups = [];
+        if (NPC.patrols) for (let i = 0; i < NPC.patrols.length; i++) groups.push(NPC.patrols[i].obj.group);
+        if (NPC.maids) for (let i = 0; i < NPC.maids.length; i++) groups.push(NPC.maids[i].obj.group);
+        for (let i = 0; i < groups.length; i++) {
+          if (Math.hypot(groups[i].position.x - WALK.pos.x, groups[i].position.z - WALK.pos.z) < 13) { nearUmb = true; break; }
+        }
+      }
+      if (nearUmb) { AMBIENT.patter.n++; if (AUDIO.umbrellaPatter) AUDIO.umbrellaPatter(); }
     }
 
     AMBIENT.windchime.t -= dt;
@@ -2440,6 +2456,7 @@
    *  节庆灯会：主轴上挂红灯笼与幡旗（可开关）
    * ======================================================= */
   let festivalGroup = null;
+  let festivalRefs = null;
   let festivalCount = 0;
   function buildFestival() {
     if (festivalGroup) return;
@@ -2502,8 +2519,41 @@
     flags.instanceMatrix.needsUpdate = true;
     g.add(flags);
     g.visible = !!settings.festival;
+    festivalRefs = { bodies: bodies, caps: caps, flags: flags, spots: spots, m4: m4, q: new THREE.Quaternion(), e: new THREE.Euler(), s: new THREE.Vector3(1, 1, 1), v: new THREE.Vector3() };
     scene.add(g);
     festivalGroup = g;
+  }
+  function updateFestivalSway() {
+    const r = festivalRefs;
+    if (!r || !festivalGroup || !festivalGroup.visible) return;
+    const tt = performance.now() * 0.001;
+    for (let i = 0; i < r.spots.length; i++) {
+      const x = r.spots[i][0], z = r.spots[i][1];
+      const ph = i * 1.7;
+      const sway = Math.sin(tt * 1.1 + ph) * 0.045;
+      const sway2 = Math.cos(tt * 0.9 + ph * 0.7) * 0.04;
+      r.e.set(sway2, 0, sway);
+      r.q.setFromEuler(r.e);
+      r.v.set(x, 2.85, z);
+      r.m4.compose(r.v, r.q, r.s);
+      r.bodies.setMatrixAt(i, r.m4);
+      r.v.set(x + sway * 0.6, 3.14, z + sway2 * 0.6);
+      r.m4.compose(r.v, r.q, r.s);
+      r.caps.setMatrixAt(i, r.m4);
+    }
+    r.bodies.instanceMatrix.needsUpdate = true;
+    r.caps.instanceMatrix.needsUpdate = true;
+    /* 幡旗飘动 */
+    const fq = new THREE.Quaternion();
+    const fe = new THREE.Euler(0, 0, 0);
+    for (let f = 0; f < 12; f++) {
+      fe.set(Math.sin(tt * 2.2 + f) * 0.10, Math.sin(tt * 1.4 + f) * 0.25, 0.12 + Math.sin(tt * 2.6 + f) * 0.06);
+      fq.setFromEuler(fe);
+      r.v.set((f % 2 === 0 ? -7.6 : 7.6), 2.2, 310 + Math.floor(f / 2) * 24);
+      r.m4.compose(r.v, fq, r.s);
+      r.flags.setMatrixAt(f, r.m4);
+    }
+    r.flags.instanceMatrix.needsUpdate = true;
   }
   function setFestival(on, silent) {
     settings.festival = !!on;
@@ -3429,6 +3479,7 @@
     window.__achvSyncT += dt;
     if (window.__achvSyncT > 3) { window.__achvSyncT = 0; syncAchievementLog(true); }
     updatePerfHud(dt);
+    updateFestivalSway();
     updateTheme(dt);
     for (let i = 0; i < clouds.length; i++) {
       const c = clouds[i];
@@ -3699,7 +3750,7 @@
         startWalk: function () { toggleWalk(true); },
     setDayCycle: setDayCycle,
     setWeather: function (m) { setWeather(m); return weather; },
-    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
+    ambientInfo: function () { return { bell: AMBIENT.bell.n, pigeon: AMBIENT.pigeon.n, meow: AMBIENT.meow.n, drip: AMBIENT.drip.n, windchime: AMBIENT.windchime.n, patter: AMBIENT.patter.n, audioReady: !!(AUDIO && AUDIO.ready) }; },
     travelInfo: function () { return { dist: Math.round(travel.dist), time: Math.round(travel.time), jumps: travel.jumps, miles: Object.keys(travel.miles) }; },
     playCats: function () { return playWithCats(); },
     syncAchievementLog: function (n) { return syncAchievementLog(!!n); },
@@ -3718,6 +3769,14 @@
     catNestInfo: function () { return { near: nearCatNest(), plays: achievements.catPlays || 0, built: !!catNestGroup }; },
     preset: function (id) { return applyScenePreset(id); },
     presetInfo: function () { return Array.prototype.slice.call(document.querySelectorAll('#presets button')).map(function (b) { return { id: b.getAttribute('data-preset'), on: b.classList.contains('on') }; }); },
+    festivalSwayTick: function () { updateFestivalSway(); },
+    festivalSwayInfo: function () {
+      if (!festivalRefs) return null;
+      const m = new THREE.Matrix4();
+      festivalRefs.bodies.getMatrixAt(0, m);
+      const e2 = m.elements;
+      return { tilts: [Math.round(e2[1] * 1000) / 1000, Math.round(e2[2] * 1000) / 1000], visible: !!(festivalGroup && festivalGroup.visible) };
+    },
     setFestival: function (on) { setFestival(on); return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     festivalInfo: function () { return { enabled: !!settings.festival, count: festivalCount, visible: !!(festivalGroup && festivalGroup.visible) }; },
     objectiveInfo: function () { const tg = getObjectiveTarget(); const mk = $('objMarker'), ar = $('objArrow'); return { target: tg, markerShown: !!(mk && mk.classList.contains('show')), arrowShown: !!(ar && ar.classList.contains('show')), label: ($('objLabel') || {}).textContent, arrowTransform: ar ? ar.style.transform : null, enabled: settings.objective !== false }; },
