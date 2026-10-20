@@ -112,6 +112,7 @@ const EFFECTS = {
     this.initGalaxy(scene);
     this.initEaveStreams(scene);
     this.initRiverLanterns(scene);
+    this.initFireworks(scene);
     this.initDripDrops(scene);
     this.initCoins(scene);
     this.initIncense(scene);
@@ -178,6 +179,114 @@ const EFFECTS = {
       arr[o + 3] = px + 0.03; arr[o + 4] = d.y - d.len * 6; arr[o + 5] = pz;
     }
     lines.geometry.attributes.position.needsUpdate = true;
+  },
+
+  /* ---------------- 灯会烟花 ---------------- */
+  fireworks: null,
+  fireworkData: null,
+  fireworkSpawns: 0,
+  fireworksEnabled: false,
+  fireworkTimer: 6,
+  initFireworks: function (scene) {
+    const MAXP = 480;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(MAXP * 3);
+    const col = new Float32Array(MAXP * 3);
+    for (let i = 0; i < MAXP; i++) { pos[i * 3 + 1] = -999; }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const mat = new THREE.PointsMaterial({
+      size: 1.6, vertexColors: true, transparent: true, opacity: 1,
+      depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true
+    });
+    const pts = new THREE.Points(geo, mat);
+    pts.frustumCulled = false;
+    pts.visible = false;
+    scene.add(pts);
+    this.fireworks = pts;
+    const data = [];
+    for (let i = 0; i < MAXP; i++) {
+      data.push({ life: 0, ttl: 1, vx: 0, vy: 0, vz: 0, r: 0, g: 0, b: 0 });
+    }
+    this.fireworkData = data;
+  },
+  launchFirework: function (x, y, z) {
+    if (!this.fireworks) { if (!this.scene) return false; this.initFireworks(this.scene); }
+    const data = this.fireworkData;
+    if (!data) return false;
+    const hueSet = [
+      [1.0, 0.55, 0.25], [1.0, 0.85, 0.35], [0.55, 0.8, 1.0],
+      [1.0, 0.45, 0.65], [0.6, 1.0, 0.6]
+    ];
+    const base = hueSet[Math.floor(Math.random() * hueSet.length)];
+    let made = 0;
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i];
+      if (d.life > 0) continue;
+      const th = Math.random() * Math.PI * 2;
+      const ph = Math.acos(2 * Math.random() - 1);
+      const sp = 7 + Math.random() * 9;
+      d.life = d.ttl = 1.1 + Math.random() * 1.0;
+      d.vx = Math.sin(ph) * Math.cos(th) * sp;
+      d.vy = Math.cos(ph) * sp;
+      d.vz = Math.sin(ph) * Math.sin(th) * sp;
+      /* 位置在 burst 中心附近 */
+      d.px = x + (Math.random() - 0.5) * 0.6;
+      d.py = y + (Math.random() - 0.5) * 0.6;
+      d.pz = z + (Math.random() - 0.5) * 0.6;
+      const tw = 0.85 + Math.random() * 0.15;
+      d.r = base[0] * tw; d.g = base[1] * tw; d.b = base[2] * tw;
+      made++;
+      if (made >= 46) break;
+    }
+    this.fireworkSpawns = (this.fireworkSpawns || 0) + 1;
+    return made > 0;
+  },
+  updateFireworks: function (dt, st) {
+    const pts = this.fireworks;
+    const data = this.fireworkData;
+    if (!pts || !data) return;
+    const night = st ? (st.stars || 0) : 0;
+    const on = this.fireworksEnabled && night > 0.5;
+    if (!on) {
+      let any2 = false;
+      for (let i = 0; i < data.length; i++) if (data[i].life > 0) { any2 = true; break; }
+      if (!any2) { pts.visible = false; return; }
+    } else {
+      this.fireworkTimer -= dt;
+      if (this.fireworkTimer <= 0) {
+        this.fireworkTimer = 14 + Math.random() * 20;
+        const spots = [
+          [0, 26, 440], [0, 30, 300], [-20, 34, -100], [24, 32, -200], [0, 36, -330]
+        ];
+        const sp2 = spots[Math.floor(Math.random() * spots.length)];
+        this.launchFirework(sp2[0] + (Math.random() - 0.5) * 20, sp2[1], sp2[2] + (Math.random() - 0.5) * 20);
+      }
+    }
+    const posArr = pts.geometry.attributes.position.array;
+    const colArr = pts.geometry.attributes.color.array;
+    let idx = 0;
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i];
+      const o = i * 3;
+      if (d.life <= 0) {
+        posArr[o + 1] = -999;
+        colArr[o] = colArr[o + 1] = colArr[o + 2] = 0;
+        continue;
+      }
+      d.life -= dt;
+      d.vy -= 3.2 * dt;
+      d.px += d.vx * dt;
+      d.py += d.vy * dt;
+      d.pz += d.vz * dt;
+      const k = Math.max(0, d.life / d.ttl);
+      posArr[o] = d.px; posArr[o + 1] = d.py; posArr[o + 2] = d.pz;
+      colArr[o] = d.r * k; colArr[o + 1] = d.g * k; colArr[o + 2] = d.b * k;
+      if (d.life > 0) idx++;
+    }
+    pts.visible = idx > 0 || on;
+    pts.geometry.attributes.position.needsUpdate = true;
+    pts.geometry.attributes.color.needsUpdate = true;
   },
 
   /* ---------------- 内金水河 · 莲花河灯 ---------------- */
@@ -1253,6 +1362,7 @@ const EFFECTS = {
       if (this.rain) this.rain.visible = false;
       if (this.galaxy) this.galaxy.visible = false;
       if (this.eaveStreams) this.eaveStreams.visible = false;
+      if (this.fireworks) this.fireworks.visible = false;
       if (this.riverLanternPool) { for (let li2 = 0; li2 < this.riverLanternPool.length; li2++) this.riverLanternPool[li2].sp.visible = false; }
       if (this.meteorPool) { for (let mi2 = 0; mi2 < this.meteorPool.length; mi2++) this.meteorPool[mi2].line.visible = false; }
       if (this.splashPool) { for (let si = 0; si < this.splashPool.length; si++) this.splashPool[si].sp.visible = false; }
@@ -1275,6 +1385,7 @@ const EFFECTS = {
     this.updateGalaxy(dt, st);
     this.updateEaveStreams(dt);
     this.updateRiverLanterns(dt, camRef);
+    this.updateFireworks(dt, st);
     if (this.rainAmt > 0.18 && camRef) {
       if (!this._rippleSpawnT) this._rippleSpawnT = 0;
       this._rippleSpawnT += dt * (6 + this.rainAmt * 14) * (this.lodScale || 1);

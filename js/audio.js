@@ -240,6 +240,41 @@ const AUDIO = {
     }
   },
 
+  /* 烟花：低频爆响 + 噼啪碎响 */
+  fireworkBoom: function () {
+    if (!this.ready || this.muted) return;
+    const c = this.ctx;
+    const t0 = c.currentTime + 0.02;
+    /* 爆响 */
+    const buf = c.createBuffer(1, Math.floor(c.sampleRate * 0.6), c.sampleRate);
+    const dd = buf.getChannelData(0);
+    for (let i = 0; i < dd.length; i++) dd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / dd.length, 3);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 420;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.05, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
+    src.connect(lp); lp.connect(g); g.connect(this.master);
+    src.start(t0);
+    /* 噼啪 */
+    const n2 = 10 + Math.floor(Math.random() * 8);
+    for (let i = 0; i < n2; i++) {
+      const o = c.createOscillator();
+      const g2 = c.createGain();
+      o.type = 'square';
+      o.frequency.value = 1400 + Math.random() * 2200;
+      const s = t0 + 0.18 + Math.random() * 0.7;
+      g2.gain.setValueAtTime(0.0001, s);
+      g2.gain.linearRampToValueAtTime(0.006, s + 0.003);
+      g2.gain.exponentialRampToValueAtTime(0.0001, s + 0.035);
+      o.connect(g2); g2.connect(this.master);
+      o.start(s); o.stop(s + 0.04);
+    }
+  },
+
   /* 夜虫：短促高频颤音串 */
   cricket: function () {
     if (!this.ready || this.muted) return;
