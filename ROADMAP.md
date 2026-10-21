@@ -185,3 +185,4 @@ pm run smoke` → ④ 多机位截图 → ⑤ 更新文档/版本 → ⑥ 记录
 | R125 | 灯会夜间地面湿光（sheen 0.3）| 联动 18 + 灯会 6 + NPC 5 + 冒烟 + harness |
 | R126 | NPC 猜谜围观（托腮/冷却）| NPC 6 项 + 冒烟 + harness |
 | R127 | 测试入口统一（test:all / TEST_ALL.md）| 6 套件全跑 + harness |
+| R128 | 全端视觉布局巡检（桌面/手机对照）| visual 9 项 + test:all + harness |

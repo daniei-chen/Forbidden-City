@@ -1,6 +1,6 @@
 # 灯会专项检查报告
 
-> 由 `tools/festival-check.mjs` 生成 · 2026-10-20T18:25:01.521Z
+> 由 `tools/festival-check.mjs` 生成 · 2026-10-21T01:17:45.947Z
 > 独立页面、fresh state；quality=low，dusk 主题
 
 结果：**6 / 6 通过**

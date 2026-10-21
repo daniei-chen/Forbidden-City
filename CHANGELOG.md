@@ -1,5 +1,19 @@
 # 更新日志
 
+## v7.27.0 — 全端视觉布局巡检
+
+**新增**
+- `tools/visual-check.mjs`（`npm run test:visual`）：同一场景双端对照
+  - 桌面 1440×900：顶栏/小地图/探索面板存在、触控 UI 隐藏、面板不重叠
+  - 手机 390×844@2x：安全区、触控目标 ≥44px（实测 58×58）、文字无溢出、字号 ≥9px、引导卡不压触控区
+  - 截图：`docs/consistency/desktop.jpg` / `mobile.jpg`；报告 `VISUAL_CHECK.md`
+- test:all 纳入第 7 个套件（全端视觉）
+
+**修复**
+- 触屏判定改为 `(pointer: coarse)`（原 `ontouchstart/maxTouchPoints` 在桌面 headless 下误判，导致桌面出现触控按钮）
+
+**验证**
+- 全端视觉 **9/9**；test:all 7 套件全部通过；冒烟 27/27；harness PASS
 ## v7.26.0 — 测试入口统一
 
 **新增**

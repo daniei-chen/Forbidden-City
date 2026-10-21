@@ -13,6 +13,7 @@ const suites = [
   { id: 'festival', name: '灯会专项', script: 'tools/festival-check.mjs', report: 'FESTIVAL_CHECK.md' },
   { id: 'hud', name: '桌面 HUD', script: 'tools/hud-check.mjs', report: 'HUD_CHECK.md' },
   { id: 'mobile', name: '移动端', script: 'tools/mobile-check.mjs', report: 'MOBILE_CHECK.md' },
+  { id: 'visual', name: '全端视觉', script: 'tools/visual-check.mjs', report: 'VISUAL_CHECK.md' },
   { id: 'smoke', name: '冒烟检查', script: 'tools/smoke.mjs', report: null }
 ];
 if (process.argv.includes('--with-harness')) {

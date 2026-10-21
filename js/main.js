@@ -1590,8 +1590,8 @@
   /* =========================================================
    *  触屏控制（移动端）
    * ======================================================= */
-  const touchEnabled = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) ||
-    new URLSearchParams(location.search).get('touch') === '1';
+  const coarsePointer = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  const touchEnabled = coarsePointer || new URLSearchParams(location.search).get('touch') === '1';
   if (touchEnabled) document.body.classList.add('touch');
   function initTouch() {
     const stick = $('stick'), knob = $('knob');
